@@ -13,15 +13,54 @@
 
       request.onupgradeneeded = function () {
         const db = request.result;
+        let store;
 
         if (!db.objectStoreNames.contains("pending_sync")) {
-          const store = db.createObjectStore("pending_sync", {
+          store = db.createObjectStore("pending_sync", {
             keyPath: "localId",
             autoIncrement: true
           });
           store.createIndex("type", "type");
           store.createIndex("createdAt", "createdAt");
           store.createIndex("synced", "synced");
+        }
+
+        if (!db.objectStoreNames.contains("cows_cache")) {
+          store = db.createObjectStore("cows_cache", { keyPath: "id" });
+          store.createIndex("name", "name");
+          store.createIndex("status", "status");
+          store.createIndex("updatedAt", "updatedAt");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("milk_cache")) {
+          store = db.createObjectStore("milk_cache", { keyPath: "id" });
+          store.createIndex("cow_id", "cow_id");
+          store.createIndex("date", "date");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("reminders_cache")) {
+          store = db.createObjectStore("reminders_cache", { keyPath: "id" });
+          store.createIndex("reminder_date", "reminder_date");
+          store.createIndex("is_done", "is_done");
+          store.createIndex("type", "type");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("health_cache")) {
+          store = db.createObjectStore("health_cache", { keyPath: "id" });
+          store.createIndex("cow_id", "cow_id");
+          store.createIndex("date", "date");
+          store.createIndex("type", "type");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("ai_cache")) {
+          store = db.createObjectStore("ai_cache", { keyPath: "id" });
+          store.createIndex("cow_id", "cow_id");
+          store.createIndex("ai_date", "ai_date");
+          store.createIndex("farm_id", "farm_id");
         }
       };
 

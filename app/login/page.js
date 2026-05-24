@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -8,10 +8,10 @@ function onlyDigits(value) {
   return value.replace(/\D/g, "");
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, loginWithPin } = useAuth();
+  const { login, loginWithPin, isAuthenticated, isLoading } = useAuth();
   const [mode, setMode] = useState("pin");
   const [mobile, setMobile] = useState("");
   const [identifier, setIdentifier] = useState("");
@@ -25,6 +25,12 @@ export default function LoginPage() {
 
   const redirectTo = searchParams.get("from") || "/";
   const locked = wrongAttempts >= 5;
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace(redirectTo);
+    }
+  }, [isAuthenticated, isLoading, redirectTo, router]);
 
   function updatePin(index, value) {
     const digit = onlyDigits(value).slice(-1);
@@ -248,5 +254,21 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="-mx-4 -my-4 flex min-h-screen items-center justify-center bg-gradient-to-br from-green-700 via-sheti to-green-500 px-4 py-8">
+          <div className="rounded-lg bg-white p-5 text-[20px] font-extrabold text-slate-800 shadow-2xl">
+            लॉगिन लोड होत आहे...
+          </div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

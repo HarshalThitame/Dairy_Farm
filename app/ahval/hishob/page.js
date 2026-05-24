@@ -8,6 +8,7 @@ import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
 import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/context/AuthContext";
 import {
   formatCurrency,
   formatMarathiDate,
@@ -59,13 +60,15 @@ function CategoryBreakdown({ title, items, total, tone, buttonLabel, onAdd }) {
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[24px] font-extrabold text-slate-950">{title}</h2>
-        <button
-          type="button"
-          onClick={onAdd}
-          className={`min-h-[52px] rounded-lg px-3 text-[18px] font-extrabold text-white ${tone === "green" ? "bg-sheti active:bg-green-700" : "bg-tatkal active:bg-red-700"}`}
-        >
-          {buttonLabel}
-        </button>
+        {onAdd ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            className={`min-h-[52px] rounded-lg px-3 text-[18px] font-extrabold text-white ${tone === "green" ? "bg-sheti active:bg-green-700" : "bg-tatkal active:bg-red-700"}`}
+          >
+            {buttonLabel}
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-4 space-y-3">
@@ -242,6 +245,7 @@ function TransactionModal({ form, setForm, selectedCow, setSelectedCow, onClose,
 }
 
 export default function FinanceReportPage() {
+  const { isAdmin, isFarmOwner, isSuperAdmin } = useAuth();
   const [monthValue, setMonthValue] = useState(getInitialMonth);
   const [report, setReport] = useState(null);
   const [activeFilter, setActiveFilter] = useState("सर्व");
@@ -251,6 +255,7 @@ export default function FinanceReportPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const canManageFinance = isAdmin || isFarmOwner || isSuperAdmin;
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -290,12 +295,20 @@ export default function FinanceReportPage() {
   }, [activeFilter, report]);
 
   function openNewTransaction(type) {
+    if (!canManageFinance) {
+      return;
+    }
+
     setForm(emptyForm(type));
     setSelectedCow(null);
     setModalOpen(true);
   }
 
   function openEditTransaction(transaction) {
+    if (!canManageFinance) {
+      return;
+    }
+
     setForm({
       id: transaction.id,
       type: transaction.type,
@@ -404,7 +417,7 @@ export default function FinanceReportPage() {
             total={report.totalIncome}
             tone="green"
             buttonLabel="नवीन उत्पन्न +"
-            onAdd={() => openNewTransaction("उत्पन्न")}
+            onAdd={canManageFinance ? () => openNewTransaction("उत्पन्न") : null}
           />
 
           <CategoryBreakdown
@@ -413,7 +426,7 @@ export default function FinanceReportPage() {
             total={report.totalExpense}
             tone="red"
             buttonLabel="नवीन खर्च +"
-            onAdd={() => openNewTransaction("खर्च")}
+            onAdd={canManageFinance ? () => openNewTransaction("खर्च") : null}
           />
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
@@ -442,7 +455,8 @@ export default function FinanceReportPage() {
                     key={transaction.id}
                     type="button"
                     onClick={() => openEditTransaction(transaction)}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left active:bg-green-50"
+                    disabled={!canManageFinance}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left active:bg-green-50 disabled:cursor-default disabled:active:bg-slate-50"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>

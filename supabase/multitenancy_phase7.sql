@@ -34,15 +34,41 @@ CREATE INDEX IF NOT EXISTS idx_farms_mobile ON farms(owner_mobile);
 CREATE INDEX IF NOT EXISTS idx_farms_email ON farms(owner_email);
 CREATE INDEX IF NOT EXISTS idx_farms_active ON farms(is_active);
 
+CREATE TABLE IF NOT EXISTS users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
+  mobile TEXT UNIQUE,
+  email TEXT UNIQUE,
+  pin_hash TEXT,
+  password_hash TEXT,
+  name TEXT NOT NULL DEFAULT 'वापरकर्ता',
+  role TEXT DEFAULT 'worker' CHECK (role IN ('admin', 'worker')),
+  is_farm_owner BOOLEAN DEFAULT false,
+  email_verified BOOLEAN DEFAULT false,
+  must_change_pin BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  last_login TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS farm_id UUID REFERENCES farms(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;
 ALTER TABLE users ALTER COLUMN pin_hash DROP NOT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE users ALTER COLUMN name SET DEFAULT 'वापरकर्ता';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'worker';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_farm_owner BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_pin BOOLEAN DEFAULT false;
 CREATE INDEX IF NOT EXISTS idx_users_farm_id ON users(farm_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile);
 
 ALTER TABLE cows ADD COLUMN IF NOT EXISTS farm_id UUID REFERENCES farms(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_cows_farm_id ON cows(farm_id);
@@ -107,6 +133,42 @@ BEGIN
         pin_hash = COALESCE(pin_hash, '$2b$10$FpgtX3FvQ90Eo7QEFddWgOtP6y3lMbZIFS/E2KIOFCayKlVg3K82u')
     WHERE id = (SELECT id FROM users WHERE farm_id = default_farm_id ORDER BY created_at LIMIT 1);
 
+  IF NOT EXISTS (SELECT 1 FROM users WHERE farm_id = default_farm_id) THEN
+    IF EXISTS (SELECT 1 FROM users WHERE mobile = existing_mobile) THEN
+      UPDATE users
+        SET farm_id = default_farm_id,
+            name = COALESCE(name, existing_owner_name),
+            role = 'admin',
+            pin_hash = COALESCE(pin_hash, '$2b$10$FpgtX3FvQ90Eo7QEFddWgOtP6y3lMbZIFS/E2KIOFCayKlVg3K82u'),
+            password_hash = COALESCE(password_hash, '$2b$10$P1vB5zXLSodBSmXBTEP66.1VyM7s/MqfDJg2P1FBJpyWHpDG4EUcu'),
+            is_farm_owner = true,
+            is_active = true
+        WHERE mobile = existing_mobile;
+    ELSE
+    INSERT INTO users (
+      farm_id,
+      mobile,
+      email,
+      name,
+      role,
+      pin_hash,
+      password_hash,
+      is_farm_owner,
+      is_active
+    ) VALUES (
+      default_farm_id,
+      existing_mobile,
+      'owner@goshala.local',
+      existing_owner_name,
+      'admin',
+      '$2b$10$FpgtX3FvQ90Eo7QEFddWgOtP6y3lMbZIFS/E2KIOFCayKlVg3K82u',
+      '$2b$10$P1vB5zXLSodBSmXBTEP66.1VyM7s/MqfDJg2P1FBJpyWHpDG4EUcu',
+      true,
+      true
+    );
+    END IF;
+  END IF;
+
   UPDATE cows SET farm_id = default_farm_id WHERE farm_id IS NULL;
   UPDATE ai_records SET farm_id = default_farm_id WHERE farm_id IS NULL;
   UPDATE calving_records SET farm_id = default_farm_id WHERE farm_id IS NULL;
@@ -142,67 +204,91 @@ ALTER TABLE health_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE finance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
 
+CREATE OR REPLACE FUNCTION public.current_user_farm_id()
+RETURNS UUID
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT farm_id FROM users WHERE id = auth.uid() AND is_active = true LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_user_is_farm_owner()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT COALESCE(is_farm_owner, false) OR role = 'admin'
+  FROM users
+  WHERE id = auth.uid() AND is_active = true
+  LIMIT 1
+$$;
+
 DROP POLICY IF EXISTS "Users can view their own farm" ON farms;
 CREATE POLICY "Users can view their own farm"
   ON farms FOR SELECT
-  USING (id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Farm owners can update their own farm" ON farms;
 CREATE POLICY "Farm owners can update their own farm"
   ON farms FOR UPDATE
-  USING (id IN (SELECT farm_id FROM users WHERE id = auth.uid() AND is_farm_owner = true));
+  USING (id = public.current_user_farm_id() AND public.current_user_is_farm_owner())
+  WITH CHECK (id = public.current_user_farm_id() AND public.current_user_is_farm_owner());
 
 DROP POLICY IF EXISTS "Users can view users in their farm" ON users;
 CREATE POLICY "Users can view users in their farm"
   ON users FOR SELECT
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Farm owners can manage users in their farm" ON users;
 CREATE POLICY "Farm owners can manage users in their farm"
   ON users FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid() AND is_farm_owner = true))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid() AND is_farm_owner = true));
+  USING (farm_id = public.current_user_farm_id() AND public.current_user_is_farm_owner())
+  WITH CHECK (farm_id = public.current_user_farm_id() AND public.current_user_is_farm_owner());
 
 DROP POLICY IF EXISTS "Users can access cows in their farm" ON cows;
 CREATE POLICY "Users can access cows in their farm"
   ON cows FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Users can access ai records in their farm" ON ai_records;
 CREATE POLICY "Users can access ai records in their farm"
   ON ai_records FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Users can access calving records in their farm" ON calving_records;
 CREATE POLICY "Users can access calving records in their farm"
   ON calving_records FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Users can access milk records in their farm" ON milk_records;
 CREATE POLICY "Users can access milk records in their farm"
   ON milk_records FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Users can access health records in their farm" ON health_records;
 CREATE POLICY "Users can access health records in their farm"
   ON health_records FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Users can access finance records in their farm" ON finance_records;
 CREATE POLICY "Users can access finance records in their farm"
   ON finance_records FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 DROP POLICY IF EXISTS "Users can access reminders in their farm" ON reminders;
 CREATE POLICY "Users can access reminders in their farm"
   ON reminders FOR ALL
-  USING (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()))
-  WITH CHECK (farm_id IN (SELECT farm_id FROM users WHERE id = auth.uid()));
+  USING (farm_id = public.current_user_farm_id())
+  WITH CHECK (farm_id = public.current_user_farm_id());
 
 COMMIT;
