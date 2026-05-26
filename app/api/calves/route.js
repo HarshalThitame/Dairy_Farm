@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
-import { getCalfAgeText, getCalfLifecycleDates, getCalfMilkStatus } from "@/lib/calfLifecycle";
-import { buildCalfPayload, insertCalfWithReminders } from "@/lib/calfServer";
+import { addDaysToISODate, getCalfAgeText, getCalfLifecycleDates, getCalfMilkStatus } from "@/lib/calfLifecycle";
+import { buildCalfPayload, CALF_SELECT, insertCalfWithReminders } from "@/lib/calfServer";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -38,6 +38,20 @@ function parseSaleAmount(value) {
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return null;
+  }
+
+  return Number(amount.toFixed(2));
+}
+
+function parseOptionalAmount(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const amount = Number(normalizeDigits(value).replace(/[₹,\s]/g, ""));
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return undefined;
   }
 
   return Number(amount.toFixed(2));
@@ -119,6 +133,99 @@ async function deleteSaleFinanceRecord(supabase, farmId, financeRecordId) {
   }
 }
 
+async function updateFarmCowCount(supabase, farmId) {
+  const { count } = await supabase
+    .from("cows")
+    .select("id", { count: "exact", head: true })
+    .eq("farm_id", farmId)
+    .eq("is_active", true);
+
+  await supabase
+    .from("farms")
+    .update({ total_cows: count || 0, updated_at: new Date().toISOString() })
+    .eq("id", farmId);
+}
+
+function buildConversionNotes(calf, conversion) {
+  return [
+    "वासरीपासून गाय झाली",
+    calf.mother?.name ? `आई: ${calf.mother.name}` : "",
+    cleanText(conversion.notes),
+    calf.notes ? `वासरी नोंद: ${calf.notes}` : ""
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+async function createCowFromConversion(supabase, farmId, calf, conversion) {
+  const cowName = cleanText(conversion.cow_name || conversion.name || calf.name);
+
+  if (!cowName) {
+    return { error: "गायीचे नाव आवश्यक आहे." };
+  }
+
+  if (!conversion.ai_date || !isISODate(conversion.ai_date)) {
+    return { error: "रेतन तारीख आवश्यक आहे." };
+  }
+
+  const cost = parseOptionalAmount(conversion.cost);
+
+  if (cost === undefined) {
+    return { error: "रेतन खर्च चुकीचा आहे." };
+  }
+
+  const pregnancyCheckDate =
+    conversion.pregnancy_check_date && isISODate(conversion.pregnancy_check_date)
+      ? conversion.pregnancy_check_date
+      : addDaysToISODate(conversion.ai_date, 60);
+
+  const { data: cow, error: cowError } = await supabase
+    .from("cows")
+    .insert({
+      farm_id: farmId,
+      name: cowName,
+      breed: cleanText(conversion.breed || calf.breed || calf.mother?.breed) || "जर्सी",
+      date_of_birth: calf.birth_date,
+      tag_number: cleanText(conversion.tag_number || calf.identification_mark),
+      color: cleanText(conversion.color || calf.color),
+      status: "गाभण",
+      notes: buildConversionNotes(calf, conversion),
+      is_active: true
+    })
+    .select()
+    .single();
+
+  if (cowError) {
+    throw cowError;
+  }
+
+  const { data: aiRecord, error: aiError } = await supabase
+    .from("ai_records")
+    .insert({
+      farm_id: farmId,
+      cow_id: cow.id,
+      ai_date: conversion.ai_date,
+      bull_code: cleanText(conversion.bull_code),
+      bull_breed: cleanText(conversion.bull_breed) || "जर्सी",
+      doctor_name: cleanText(conversion.doctor_name),
+      cost,
+      pregnancy_check_date: pregnancyCheckDate,
+      pregnancy_result: "pending",
+      notes: cleanText(conversion.ai_notes || conversion.notes)
+    })
+    .select()
+    .single();
+
+  if (aiError) {
+    await supabase.from("cows").delete().eq("id", cow.id).eq("farm_id", farmId);
+    throw aiError;
+  }
+
+  await updateFarmCowCount(supabase, farmId);
+
+  return { cow, aiRecord };
+}
+
 function enrichCalf(calf) {
   return {
     ...calf,
@@ -150,7 +257,7 @@ export async function GET(request) {
     const supabase = getSupabaseServerClient();
     let query = supabase
       .from("calves")
-      .select("*, mother:cows(id, name, breed, status)")
+      .select(CALF_SELECT)
       .eq("farm_id", farmId)
       .order("birth_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -195,6 +302,9 @@ export async function POST(request) {
 }
 
 export async function PATCH(request) {
+  let conversionCowIdToCleanup = null;
+  let conversionFarmIdToCleanup = null;
+
   try {
     const body = await request.json();
 
@@ -208,7 +318,8 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "वासराची स्थिती चुकीची आहे." }, { status: 400 });
     }
 
-    const { farmId } = await verifyFarmAccess(request);
+    const auth = await verifyFarmAccess(request);
+    const { farmId } = auth;
     if (body.mother_cow_id) {
       await verifyFarmAccess(request, body.mother_cow_id);
     }
@@ -216,7 +327,7 @@ export async function PATCH(request) {
     const supabase = getSupabaseServerClient();
     const { data: existingCalf, error: existingError } = await supabase
       .from("calves")
-      .select("*, mother:cows(id, name, breed, status)")
+      .select(CALF_SELECT)
       .eq("id", body.id)
       .eq("farm_id", farmId)
       .single();
@@ -229,6 +340,18 @@ export async function PATCH(request) {
 
     if (requestedStatus) {
       updates.status = requestedStatus;
+    }
+
+    if (
+      existingCalf.status === "converted_to_cow" &&
+      existingCalf.converted_cow_id &&
+      requestedStatus &&
+      requestedStatus !== "converted_to_cow"
+    ) {
+      return NextResponse.json(
+        { error: "ही वासरी गाय म्हणून जोडली आहे. बदल गायीच्या यादीतून करा." },
+        { status: 400 }
+      );
     }
 
     editableTextFields.forEach((field) => {
@@ -281,7 +404,41 @@ export async function PATCH(request) {
       }
     }
 
-    if (requestedStatus === "sold") {
+    if (requestedStatus === "converted_to_cow") {
+      if (existingCalf.gender !== "मादी") {
+        return NextResponse.json({ error: "फक्त मादी वासरी गाय म्हणून जोडता येते." }, { status: 400 });
+      }
+
+      if (!auth.user.isFarmOwner && auth.user.role !== "admin") {
+        return NextResponse.json({ error: "ही कृती फक्त मालकासाठी आहे." }, { status: 403 });
+      }
+
+      if (!existingCalf.converted_cow_id) {
+        const conversion = body.conversion || {};
+
+        if (Object.keys(conversion).length === 0) {
+          return NextResponse.json(
+            { error: "गाय बनवण्यासाठी गायीचे नाव आणि कृत्रिम रेतन माहिती भरा." },
+            { status: 400 }
+          );
+        }
+
+        const conversionResult = await createCowFromConversion(supabase, farmId, existingCalf, conversion);
+
+        if (conversionResult.error) {
+          return NextResponse.json({ error: conversionResult.error }, { status: 400 });
+        }
+
+        conversionCowIdToCleanup = conversionResult.cow.id;
+        conversionFarmIdToCleanup = farmId;
+        updates.converted_cow_id = conversionResult.cow.id;
+        updates.conversion_ai_record_id = conversionResult.aiRecord.id;
+        updates.converted_at = new Date().toISOString();
+      }
+
+      updates.is_raised = false;
+      updates.milk_feeding_status = "not_tracked";
+    } else if (requestedStatus === "sold") {
       const saleAmount = parseSaleAmount(body.sale_amount);
 
       if (saleAmount === null) {
@@ -339,7 +496,7 @@ export async function PATCH(request) {
       .update(updates)
       .eq("id", body.id)
       .eq("farm_id", farmId)
-      .select("*, mother:cows(id, name, breed, status)")
+      .select(CALF_SELECT)
       .single();
 
     if (error) {
@@ -347,6 +504,8 @@ export async function PATCH(request) {
     }
 
     let calf = data;
+    conversionCowIdToCleanup = null;
+    conversionFarmIdToCleanup = null;
 
     if (calf.status === "sold" && Number(calf.sale_amount || 0) > 0 && calf.sold_date) {
       const financeRecord = await upsertSaleFinanceRecord(supabase, farmId, calf);
@@ -360,7 +519,7 @@ export async function PATCH(request) {
           })
           .eq("id", calf.id)
           .eq("farm_id", farmId)
-          .select("*, mother:cows(id, name, breed, status)")
+          .select(CALF_SELECT)
           .single();
 
         if (financeLinkError) {
@@ -375,6 +534,14 @@ export async function PATCH(request) {
 
     return NextResponse.json({ data: enrichCalf(calf) });
   } catch (error) {
+    if (conversionCowIdToCleanup) {
+      const supabase = getSupabaseServerClient();
+      await supabase.from("cows").delete().eq("id", conversionCowIdToCleanup);
+
+      if (conversionFarmIdToCleanup) {
+        await updateFarmCowCount(supabase, conversionFarmIdToCleanup);
+      }
+    }
     return farmErrorResponse(error);
   }
 }

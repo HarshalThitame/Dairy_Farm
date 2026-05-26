@@ -185,6 +185,9 @@ CREATE TABLE IF NOT EXISTS calves (
   sale_amount NUMERIC(12,2) CHECK (sale_amount IS NULL OR sale_amount >= 0),
   sale_notes TEXT,
   finance_record_id UUID REFERENCES finance_records(id) ON DELETE SET NULL,
+  converted_cow_id UUID REFERENCES cows(id) ON DELETE SET NULL,
+  conversion_ai_record_id UUID REFERENCES ai_records(id) ON DELETE SET NULL,
+  converted_at TIMESTAMP,
   notes TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -206,6 +209,8 @@ CREATE INDEX IF NOT EXISTS calves_farm_status_idx ON calves(farm_id, status, bir
 CREATE INDEX IF NOT EXISTS calves_mother_idx ON calves(mother_cow_id, birth_date DESC);
 CREATE INDEX IF NOT EXISTS calves_farm_sold_date_idx ON calves(farm_id, sold_date DESC) WHERE status = 'sold';
 CREATE INDEX IF NOT EXISTS calves_finance_record_idx ON calves(finance_record_id);
+CREATE INDEX IF NOT EXISTS calves_converted_cow_idx ON calves(converted_cow_id);
+CREATE INDEX IF NOT EXISTS calves_conversion_ai_record_idx ON calves(conversion_ai_record_id);
 
 CREATE OR REPLACE FUNCTION set_ai_calculated_dates()
 RETURNS TRIGGER

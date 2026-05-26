@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CowSelector from "@/components/CowSelector";
 import ErrorState from "@/components/ErrorState";
@@ -10,10 +11,12 @@ import PageHeader from "@/components/PageHeader";
 import SummaryCard from "@/components/SummaryCard";
 import { calfStatuses } from "@/lib/calfLifecycle";
 import {
+  addDaysToDate,
   formatCowBreed,
   formatCurrency,
   formatMarathiDate,
   getTodayISODate,
+  toISODate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
@@ -33,6 +36,17 @@ const ageFilters = [
   { value: "61-180", label: "२-६ महिने" },
   { value: "181+", label: "६ महिने +" }
 ];
+
+const breedOptions = [
+  { value: "HF", label: "एच एफ" },
+  { value: "गीर", label: "गीर" },
+  { value: "साहिवाल", label: "साहिवाल" },
+  { value: "देशी", label: "देशी" },
+  { value: "जर्सी", label: "जर्सी" },
+  { value: "इतर", label: "इतर" }
+];
+
+const defaultBreed = "जर्सी";
 
 function getAgeDays(birthDate) {
   if (!birthDate) {
@@ -146,6 +160,22 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
         </div>
       ) : null}
 
+      {calf.status === "converted_to_cow" ? (
+        <div className="mt-3 rounded-lg bg-blue-50 p-3 text-blue-950">
+          <p className="text-[18px] font-extrabold">गायीच्या यादीत जोडली</p>
+          {calf.converted_cow ? (
+            <Link
+              href={`/gayi/${calf.converted_cow.id}`}
+              className="mt-2 inline-flex min-h-[46px] items-center rounded-lg bg-white px-3 text-[18px] font-extrabold text-blue-900 shadow-sm active:bg-blue-100"
+            >
+              🐄 {calf.converted_cow.name} बघा
+            </Link>
+          ) : (
+            <p className="mt-1 text-[17px] font-bold">गाय नोंद सापडली नाही.</p>
+          )}
+        </div>
+      ) : null}
+
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
         <button
           type="button"
@@ -191,6 +221,21 @@ function emptyForm() {
   };
 }
 
+function emptyConversionForm(calf) {
+  return {
+    cow_name: calf ? getCalfTitle(calf) : "",
+    breed: calf?.breed || defaultBreed,
+    color: calf?.color || "",
+    tag_number: calf?.identification_mark || "",
+    ai_date: getTodayISODate(),
+    bull_code: "",
+    bull_breed: defaultBreed,
+    doctor_name: "",
+    cost: "",
+    notes: ""
+  };
+}
+
 export default function CalvesPage() {
   const [calves, setCalves] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -200,6 +245,9 @@ export default function CalvesPage() {
   const [form, setForm] = useState(emptyForm);
   const [selectedCow, setSelectedCow] = useState(null);
   const [editingCalfId, setEditingCalfId] = useState(null);
+  const [conversionCalf, setConversionCalf] = useState(null);
+  const [conversionForm, setConversionForm] = useState(() => emptyConversionForm(null));
+  const [conversionSaving, setConversionSaving] = useState(false);
   const [voiceField, setVoiceField] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -239,11 +287,23 @@ export default function CalvesPage() {
     setError("");
   }
 
+  function updateConversionField(field, value) {
+    setConversionForm((current) => ({ ...current, [field]: value }));
+    setMessage("");
+    setError("");
+  }
+
   function resetForm() {
     setForm(emptyForm());
     setSelectedCow(null);
     setEditingCalfId(null);
     setFormOpen(false);
+  }
+
+  function closeConversionForm() {
+    setConversionCalf(null);
+    setConversionForm(emptyConversionForm(null));
+    setConversionSaving(false);
   }
 
   function openAddForm() {
@@ -252,12 +312,13 @@ export default function CalvesPage() {
       return;
     }
 
-    setForm(emptyForm());
-    setSelectedCow(null);
-    setEditingCalfId(null);
-    setFormOpen(true);
-    setMessage("");
-    setError("");
+      setForm(emptyForm());
+      setSelectedCow(null);
+      setEditingCalfId(null);
+      closeConversionForm();
+      setFormOpen(true);
+      setMessage("");
+      setError("");
   }
 
   function startEdit(calf) {
@@ -277,6 +338,7 @@ export default function CalvesPage() {
       sale_notes: calf.sale_notes || ""
     });
     setSelectedCow(calf.mother || null);
+    closeConversionForm();
     setFormOpen(true);
     setMessage("");
     setError("");
@@ -391,6 +453,12 @@ export default function CalvesPage() {
         payload.sold_date = getTodayISODate();
         payload.sale_amount = amount;
         payload.sale_notes = saleNotes.trim() || null;
+      } else if (status === "converted_to_cow") {
+        setFormOpen(false);
+        setConversionCalf(calf);
+        setConversionForm(emptyConversionForm(calf));
+        requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+        return;
       } else {
         const confirmed = window.confirm(`${calfTitle} ची स्थिती '${statusLabel}' करायची आहे का?`);
 
@@ -411,6 +479,67 @@ export default function CalvesPage() {
       fetchCalves();
     } catch (statusError) {
       setError(statusError.message || "स्थिती बदलली नाही.");
+    }
+  }
+
+  const conversionDates = useMemo(() => {
+    return {
+      pregnancyCheckDate: toISODate(addDaysToDate(conversionForm.ai_date, 60)),
+      expectedCalvingDate: toISODate(addDaysToDate(conversionForm.ai_date, 270))
+    };
+  }, [conversionForm.ai_date]);
+
+  async function submitConversion(event) {
+    event.preventDefault();
+
+    if (!conversionCalf) {
+      return;
+    }
+
+    if (!conversionForm.cow_name.trim()) {
+      setError("गायीचे नाव लिहा.");
+      return;
+    }
+
+    if (!conversionForm.ai_date) {
+      setError("रेतन तारीख निवडा.");
+      return;
+    }
+
+    setConversionSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await fetchJson("/api/calves", {
+        method: "PATCH",
+        body: JSON.stringify({
+          id: conversionCalf.id,
+          status: "converted_to_cow",
+          conversion: {
+            cow_name: conversionForm.cow_name.trim(),
+            breed: conversionForm.breed || defaultBreed,
+            color: conversionForm.color.trim() || null,
+            tag_number: conversionForm.tag_number.trim() || null,
+            ai_date: conversionForm.ai_date,
+            bull_code: conversionForm.bull_code.trim() || null,
+            bull_breed: conversionForm.bull_breed || defaultBreed,
+            doctor_name: conversionForm.doctor_name.trim() || null,
+            cost: conversionForm.cost === "" ? null : conversionForm.cost,
+            pregnancy_check_date: conversionDates.pregnancyCheckDate,
+            notes: conversionForm.notes.trim() || null
+          }
+        })
+      });
+
+      setMessage("✅ वासरी गाय म्हणून जोडली आणि कृत्रिम रेतन नोंद जतन झाली.");
+      setStatusFilter("converted_to_cow");
+      closeConversionForm();
+      fetchCalves();
+    } catch (conversionError) {
+      setError(conversionError.message || "गाय आणि रेतन नोंद जतन झाली नाही.");
+    } finally {
+      setConversionSaving(false);
     }
   }
 
@@ -567,7 +696,11 @@ export default function CalvesPage() {
               <p className="mb-2 text-[20px] font-extrabold text-slate-900">स्थिती</p>
               <div className="grid grid-cols-2 gap-3">
                 {statusFilters
-                  .filter((filter) => filter.value !== "all")
+                  .filter(
+                    (filter) =>
+                      filter.value !== "all" &&
+                      (filter.value !== "converted_to_cow" || form.status === "converted_to_cow")
+                  )
                   .map((status) => (
                     <button
                       key={status.value}
@@ -632,6 +765,158 @@ export default function CalvesPage() {
             className="min-h-[56px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm disabled:opacity-70 active:bg-green-700"
           >
             {saving ? "⏳ जतन होत आहे..." : editingCalfId ? "✅ बदल जतन करा" : "✅ वासरू जतन करा"}
+          </button>
+        </form>
+      ) : null}
+
+      {conversionCalf ? (
+        <form onSubmit={submitConversion} className="space-y-4 rounded-lg border border-blue-200 bg-white p-4 shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[24px] font-extrabold text-slate-950">गाय झाली</h2>
+              <p className="mt-1 text-[18px] font-bold text-slate-600">
+                {getCalfTitle(conversionCalf)} साठी गाय आणि रेतन नोंद
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeConversionForm}
+              className="min-h-[48px] min-w-[48px] rounded-lg border-2 border-slate-200 bg-white text-[22px] font-extrabold active:bg-slate-100"
+              aria-label="बंद करा"
+            >
+              ✕
+            </button>
+          </div>
+
+          <section className="space-y-4 rounded-lg bg-blue-50 p-3">
+            <h3 className="text-[21px] font-extrabold text-blue-950">गायीची माहिती</h3>
+            <FormField label="गायीचे नाव" required>
+              <MarathiTextInput
+                value={conversionForm.cow_name}
+                onValueChange={(value) => updateConversionField("cow_name", value)}
+                required
+                className="min-h-[56px] w-full rounded-lg border-2 border-blue-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+
+            <FormField label="जात" required>
+              <select
+                value={conversionForm.breed}
+                onChange={(event) => updateConversionField("breed", event.target.value)}
+                required
+                className="min-h-[56px] w-full rounded-lg border-2 border-blue-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              >
+                {breedOptions.map((breed) => (
+                  <option key={breed.value} value={breed.value}>
+                    {breed.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="रंग">
+              <MarathiTextInput
+                value={conversionForm.color}
+                onValueChange={(value) => updateConversionField("color", value)}
+                className="min-h-[56px] w-full rounded-lg border-2 border-blue-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+
+            <FormField label="कान टॅग नंबर">
+              <input
+                type="text"
+                value={conversionForm.tag_number}
+                onChange={(event) => updateConversionField("tag_number", event.target.value)}
+                className="min-h-[56px] w-full rounded-lg border-2 border-blue-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+          </section>
+
+          <section className="space-y-4 rounded-lg bg-green-50 p-3">
+            <h3 className="text-[21px] font-extrabold text-green-950">कृत्रिम रेतन</h3>
+            <FormField label="रेतन तारीख" required>
+              <input
+                type="date"
+                required
+                value={conversionForm.ai_date}
+                onChange={(event) => updateConversionField("ai_date", event.target.value)}
+                className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+
+            <FormField label="सिमेन / बैल कोड">
+              <input
+                type="text"
+                value={conversionForm.bull_code}
+                onChange={(event) => updateConversionField("bull_code", event.target.value)}
+                placeholder="उदा. एच एफ-२३४१"
+                className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+
+            <FormField label="बैलाची जात">
+              <select
+                value={conversionForm.bull_breed}
+                onChange={(event) => updateConversionField("bull_breed", event.target.value)}
+                className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              >
+                {breedOptions.map((breed) => (
+                  <option key={breed.value} value={breed.value}>
+                    {breed.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="पशुवैद्यकाचे नाव">
+              <MarathiTextInput
+                value={conversionForm.doctor_name}
+                onValueChange={(value) => updateConversionField("doctor_name", value)}
+                className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+
+            <FormField label="रेतन खर्च">
+              <div className="grid grid-cols-[auto_1fr] items-center rounded-lg border-2 border-green-100 bg-white focus-within:border-sheti">
+                <span className="px-4 text-[22px] font-extrabold text-slate-700">₹</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={conversionForm.cost}
+                  onChange={(event) => updateConversionField("cost", event.target.value)}
+                  className="min-h-[56px] w-full rounded-r-lg border-0 bg-transparent px-2 text-[20px] font-semibold text-slate-950 outline-none"
+                />
+              </div>
+            </FormField>
+
+            <FormField label="नोंद">
+              <MarathiTextInput
+                multiline
+                rows={3}
+                value={conversionForm.notes}
+                onValueChange={(value) => updateConversionField("notes", value)}
+                className="min-h-[112px] w-full rounded-lg border-2 border-green-100 bg-white px-4 py-3 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
+              />
+            </FormField>
+
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-950">
+              <p className="text-[18px] font-extrabold">आठवणी</p>
+              <p className="mt-1 text-[17px] font-bold">
+                गर्भधारणा तपासणी: {formatMarathiDate(conversionDates.pregnancyCheckDate)}
+              </p>
+              <p className="mt-1 text-[17px] font-bold">
+                अपेक्षित व्यायण: {formatMarathiDate(conversionDates.expectedCalvingDate)}
+              </p>
+            </div>
+          </section>
+
+          <button
+            type="submit"
+            disabled={conversionSaving}
+            className="min-h-[56px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm disabled:opacity-70 active:bg-green-700"
+          >
+            {conversionSaving ? "⏳ जतन होत आहे..." : "✅ गाय आणि रेतन नोंद जतन करा"}
           </button>
         </form>
       ) : null}
