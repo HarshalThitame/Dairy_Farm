@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { getPendingSyncCount } from "@/lib/localDB";
 import { isOnline, onNetworkChange } from "@/lib/networkStatus";
 import { checkNetworkAndSync } from "@/lib/syncManager";
@@ -9,6 +10,7 @@ import { toMarathiNumerals } from "@/lib/marathiUtils";
 import { showToast } from "@/components/Toast";
 
 export default function NetworkStatusBar() {
+  const pathname = usePathname();
   const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -106,6 +108,10 @@ export default function NetworkStatusBar() {
       window.removeEventListener("offline-save", handleOfflineSave);
     };
   }, [refreshPending]);
+
+  if (pathname === "/admin-login" || pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   if (syncing) {
     return (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import MarathiTextInput from "@/components/MarathiTextInput";
 import { cowStatuses } from "@/components/StatusBadge";
 
 const breedOptions = [
@@ -13,9 +14,11 @@ const breedOptions = [
   { value: "इतर", label: "इतर" }
 ];
 
+const defaultBreed = "जर्सी";
+
 const emptyForm = {
   name: "",
-  breed: "",
+  breed: defaultBreed,
   color: "",
   date_of_birth: "",
   tag_number: "",
@@ -101,10 +104,9 @@ export default function CowForm({
         <span className="mb-2 block text-[20px] font-extrabold text-slate-900">
           गायीचे नाव *
         </span>
-        <input
-          type="text"
+        <MarathiTextInput
           value={form.name}
-          onChange={(event) => updateField("name", event.target.value)}
+          onValueChange={(value) => updateField("name", value)}
           required
           autoComplete="off"
           className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
@@ -134,10 +136,9 @@ export default function CowForm({
         <span className="mb-2 block text-[20px] font-extrabold text-slate-900">
           रंग
         </span>
-        <input
-          type="text"
+        <MarathiTextInput
           value={form.color}
-          onChange={(event) => updateField("color", event.target.value)}
+          onValueChange={(value) => updateField("color", value)}
           autoComplete="off"
           className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
         />
@@ -202,9 +203,10 @@ export default function CowForm({
         <span className="mb-2 block text-[20px] font-extrabold text-slate-900">
           इतर नोंद
         </span>
-        <textarea
+        <MarathiTextInput
+          multiline
           value={form.notes}
-          onChange={(event) => updateField("notes", event.target.value)}
+          onValueChange={(value) => updateField("notes", value)}
           rows={4}
           className="min-h-[132px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
         />

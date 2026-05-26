@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import LoadingState from "@/components/LoadingState";
 import { useAuth } from "@/context/AuthContext";
 
-const publicPaths = ["/login"];
+const publicPaths = ["/login", "/signup", "/admin-login", "/admin"];
 
 export default function AuthRequired({ children }) {
   const pathname = usePathname();
@@ -15,16 +15,30 @@ export default function AuthRequired({ children }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublic) {
-      router.replace(`/login?from=${encodeURIComponent(pathname || "/")}`);
+      const loginUrl = `/login?from=${encodeURIComponent(pathname || "/")}`;
+      router.replace(loginUrl);
+      const timeout = window.setTimeout(() => {
+        if (window.location.pathname !== "/login") {
+          window.location.replace(loginUrl);
+        }
+      }, 1200);
+
+      return () => window.clearTimeout(timeout);
     }
+
+    return undefined;
   }, [isAuthenticated, isLoading, isPublic, pathname, router]);
 
   if (isPublic) {
     return children;
   }
 
-  if (isLoading || !isAuthenticated) {
-    return <LoadingState message="खाते तपासत आहे..." />;
+  if (isLoading) {
+    return <LoadingState text="खाते तपासत आहे..." />;
+  }
+
+  if (!isAuthenticated) {
+    return <LoadingState text="लॉगिन पान उघडत आहे..." />;
   }
 
   return children;

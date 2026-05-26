@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
 
 export default function InstallBanner() {
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -53,16 +54,21 @@ export default function InstallBanner() {
   return (
     <section className="fixed inset-x-3 bottom-24 z-50 mx-auto max-w-3xl rounded-lg border border-green-200 bg-white p-3 shadow-soft sm:bottom-28">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[18px] font-semibold leading-snug text-slate-800">
-          अ‍ॅप फोनवर ठेवण्यासाठी होम स्क्रीनवर जोडा.
-        </p>
+        <div className="min-w-0">
+          <p className="text-[19px] font-extrabold leading-snug text-slate-900">
+            🐄 {APP_NAME}
+          </p>
+          <p className="mt-1 text-[17px] font-bold leading-snug text-slate-600">
+            {APP_TAGLINE} फोनवर अ‍ॅपसारखे वापरा.
+          </p>
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={installApp}
             className="min-h-[52px] flex-1 rounded-lg bg-sheti px-4 text-[18px] font-bold text-white shadow-sm active:bg-green-700 sm:flex-none"
           >
-            📱 होम स्क्रीनवर जोडा
+            📱 इंस्टॉल करा
           </button>
           <button
             type="button"

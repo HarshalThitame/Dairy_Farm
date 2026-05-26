@@ -71,9 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile);
 
 ALTER TABLE cows ADD COLUMN IF NOT EXISTS farm_id UUID REFERENCES farms(id) ON DELETE CASCADE;
+ALTER TABLE cows ALTER COLUMN breed SET DEFAULT 'जर्सी';
 CREATE INDEX IF NOT EXISTS idx_cows_farm_id ON cows(farm_id);
 
 ALTER TABLE ai_records ADD COLUMN IF NOT EXISTS farm_id UUID REFERENCES farms(id) ON DELETE CASCADE;
+ALTER TABLE ai_records ALTER COLUMN bull_breed SET DEFAULT 'जर्सी';
 CREATE INDEX IF NOT EXISTS idx_ai_records_farm_id ON ai_records(farm_id);
 
 ALTER TABLE calving_records ADD COLUMN IF NOT EXISTS farm_id UUID REFERENCES farms(id) ON DELETE CASCADE;

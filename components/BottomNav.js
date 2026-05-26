@@ -23,7 +23,16 @@ function isActive(pathname, href) {
 export default function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/login" || pathname.startsWith("/login/")) {
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname === "/signup" ||
+    pathname.startsWith("/signup/") ||
+    pathname === "/welcome" ||
+    pathname.startsWith("/welcome/") ||
+    pathname === "/admin-login" ||
+    pathname.startsWith("/admin")
+  ) {
     return null;
   }
 

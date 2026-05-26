@@ -8,18 +8,37 @@ import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
 import SummaryCard from "@/components/SummaryCard";
 import { formatCurrency, formatLitres } from "@/lib/marathiUtils";
+import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 
 const reportLinks = [
   {
     href: "/ahval/dudh",
-    title: "दूध उत्पादन अहवाल",
-    emoji: "📊",
+    title: "दूध सविस्तर अहवाल",
+    emoji: "🥛",
     color: "border-blue-200 bg-blue-50 text-blue-900"
   },
   {
+    href: "/ahval/utpanna",
+    title: "उत्पन्न सविस्तर",
+    emoji: "💰",
+    color: "border-green-200 bg-green-50 text-green-900"
+  },
+  {
+    href: "/ahval/kharch",
+    title: "खर्च सविस्तर",
+    emoji: "💸",
+    color: "border-red-200 bg-red-50 text-red-900"
+  },
+  {
+    href: "/ahval/nafa",
+    title: "नफा-तोटा विश्लेषण",
+    emoji: "📈",
+    color: "border-purple-200 bg-purple-50 text-purple-900"
+  },
+  {
     href: "/ahval/hishob",
-    title: "हिशोब अहवाल",
+    title: "पूर्ण हिशोब अहवाल",
     emoji: "💰",
     color: "border-green-200 bg-green-50 text-green-900"
   },
@@ -56,25 +75,13 @@ export default function AhvalPage() {
 
     try {
       const query = `month=${monthValue.month}&year=${monthValue.year}`;
-      const [milkResponse, financeResponse] = await Promise.all([
-        fetch(`/api/reports/milk?${query}`, { cache: "no-store" }),
-        fetch(`/api/reports/finance?${query}`, { cache: "no-store" })
-      ]);
-      const [milkResult, financeResult] = await Promise.all([
-        milkResponse.json(),
-        financeResponse.json()
+      const [milkReportData, financeReportData] = await Promise.all([
+        fetchJson(`/api/reports/milk?${query}`),
+        fetchJson(`/api/reports/finance?${query}`)
       ]);
 
-      if (!milkResponse.ok) {
-        throw new Error(milkResult.error || "दूध अहवाल मिळाला नाही.");
-      }
-
-      if (!financeResponse.ok) {
-        throw new Error(financeResult.error || "हिशोब अहवाल मिळाला नाही.");
-      }
-
-      setMilkReport(milkResult.data);
-      setFinanceReport(financeResult.data);
+      setMilkReport(milkReportData);
+      setFinanceReport(financeReportData);
     } catch (fetchError) {
       setError(fetchError.message || "अहवाल मिळवताना चूक झाली.");
     } finally {
@@ -100,34 +107,42 @@ export default function AhvalPage() {
       {!loading && !error ? (
         <>
           <section className="grid grid-cols-2 gap-3" aria-label="मासिक सारांश">
-            <SummaryCard
-              emoji="🥛"
-              title="एकूण दूध उत्पादन"
-              value={`${formatLitres(milkReport?.totalLitres || 0)} लिटर`}
-              subtext={`दररोज सरासरी: ${formatLitres(milkReport?.dailyAverage || 0)} लिटर`}
-              color="blue"
-            />
-            <SummaryCard
-              emoji="💰"
-              title="एकूण उत्पन्न"
-              value={formatCurrency(financeReport?.totalIncome || 0)}
-              subtext="दूध विक्री + इतर"
-              color="green"
-            />
-            <SummaryCard
-              emoji="💸"
-              title="एकूण खर्च"
-              value={formatCurrency(financeReport?.totalExpense || 0)}
-              subtext="चारा + औषध + रेतन + इतर"
-              color="red"
-            />
-            <SummaryCard
-              emoji="📈"
-              title="निव्वळ नफा"
-              value={formatCurrency(netProfit)}
-              subtext="या महिन्याचा नफा"
-              color={netProfit >= 0 ? "green" : "red"}
-            />
+            <Link href={`/ahval/dudh${linkQuery}`} className="block active:scale-[0.99]">
+              <SummaryCard
+                emoji="🥛"
+                title="एकूण दूध उत्पादन"
+                value={`${formatLitres(milkReport?.totalLitres || 0)} लिटर`}
+                subtext={`दररोज सरासरी: ${formatLitres(milkReport?.dailyAverage || 0)} लिटर`}
+                color="blue"
+              />
+            </Link>
+            <Link href={`/ahval/utpanna${linkQuery}`} className="block active:scale-[0.99]">
+              <SummaryCard
+                emoji="💰"
+                title="एकूण उत्पन्न"
+                value={formatCurrency(financeReport?.totalIncome || 0)}
+                subtext="दूध विक्री + इतर"
+                color="green"
+              />
+            </Link>
+            <Link href={`/ahval/kharch${linkQuery}`} className="block active:scale-[0.99]">
+              <SummaryCard
+                emoji="💸"
+                title="मासिक खर्च"
+                value={formatCurrency(financeReport?.totalExpense || 0)}
+                subtext="खाद्य + औषध + रेतन + इतर"
+                color="red"
+              />
+            </Link>
+            <Link href={`/ahval/nafa${linkQuery}`} className="block active:scale-[0.99]">
+              <SummaryCard
+                emoji="📈"
+                title="मासिक नफा"
+                value={formatCurrency(netProfit)}
+                subtext="उत्पन्न - मासिक खर्च"
+                color={netProfit >= 0 ? "green" : "red"}
+              />
+            </Link>
           </section>
 
           <section className="space-y-3">

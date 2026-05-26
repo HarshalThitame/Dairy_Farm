@@ -7,6 +7,21 @@ const AuthContext = createContext(null);
 const TOKEN_KEY = "goshala_token";
 const USER_KEY = "goshala_user";
 const FARM_KEY = "goshala_farm";
+const AUTH_TIMEOUT_MS = 8000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = AUTH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 function readJson(key) {
   if (typeof localStorage === "undefined") {
@@ -62,11 +77,15 @@ function getStoredToken() {
     return "";
   }
 
-  return localStorage.getItem(TOKEN_KEY) || "";
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
 }
 
 async function postAuth(url, body) {
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -99,24 +118,6 @@ export function AuthProvider({ children }) {
     setFarm(nextFarm);
   }, []);
 
-  const login = useCallback(
-    async (identifier, password) => {
-      try {
-        const result = await postAuth("/api/auth/login", {
-          type: "password",
-          identifier,
-          password
-        });
-
-        applySession(result.token, result.user, result.farm);
-        return { success: true };
-      } catch (error) {
-        return { success: false, error: error.message };
-      }
-    },
-    [applySession]
-  );
-
   const loginWithPin = useCallback(
     async (mobile, pin) => {
       try {
@@ -135,30 +136,48 @@ export function AuthProvider({ children }) {
     [applySession]
   );
 
+  const signup = useCallback(
+    async (signupData) => {
+      try {
+        const result = await postAuth("/api/auth/signup", signupData);
+        applySession(result.token, result.user, result.farm);
+
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("onboarding_completed");
+        }
+
+        return { success: true, data: result };
+      } catch (error) {
+        return { success: false, error: error.message || "नोंदणी करताना त्रुटी झाली." };
+      }
+    },
+    [applySession]
+  );
+
   const checkAuth = useCallback(async () => {
-    const token = getStoredToken();
-    const storedUser = readJson(USER_KEY);
-    const storedFarm = readJson(FARM_KEY);
-
-    if (!token) {
-      setUser(null);
-      setFarm(null);
-      setIsLoading(false);
-      return false;
-    }
-
-    if (storedUser && storedFarm) {
-      setUser(storedUser);
-      setFarm(storedFarm);
-    }
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setIsLoading(false);
-      return Boolean(storedUser && storedFarm);
-    }
-
+    let storedUser = null;
+    let storedFarm = null;
     try {
-      const response = await fetch("/api/auth/verify", {
+      const token = getStoredToken();
+      storedUser = readJson(USER_KEY);
+      storedFarm = readJson(FARM_KEY);
+
+      if (!token) {
+        setUser(null);
+        setFarm(null);
+        return false;
+      }
+
+      if (storedUser && storedFarm) {
+        setUser(storedUser);
+        setFarm(storedFarm);
+      }
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return Boolean(storedUser && storedFarm);
+      }
+
+      const response = await fetchWithTimeout("/api/auth/verify", {
         cache: "no-store",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -168,16 +187,24 @@ export function AuthProvider({ children }) {
         clearSession();
         setUser(null);
         setFarm(null);
-        setIsLoading(false);
         return false;
       }
 
       applySession(token, result.user, result.farm);
-      setIsLoading(false);
       return true;
     } catch {
+      if (storedUser && storedFarm) {
+        setUser(storedUser);
+        setFarm(storedFarm);
+        return true;
+      }
+
+      clearSession();
+      setUser(null);
+      setFarm(null);
+      return false;
+    } finally {
       setIsLoading(false);
-      return Boolean(storedUser && storedFarm);
     }
   }, [applySession]);
 
@@ -188,14 +215,14 @@ export function AuthProvider({ children }) {
       return null;
     }
 
-    const response = await fetch("/api/farms/current", {
+    const response = await fetchWithTimeout("/api/farms/current", {
       cache: "no-store",
       headers: { Authorization: `Bearer ${token}` }
     });
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(result.error || "गोशाळेची माहिती मिळाली नाही.");
+      throw new Error(result.error || "डेअरीची माहिती मिळाली नाही.");
     }
 
     setFarm(result.data);
@@ -220,13 +247,13 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === "admin",
       isFarmOwner: Boolean(user?.isFarmOwner),
       isSuperAdmin: Boolean(user?.isSuperAdmin),
-      login,
       loginWithPin,
+      signup,
       checkAuth,
       refreshFarm,
       logout
     }),
-    [checkAuth, farm, isLoading, login, loginWithPin, logout, refreshFarm, user]
+    [checkAuth, farm, isLoading, loginWithPin, logout, refreshFarm, signup, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -2,12 +2,10 @@ import Link from "next/link";
 import StatusBadge, { getStatusBorderClass } from "@/components/StatusBadge";
 import {
   calculateAgeMarathi,
-  formatCowBreed,
-  formatLitres
+  formatCowBreed
 } from "@/lib/marathiUtils";
 
 export default function CowCard({ cow }) {
-  const latestMilk = cow.latest_milk_record;
   const borderClass = getStatusBorderClass(cow.status);
 
   return (
@@ -27,10 +25,6 @@ export default function CowCard({ cow }) {
           रंग: {cow.color || "माहिती नाही"}
         </p>
         <p>वय: {calculateAgeMarathi(cow.date_of_birth)}</p>
-        <p>
-          शेवटचे दूध:{" "}
-          {latestMilk ? `${formatLitres(latestMilk.total_litres)} लिटर` : "नोंद नाही"}
-        </p>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
@@ -41,10 +35,10 @@ export default function CowCard({ cow }) {
           👁 माहिती बघा
         </Link>
         <Link
-          href={`/nondi/dudh?cow_id=${cow.id}`}
+          href="/nondi/dudh"
           className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-3 text-center text-[18px] font-extrabold leading-tight text-sheti active:bg-green-100"
         >
-          🥛 दूध नोंद
+          🥛 दैनिक दूध
         </Link>
       </div>
     </article>

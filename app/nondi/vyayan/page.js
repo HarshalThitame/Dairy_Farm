@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
+import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import {
@@ -14,7 +16,7 @@ import {
   toISODate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
-import { getReminderDayDistance } from "@/lib/reminderUtils";
+import { getReminderDayDistance, getReminderEmoji } from "@/lib/reminderUtils";
 import {
   fetchCows as fetchCowsOffline,
   saveCalvingRecord
@@ -35,6 +37,42 @@ async function fetchLastAI(cowId) {
 
   const cachedRecords = await getCachedAIByCow(cowId);
   return cachedRecords[0] || null;
+}
+
+async function fetchCowReminders(cowId) {
+  try {
+    const response = await fetch(
+      `/api/reminders?cow_id=${cowId}&from=2000-01-01&to=2099-12-31`,
+      { cache: "no-store" }
+    );
+    const result = await response.json();
+
+    if (response.ok) {
+      return (result.data || []).filter((reminder) => !reminder.is_done);
+    }
+  } catch {
+    // Reminder cards can still render from AI dates when online reminders fail.
+  }
+
+  return [];
+}
+
+function reminderDistanceText(date) {
+  const distance = getReminderDayDistance(date);
+
+  if (distance < 0) {
+    return `${toMarathiNumerals(Math.abs(distance))} दिवस उशीर`;
+  }
+
+  if (distance === 0) {
+    return "आज";
+  }
+
+  if (distance === 1) {
+    return "उद्या";
+  }
+
+  return `${toMarathiNumerals(distance)} दिवस बाकी`;
 }
 
 export default function VyayanNondPage() {
@@ -69,11 +107,18 @@ export default function VyayanNondPage() {
       const cowsWithAI = await Promise.all(
         pregnantCows.map(async (cow) => {
           const lastAI = await fetchLastAI(cow.id);
+          const pendingReminders = await fetchCowReminders(cow.id);
+          const heatCheckDate = lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 21)) : "";
+          const pregnancyCheckDate =
+            lastAI?.pregnancy_check_date || (lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 60)) : "");
           const expectedDate = lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 270)) : "";
 
           return {
             ...cow,
             last_ai_record: lastAI,
+            heat_check_date: heatCheckDate,
+            pregnancy_check_date: pregnancyCheckDate,
+            pending_reminders: pendingReminders,
             expected_calving_date: expectedDate
           };
         })
@@ -170,10 +215,10 @@ export default function VyayanNondPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="🐄 व्यायण नोंद" subtitle="वासरू जन्मल्याची नोंद करा" />
+      <PageHeader title="🤰 गाभण गायी" subtitle="तारखा, आठवणी आणि व्यायण नोंद" />
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-        <h2 className="mb-3 text-[24px] font-extrabold text-slate-950">गाय निवडा</h2>
+        <h2 className="mb-3 text-[24px] font-extrabold text-slate-950">गाभण गायींची यादी</h2>
         <div className="space-y-3">
           {cows.map((cow) => {
             const overdueDays = cow.expected_calving_date
@@ -181,13 +226,18 @@ export default function VyayanNondPage() {
               : 0;
             const overdue = cow.expected_calving_date && cow.expected_calving_date < today;
             const active = selectedCow?.id === cow.id;
+            const dateItems = [
+              { label: "रेतन", date: cow.last_ai_record?.ai_date },
+              { label: "माज तपासणी", date: cow.heat_check_date },
+              { label: "गर्भ तपासणी", date: cow.pregnancy_check_date },
+              { label: "अपेक्षित व्यायण", date: cow.expected_calving_date }
+            ];
+            const pendingReminders = cow.pending_reminders || [];
 
             return (
-              <button
+              <article
                 key={cow.id}
-                type="button"
-                onClick={() => setSelectedCow(cow)}
-                className={`w-full rounded-lg border-2 p-3 text-left shadow-sm ${
+                className={`rounded-lg border-2 p-3 shadow-sm ${
                   active
                     ? "border-green-300 bg-green-50"
                     : overdue
@@ -209,7 +259,64 @@ export default function VyayanNondPage() {
                   </div>
                   <StatusBadge status={cow.status} />
                 </div>
-              </button>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {dateItems.map((item) => (
+                    <div key={item.label} className="rounded-lg bg-white/80 p-3">
+                      <p className="text-[15px] font-extrabold text-slate-500">{item.label}</p>
+                      <p className="mt-1 text-[18px] font-extrabold text-slate-900">
+                        {formatMarathiDate(item.date)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-[18px] font-extrabold text-slate-900">बाकी आठवणी</p>
+                  {pendingReminders.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {pendingReminders.map((reminder) => (
+                        <div
+                          key={reminder.id}
+                          className="rounded-lg bg-slate-50 p-3 text-[17px] font-bold text-slate-700"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span>
+                              {getReminderEmoji(reminder.type)} {reminder.type}
+                            </span>
+                            <span className="shrink-0 text-sheti">
+                              {reminderDistanceText(reminder.reminder_date)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[16px] text-slate-500">
+                            {formatMarathiDate(reminder.reminder_date)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-3 text-center text-[17px] font-bold text-slate-500">
+                      बाकी आठवण नाही.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Link
+                    href={`/gayi/${cow.id}`}
+                    className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-3 text-center text-[18px] font-extrabold text-sheti active:bg-green-100"
+                  >
+                    माहिती बघा
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCow(cow)}
+                    className="min-h-[52px] rounded-lg bg-sheti px-3 text-[18px] font-extrabold text-white active:bg-green-700"
+                  >
+                    व्यायण नोंद
+                  </button>
+                </div>
+              </article>
             );
           })}
 
@@ -258,10 +365,9 @@ export default function VyayanNondPage() {
               </div>
 
               <FormField label="वासराचे नाव">
-                <input
-                  type="text"
+                <MarathiTextInput
                   value={form.calf_name}
-                  onChange={(event) => updateField("calf_name", event.target.value)}
+                  onValueChange={(value) => updateField("calf_name", value)}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>
@@ -279,9 +385,10 @@ export default function VyayanNondPage() {
               </FormField>
 
               <FormField label="व्यायणाची नोंद">
-                <textarea
+                <MarathiTextInput
+                  multiline
                   value={form.calving_notes}
-                  onChange={(event) => updateField("calving_notes", event.target.value)}
+                  onValueChange={(value) => updateField("calving_notes", value)}
                   placeholder="सामान्य / कठीण / डॉक्टर बोलावले..."
                   rows={4}
                   className="min-h-[132px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"

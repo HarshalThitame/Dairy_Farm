@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import CowSelector from "@/components/CowSelector";
 import FormField from "@/components/FormField";
+import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
 import {
   addDaysToDate,
@@ -22,6 +23,8 @@ const breedOptions = [
   { value: "इतर", label: "इतर" }
 ];
 
+const defaultBullBreed = "जर्सी";
+
 export default function RetanNondPage() {
   const router = useRouter();
   const [initialCowId, setInitialCowId] = useState("");
@@ -29,7 +32,7 @@ export default function RetanNondPage() {
   const [form, setForm] = useState({
     ai_date: getTodayISODate(),
     bull_code: "",
-    bull_breed: "",
+    bull_breed: defaultBullBreed,
     doctor_name: "",
     cost: "",
     notes: ""
@@ -78,7 +81,7 @@ export default function RetanNondPage() {
         cow: selectedCow,
         ai_date: form.ai_date,
         bull_code: form.bull_code.trim() || null,
-        bull_breed: form.bull_breed || null,
+        bull_breed: form.bull_breed || defaultBullBreed,
         doctor_name: form.doctor_name.trim() || null,
         cost: form.cost === "" ? null : Number(form.cost),
         pregnancy_check_date: calculatedDates.pregnancyCheckDate,
@@ -153,10 +156,9 @@ export default function RetanNondPage() {
               </FormField>
 
               <FormField label="पशुवैद्यकाचे नाव">
-                <input
-                  type="text"
+                <MarathiTextInput
                   value={form.doctor_name}
-                  onChange={(event) => updateField("doctor_name", event.target.value)}
+                  onValueChange={(value) => updateField("doctor_name", value)}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>
@@ -174,9 +176,10 @@ export default function RetanNondPage() {
               </FormField>
 
               <FormField label="इतर नोंद">
-                <textarea
+                <MarathiTextInput
+                  multiline
                   value={form.notes}
-                  onChange={(event) => updateField("notes", event.target.value)}
+                  onValueChange={(value) => updateField("notes", value)}
                   rows={4}
                   className="min-h-[132px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />

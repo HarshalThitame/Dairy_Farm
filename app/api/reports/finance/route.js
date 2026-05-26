@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
+import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
+  addMonths,
   calculateFinanceStats,
   displayFinanceCategory,
   expenseCategories,
   getMonthInput,
+  getMonthLabel,
   getMonthRange,
+  getRecordMilkAmount,
+  getRecordMilkTotal,
   incomeCategories
 } from "@/lib/reportUtils";
 
@@ -33,6 +38,113 @@ function categoriesToArray(categories, grouped) {
   return [...base, ...extra].filter((item) => item.amount > 0);
 }
 
+function getMilkIncomeToAdd(financeRecords, milkRecords) {
+  const milkIncome = milkRecords.reduce((sum, record) => sum + getRecordMilkAmount(record), 0);
+  const manualMilkIncome = financeRecords
+    .filter(
+      (record) =>
+        record.type === "उत्पन्न" && displayFinanceCategory(record.category) === "दूध विक्री"
+    )
+    .reduce((sum, record) => sum + Number(record.amount || 0), 0);
+
+  return Number(Math.max(0, milkIncome - manualMilkIncome).toFixed(2));
+}
+
+function getYearRange(year) {
+  return {
+    start: `${year}-01-01`,
+    end: `${Number(year) + 1}-01-01`
+  };
+}
+
+function isAnnualCharaByDescription(record) {
+  const description = String(record.description || "").trim();
+
+  return (
+    record.type === "खर्च" &&
+    displayFinanceCategory(record.category) === "चारा" &&
+    (description.startsWith("मुरघास") || description.startsWith("भुसा"))
+  );
+}
+
+function getFinanceAccountingPeriod(record) {
+  if (record.accounting_period === "annual") {
+    return "annual";
+  }
+
+  if (!record.accounting_period && isAnnualCharaByDescription(record)) {
+    return "annual";
+  }
+
+  return ACCOUNTING_PERIOD_MONTHLY;
+}
+
+function normalizeFinanceRecord(record) {
+  return {
+    ...record,
+    accounting_period: getFinanceAccountingPeriod(record)
+  };
+}
+
+function buildMilkIncomeTransaction(milkRecords, amount, monthRange) {
+  if (amount <= 0) {
+    return null;
+  }
+
+  const litres = milkRecords.reduce((sum, record) => sum + getRecordMilkTotal(record), 0);
+
+  return {
+    id: `milk-income-${monthRange.start}`,
+    farm_id: milkRecords[0]?.farm_id || null,
+    cow_id: null,
+    date: monthRange.start,
+    type: "उत्पन्न",
+    category: "दूध विक्री",
+    amount,
+    accounting_period: ACCOUNTING_PERIOD_MONTHLY,
+    description: `दूध नोंदीवरून आपोआप मोजलेले उत्पन्न (${Number(litres.toFixed(2))} लिटर)`,
+    cows: null,
+    is_derived: true,
+    source: "milk_records"
+  };
+}
+
+function buildMonthlyTrend(financeRecords, milkRecords, selectedMonth, selectedYear) {
+  const months = Array.from({ length: 6 }, (_, index) =>
+    addMonths(selectedMonth, selectedYear, index - 5)
+  );
+
+  return months.map(({ month, year }) => {
+    const monthRange = getMonthRange(month, year);
+    const monthlyFinance = (financeRecords || [])
+      .filter((record) => record.date >= monthRange.start && record.date < monthRange.end)
+      .map(normalizeFinanceRecord)
+      .filter((record) => record.accounting_period !== "annual");
+    const monthlyMilk = (milkRecords || []).filter(
+      (record) => record.date >= monthRange.start && record.date < monthRange.end
+    );
+    const milkIncomeToAdd = getMilkIncomeToAdd(monthlyFinance, monthlyMilk);
+    const milkIncomeTransaction = buildMilkIncomeTransaction(monthlyMilk, milkIncomeToAdd, monthRange);
+    const transactions = milkIncomeTransaction
+      ? [milkIncomeTransaction, ...monthlyFinance]
+      : monthlyFinance;
+    const stats = calculateFinanceStats(transactions);
+
+    return {
+      month,
+      year,
+      label: getMonthLabel(month, year),
+      income: Number(stats.totalIncome.toFixed(2)),
+      expense: Number(stats.totalExpense.toFixed(2)),
+      profit: Number(stats.netProfit.toFixed(2)),
+      milkIncome: Number(
+        monthlyMilk.reduce((sum, record) => sum + getRecordMilkAmount(record), 0).toFixed(2)
+      ),
+      current: month === selectedMonth && year === selectedYear
+    };
+  });
+}
+
 export async function GET(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
@@ -44,21 +156,100 @@ export async function GET(request) {
     }
 
     const monthRange = getMonthRange(monthInput.month, monthInput.year);
+    const yearRange = getYearRange(monthInput.year);
+    const oldestMonth = addMonths(monthInput.month, monthInput.year, -5);
+    const oldestRange = getMonthRange(oldestMonth.month, oldestMonth.year);
     const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("finance_records")
-      .select("*, cows(id, name, breed)")
-      .eq("farm_id", farmId)
-      .gte("date", monthRange.start)
-      .lt("date", monthRange.end)
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false });
+    const [
+      monthFinanceRecords,
+      annualFinanceRecords,
+      milkRecords,
+      trendFinanceRecords,
+      trendMilkRecords
+    ] = await Promise.all([
+      supabase
+        .from("finance_records")
+        .select("*, cows(id, name, breed)")
+        .eq("farm_id", farmId)
+        .gte("date", monthRange.start)
+        .lt("date", monthRange.end)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("finance_records")
+        .select("*, cows(id, name, breed)")
+        .eq("farm_id", farmId)
+        .eq("accounting_period", "annual")
+        .gte("date", yearRange.start)
+        .lt("date", yearRange.end)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("milk_records")
+        .select(
+          "id, farm_id, date, morning_litres, evening_litres, total_litres, price_per_litre, morning_price_per_litre, evening_price_per_litre, total_amount"
+        )
+        .eq("farm_id", farmId)
+        .is("cow_id", null)
+        .gte("date", monthRange.start)
+        .lt("date", monthRange.end)
+        .order("date", { ascending: true }),
+      supabase
+        .from("finance_records")
+        .select("id, farm_id, date, type, category, amount, accounting_period, description")
+        .eq("farm_id", farmId)
+        .gte("date", oldestRange.start)
+        .lt("date", monthRange.end)
+        .order("date", { ascending: true }),
+      supabase
+        .from("milk_records")
+        .select(
+          "id, farm_id, date, morning_litres, evening_litres, total_litres, price_per_litre, morning_price_per_litre, evening_price_per_litre, total_amount"
+        )
+        .eq("farm_id", farmId)
+        .is("cow_id", null)
+        .gte("date", oldestRange.start)
+        .lt("date", monthRange.end)
+        .order("date", { ascending: true })
+    ]);
 
-    if (error) {
-      throw error;
+    if (monthFinanceRecords.error) {
+      throw monthFinanceRecords.error;
     }
 
-    const stats = calculateFinanceStats(data || []);
+    if (annualFinanceRecords.error) {
+      throw annualFinanceRecords.error;
+    }
+
+    if (milkRecords.error) {
+      throw milkRecords.error;
+    }
+
+    if (trendFinanceRecords.error) {
+      throw trendFinanceRecords.error;
+    }
+
+    if (trendMilkRecords.error) {
+      throw trendMilkRecords.error;
+    }
+
+    const monthlyFinance = (monthFinanceRecords.data || [])
+      .map(normalizeFinanceRecord)
+      .filter((record) => record.accounting_period !== "annual");
+    const annualFinance = (annualFinanceRecords.data || [])
+      .map(normalizeFinanceRecord)
+      .filter((record) => record.type === "खर्च");
+    const milkIncomeToAdd = getMilkIncomeToAdd(monthlyFinance, milkRecords.data || []);
+    const milkIncomeTransaction = buildMilkIncomeTransaction(
+      milkRecords.data || [],
+      milkIncomeToAdd,
+      monthRange
+    );
+    const transactions = milkIncomeTransaction
+      ? [milkIncomeTransaction, ...monthlyFinance]
+      : monthlyFinance;
+    const stats = calculateFinanceStats(transactions);
+    const annualStats = calculateFinanceStats(annualFinance);
 
     return NextResponse.json({
       data: {
@@ -67,11 +258,26 @@ export async function GET(request) {
         totalIncome: Number(stats.totalIncome.toFixed(2)),
         totalExpense: Number(stats.totalExpense.toFixed(2)),
         netProfit: Number(stats.netProfit.toFixed(2)),
-        incomeByCategory: categoriesToArray(incomeCategories, stats.byCategory.income),
-        expenseByCategory: categoriesToArray(expenseCategories, stats.byCategory.expense),
-        transactions: data || []
-      }
-    });
+        milkIncome: Number(
+          (milkRecords.data || [])
+            .reduce((sum, record) => sum + getRecordMilkAmount(record), 0)
+            .toFixed(2)
+        ),
+        derivedMilkIncome: milkIncomeToAdd,
+        annualExpense: Number(annualStats.totalExpense.toFixed(2)),
+	        annualExpenseByCategory: categoriesToArray(expenseCategories, annualStats.byCategory.expense),
+	        annualTransactions: annualFinance,
+	        incomeByCategory: categoriesToArray(incomeCategories, stats.byCategory.income),
+	        expenseByCategory: categoriesToArray(expenseCategories, stats.byCategory.expense),
+	        monthlyTrend: buildMonthlyTrend(
+	          trendFinanceRecords.data || [],
+	          trendMilkRecords.data || [],
+	          monthInput.month,
+	          monthInput.year
+	        ),
+	        transactions
+	      }
+	    });
   } catch (error) {
     return farmErrorResponse(error);
   }

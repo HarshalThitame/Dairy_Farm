@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CowSelector from "@/components/CowSelector";
 import FormField from "@/components/FormField";
+import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { saveHealthRecord } from "@/lib/offlineActions";
@@ -147,9 +148,10 @@ export default function ArogyaNondPage() {
               </div>
 
               <FormField label="लक्षणे / वर्णन" required>
-                <textarea
+                <MarathiTextInput
+                  multiline
                   value={form.description}
-                  onChange={(event) => updateField("description", event.target.value)}
+                  onValueChange={(value) => updateField("description", value)}
                   placeholder="लक्षणे किंवा उपचाराची माहिती लिहा..."
                   required
                   rows={5}
@@ -158,19 +160,17 @@ export default function ArogyaNondPage() {
               </FormField>
 
               <FormField label="पशुवैद्यकाचे नाव">
-                <input
-                  type="text"
+                <MarathiTextInput
                   value={form.doctor_name}
-                  onChange={(event) => updateField("doctor_name", event.target.value)}
+                  onValueChange={(value) => updateField("doctor_name", value)}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>
 
               <FormField label="औषधाचे नाव">
-                <input
-                  type="text"
+                <MarathiTextInput
                   value={form.medicine_name}
-                  onChange={(event) => updateField("medicine_name", event.target.value)}
+                  onValueChange={(value) => updateField("medicine_name", value)}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>

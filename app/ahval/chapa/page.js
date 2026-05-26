@@ -6,6 +6,7 @@ import LoadingState from "@/components/LoadingState";
 import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
 import PrintableReport from "@/app/ahval/chapa/PrintableReport";
+import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 
 const options = [
@@ -76,42 +77,29 @@ export default function PrintReportPage() {
 
     try {
       const query = `month=${monthValue.month}&year=${monthValue.year}`;
-      const [milkResponse, financeResponse, vaccinationResponse, cowsResponse, aiResponse, calvingResponse] =
+      const [milk, finance, vaccination, cows, ai, calving] =
         await Promise.all([
-          fetch(`/api/reports/milk?${query}`, { cache: "no-store" }),
-          fetch(`/api/reports/finance?${query}`, { cache: "no-store" }),
-          fetch("/api/reports/vaccination", { cache: "no-store" }),
-          fetch("/api/cows", { cache: "no-store" }),
-          fetch("/api/ai", { cache: "no-store" }),
-          fetch("/api/calving", { cache: "no-store" })
+          fetchJson(`/api/reports/milk?${query}`),
+          fetchJson(`/api/reports/finance?${query}`),
+          fetchJson("/api/reports/vaccination"),
+          fetchJson("/api/cows"),
+          fetchJson("/api/ai"),
+          fetchJson("/api/calving")
         ]);
 
-      const [milk, finance, vaccination, cows, ai, calving] = await Promise.all([
-        milkResponse.json(),
-        financeResponse.json(),
-        vaccinationResponse.json(),
-        cowsResponse.json(),
-        aiResponse.json(),
-        calvingResponse.json()
-      ]);
-
-      if (!milkResponse.ok || !financeResponse.ok || !vaccinationResponse.ok || !cowsResponse.ok || !aiResponse.ok || !calvingResponse.ok) {
-        throw new Error("अहवाल माहिती मिळाली नाही.");
-      }
-
       const performance = buildPerformance(
-        cows.data || [],
-        milk.data,
-        ai.data || [],
-        calving.data || []
+        cows || [],
+        milk,
+        ai || [],
+        calving || []
       );
 
       const nextReportData = {
         month: monthValue.month,
         year: monthValue.year,
-        milk: milk.data,
-        finance: finance.data,
-        vaccination: vaccination.data,
+        milk,
+        finance,
+        vaccination,
         performance
       };
 

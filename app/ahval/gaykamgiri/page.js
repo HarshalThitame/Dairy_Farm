@@ -15,6 +15,7 @@ import {
   toISODate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
+import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 
 const filters = ["सर्व गायी", "फक्त दुधाळ गायी", "गाभण गायी", "कमी उत्पादन गायी"];
@@ -77,43 +78,20 @@ export default function CowPerformancePage() {
 
     try {
       const dates = getLastSevenDates();
-      const [cowsResponse, milkResponse, aiResponse, calvingResponse, recentMilkResponse] =
-        await Promise.all([
-          fetch("/api/cows", { cache: "no-store" }),
-          fetch(`/api/reports/milk?month=${monthValue.month}&year=${monthValue.year}`, {
-            cache: "no-store"
-          }),
-          fetch("/api/ai", { cache: "no-store" }),
-          fetch("/api/calving", { cache: "no-store" }),
-          fetch(`/api/milk?from=${dates[0]}&to=${dates[6]}`, { cache: "no-store" })
-        ]);
-
       const [cowsResult, milkResult, aiResult, calvingResult, recentMilkResult] =
         await Promise.all([
-          cowsResponse.json(),
-          milkResponse.json(),
-          aiResponse.json(),
-          calvingResponse.json(),
-          recentMilkResponse.json()
+          fetchJson("/api/cows"),
+          fetchJson(`/api/reports/milk?month=${monthValue.month}&year=${monthValue.year}`),
+          fetchJson("/api/ai"),
+          fetchJson("/api/calving"),
+          fetchJson(`/api/milk?from=${dates[0]}&to=${dates[6]}`)
         ]);
 
-      if (!cowsResponse.ok) {
-        throw new Error(cowsResult.error || "गायींची माहिती मिळाली नाही.");
-      }
-
-      if (!milkResponse.ok) {
-        throw new Error(milkResult.error || "दूध अहवाल मिळाला नाही.");
-      }
-
-      if (!aiResponse.ok || !calvingResponse.ok || !recentMilkResponse.ok) {
-        throw new Error("नोंदी मिळवताना चूक झाली.");
-      }
-
-      setCows(cowsResult.data || []);
-      setMilkReport(milkResult.data);
-      setAiRecords(aiResult.data || []);
-      setCalvingRecords(calvingResult.data || []);
-      setRecentMilk(recentMilkResult.data || []);
+      setCows(cowsResult || []);
+      setMilkReport(milkResult);
+      setAiRecords(aiResult || []);
+      setCalvingRecords(calvingResult || []);
+      setRecentMilk(recentMilkResult || []);
     } catch (fetchError) {
       setError(fetchError.message || "अहवाल मिळवताना चूक झाली.");
     } finally {

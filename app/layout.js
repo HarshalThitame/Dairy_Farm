@@ -1,13 +1,8 @@
 import { Noto_Sans_Devanagari } from "next/font/google";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
-import AuthRequired from "@/components/AuthRequired";
-import InstallBanner from "@/components/InstallBanner";
-import NetworkStatusBar from "@/components/NetworkStatusBar";
-import NotificationBoot from "@/components/NotificationBoot";
-import TopHeader from "@/components/TopHeader";
-import ToastContainer from "@/components/Toast";
+import AppChrome from "@/components/AppChrome";
 import { AuthProvider } from "@/context/AuthContext";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/branding";
 
 const notoSansDevanagari = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
@@ -17,13 +12,29 @@ const notoSansDevanagari = Noto_Sans_Devanagari({
 });
 
 export const metadata = {
-  title: "गोशाळा व्यवस्थापन",
-  description: "दुग्ध व्यवसायासाठी मराठी गोशाळा व्यवस्थापन अ‍ॅप",
+  applicationName: APP_NAME,
+  title: {
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`
+  },
+  description: APP_DESCRIPTION,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "गोशाळा"
+    title: APP_NAME
+  },
+  openGraph: {
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    siteName: APP_NAME,
+    locale: "mr_IN",
+    type: "website"
+  },
+  twitter: {
+    card: "summary",
+    title: APP_NAME,
+    description: APP_DESCRIPTION
   },
   icons: {
     icon: [
@@ -48,15 +59,7 @@ export default function RootLayout({ children }) {
     <html lang="mr" className={notoSansDevanagari.variable}>
       <body className="font-devanagari">
         <AuthProvider>
-          <NetworkStatusBar />
-          <TopHeader />
-          <main className="safe-bottom mx-auto min-h-screen w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6">
-            <AuthRequired>{children}</AuthRequired>
-          </main>
-          <NotificationBoot />
-          <InstallBanner />
-          <ToastContainer />
-          <BottomNav />
+          <AppChrome>{children}</AppChrome>
         </AuthProvider>
       </body>
     </html>

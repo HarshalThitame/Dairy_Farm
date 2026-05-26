@@ -1,0 +1,181 @@
+import bcrypt from "bcryptjs";
+import { NextResponse } from "next/server";
+import {
+  normalizeFarm,
+  normalizeUser,
+  signFarmToken
+} from "@/lib/farmGuard";
+import { getSupabaseServerClient } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const weakPins = new Set([
+  "0000",
+  "1111",
+  "2222",
+  "3333",
+  "4444",
+  "5555",
+  "6666",
+  "7777",
+  "8888",
+  "9999",
+  "1234",
+  "4321"
+]);
+
+function cleanText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeMobile(mobile) {
+  return String(mobile || "").replace(/\D/g, "");
+}
+
+function normalizeTotalCows(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
+}
+
+function validateSignup(body) {
+  const mobile = normalizeMobile(body.mobile);
+  const pin = String(body.pin || "").trim();
+  const farmName = cleanText(body.farmName);
+  const ownerName = cleanText(body.ownerName);
+  const districtName = cleanText(body.districtName);
+
+  if (!/^[6-9]\d{9}$/.test(mobile)) {
+    return { error: "१० अंकी योग्य मोबाइल नंबर लिहा." };
+  }
+
+  if (!/^\d{4}$/.test(pin)) {
+    return { error: "४ अंकी PIN लिहा." };
+  }
+
+  if (weakPins.has(pin)) {
+    return { error: "हा PIN खूप सोपा आहे. कठीण PIN निवडा." };
+  }
+
+  if (farmName.length < 2) {
+    return { error: "डेअरीचे नाव लिहा." };
+  }
+
+  if (ownerName.length < 2) {
+    return { error: "मालकाचे नाव लिहा." };
+  }
+
+  if (districtName.length < 2) {
+    return { error: "जिल्ह्याचे नाव निवडा." };
+  }
+
+  return {
+    mobile,
+    pin,
+    farmName,
+    ownerName,
+    villageName: cleanText(body.villageName),
+    talukaName: cleanText(body.talukaName),
+    districtName,
+    totalCows: normalizeTotalCows(body.totalCows)
+  };
+}
+
+export async function POST(request) {
+  let createdFarmId = null;
+
+  try {
+    const body = await request.json();
+    const validated = validateSignup(body);
+
+    if (validated.error) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+
+    const supabase = getSupabaseServerClient();
+    const [{ data: existingFarm }, { data: existingUser }] = await Promise.all([
+      supabase
+        .from("farms")
+        .select("id")
+        .eq("owner_mobile", validated.mobile)
+        .maybeSingle(),
+      supabase
+        .from("users")
+        .select("id")
+        .eq("mobile", validated.mobile)
+        .maybeSingle()
+    ]);
+
+    if (existingFarm || existingUser) {
+      return NextResponse.json(
+        { error: "मोबाइल नंबर आधीच नोंदणीकृत आहे." },
+        { status: 409 }
+      );
+    }
+
+    const pinHash = await bcrypt.hash(validated.pin, Number(process.env.BCRYPT_ROUNDS || 10));
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 30);
+
+    const { data: farm, error: farmError } = await supabase
+      .from("farms")
+      .insert({
+        farm_name: validated.farmName,
+        owner_name: validated.ownerName,
+        owner_mobile: validated.mobile,
+        village_name: validated.villageName || null,
+        taluka_name: validated.talukaName || null,
+        district_name: validated.districtName,
+        state_name: "महाराष्ट्र",
+        total_cows: validated.totalCows,
+        subscription_status: "trial",
+        trial_ends_at: trialEndDate.toISOString(),
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (farmError) {
+      throw farmError;
+    }
+
+    createdFarmId = farm.id;
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert({
+        farm_id: farm.id,
+        mobile: validated.mobile,
+        pin_hash: pinHash,
+        name: validated.ownerName,
+        role: "admin",
+        is_farm_owner: true,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      await supabase.from("farms").delete().eq("id", createdFarmId);
+      throw userError;
+    }
+
+    const token = signFarmToken(user, farm);
+
+    return NextResponse.json(
+      {
+        success: true,
+        token,
+        user: normalizeUser(user),
+        farm: normalizeFarm(farm),
+        message: "नोंदणी यशस्वी! स्वागत आहे."
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: error.message || "नोंदणी करताना त्रुटी झाली." },
+      { status: 500 }
+    );
+  }
+}

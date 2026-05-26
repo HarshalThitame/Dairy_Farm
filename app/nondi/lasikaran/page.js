@@ -6,6 +6,7 @@ import CowSelector from "@/components/CowSelector";
 import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
+import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
 import {
   autoSuggestVaccinationDate,
@@ -328,10 +329,9 @@ export default function LasikaranNondPage() {
 
             {form.vaccine_name === "इतर" ? (
               <FormField label="लसीचे नाव लिहा" required>
-                <input
-                  type="text"
+                <MarathiTextInput
                   value={form.custom_vaccine_name}
-                  onChange={(event) => updateField("custom_vaccine_name", event.target.value)}
+                  onValueChange={(value) => updateField("custom_vaccine_name", value)}
                   required
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
@@ -348,20 +348,18 @@ export default function LasikaranNondPage() {
             </FormField>
 
             <FormField label="दिलेली मात्रा">
-              <input
-                type="text"
+              <MarathiTextInput
                 value={form.dose}
-                onChange={(event) => updateField("dose", event.target.value)}
+                onValueChange={(value) => updateField("dose", value)}
                 placeholder="उदा. २ मिली"
                 className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
               />
             </FormField>
 
             <FormField label="पशुवैद्यकाचे नाव">
-              <input
-                type="text"
+              <MarathiTextInput
                 value={form.doctor_name}
-                onChange={(event) => updateField("doctor_name", event.target.value)}
+                onValueChange={(value) => updateField("doctor_name", value)}
                 className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
               />
             </FormField>

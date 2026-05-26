@@ -1,4 +1,5 @@
 import StatusBadge from "@/components/StatusBadge";
+import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
 import {
   calculateAgeMarathi,
   formatCowBreed,
@@ -32,7 +33,8 @@ export default function PrintableReport({ reportData, selectedSections }) {
   return (
     <article className="print-page rounded-lg bg-white p-4 text-slate-950 print:rounded-none print:p-0">
       <header className="border-b-2 border-slate-900 pb-4 text-center">
-        <h1 className="text-[30px] font-extrabold">गोशाळा व्यवस्थापन</h1>
+        <h1 className="text-[30px] font-extrabold">🐄 {APP_NAME}</h1>
+        <p className="mt-1 text-[18px] font-bold">{APP_TAGLINE}</p>
         <p className="mt-1 text-[21px] font-bold">
           {getMonthLabel(reportData.month, reportData.year)}
         </p>
@@ -76,11 +78,15 @@ export default function PrintableReport({ reportData, selectedSections }) {
                 <td className="border border-slate-900 p-2">{formatCurrency(finance.totalIncome || 0)}</td>
               </tr>
               <tr>
-                <th className="border border-slate-900 p-2 text-left">खर्च</th>
+                <th className="border border-slate-900 p-2 text-left">मासिक खर्च</th>
                 <td className="border border-slate-900 p-2">{formatCurrency(finance.totalExpense || 0)}</td>
               </tr>
               <tr>
-                <th className="border border-slate-900 p-2 text-left">निव्वळ नफा</th>
+                <th className="border border-slate-900 p-2 text-left">वार्षिक खर्च</th>
+                <td className="border border-slate-900 p-2">{formatCurrency(finance.annualExpense || 0)}</td>
+              </tr>
+              <tr>
+                <th className="border border-slate-900 p-2 text-left">मासिक नफा</th>
                 <td className="border border-slate-900 p-2">{formatCurrency(finance.netProfit || 0)}</td>
               </tr>
             </tbody>

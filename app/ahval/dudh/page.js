@@ -1,19 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import MilkBarChart from "@/components/MilkBarChart";
 import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
-import StatusBadge from "@/components/StatusBadge";
 import SummaryCard from "@/components/SummaryCard";
 import {
+  formatCurrency,
   formatLitres,
   formatMarathiDate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
+import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 
 function getInitialMonth() {
@@ -30,25 +30,79 @@ function getInitialMonth() {
   return { month, year };
 }
 
-function rankEmoji(index) {
-  if (index === 0) {
-    return "🥇";
+function formatRate(value) {
+  const numberValue = Number(value || 0);
+  const rounded = Number.isInteger(numberValue) ? numberValue : Number(numberValue.toFixed(2));
+  return `₹ ${toMarathiNumerals(rounded)}`;
+}
+
+function formatReading(value, suffix = "") {
+  if (value === null || value === undefined || value === "") {
+    return "नोंद नाही";
   }
 
-  if (index === 1) {
-    return "🥈";
-  }
+  return `${toMarathiNumerals(value)}${suffix}`;
+}
 
-  if (index === 2) {
-    return "🥉";
-  }
+function withinDateRange(record, fromDate, toDate) {
+  return (!fromDate || record.date >= fromDate) && (!toDate || record.date <= toDate);
+}
 
-  return toMarathiNumerals(index + 1);
+function ReadingTile({ label, value, tone = "bg-slate-50 text-slate-900", suffix = "" }) {
+  return (
+    <div className={`rounded-lg p-3 ${tone}`}>
+      <p className="text-[17px] font-extrabold opacity-80">{label}</p>
+      <p className="mt-1 text-[22px] font-extrabold">{formatReading(value, suffix)}</p>
+    </div>
+  );
+}
+
+function DailyMilkCard({ record }) {
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[21px] font-extrabold text-slate-950">
+            {formatMarathiDate(record.date)}
+          </p>
+          <p className="mt-1 text-[18px] font-bold text-slate-600">
+            दर: {formatRate(record.averageRate || 0)} / लि.
+          </p>
+        </div>
+        <p className="shrink-0 text-[22px] font-extrabold text-blue-700">
+          {formatLitres(record.total)} लि.
+        </p>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-blue-50 p-3 text-blue-900">
+          <p className="text-[17px] font-extrabold">सकाळ</p>
+          <p className="mt-1 text-[20px] font-extrabold">{formatLitres(record.morning)} लि.</p>
+        </div>
+        <div className="rounded-lg bg-indigo-50 p-3 text-indigo-900">
+          <p className="text-[17px] font-extrabold">संध्याकाळ</p>
+          <p className="mt-1 text-[20px] font-extrabold">{formatLitres(record.evening)} लि.</p>
+        </div>
+        <div className="rounded-lg bg-green-50 p-3 text-green-900">
+          <p className="text-[17px] font-extrabold">रक्कम</p>
+          <p className="mt-1 text-[20px] font-extrabold">{formatCurrency(record.amount)}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-3 text-slate-800">
+          <p className="text-[17px] font-extrabold">फॅट / SNF</p>
+          <p className="mt-1 text-[18px] font-extrabold">
+            {formatReading(record.morningFat ?? record.eveningFat, "%")} / {formatReading(record.morningSnf ?? record.eveningSnf)}
+          </p>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export default function MilkReportPage() {
   const [monthValue, setMonthValue] = useState(getInitialMonth);
   const [report, setReport] = useState(null);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -57,19 +111,13 @@ export default function MilkReportPage() {
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/reports/milk?month=${monthValue.month}&year=${monthValue.year}`,
-        { cache: "no-store" }
+      const result = await fetchJson(
+        `/api/reports/milk?month=${monthValue.month}&year=${monthValue.year}`
       );
-      const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || "दूध अहवाल मिळाला नाही.");
-      }
-
-      setReport(result.data);
+      setReport(result);
     } catch (fetchError) {
-      setError(fetchError.message || "अहवाल मिळवताना चूक झाली.");
+      setError(fetchError.message || "दूध अहवाल मिळवताना चूक झाली.");
     } finally {
       setLoading(false);
     }
@@ -79,9 +127,22 @@ export default function MilkReportPage() {
     fetchReport();
   }, [fetchReport]);
 
+  const filteredRecords = useMemo(
+    () => (report?.dailyRecords || []).filter((record) => withinDateRange(record, fromDate, toDate)),
+    [fromDate, report?.dailyRecords, toDate]
+  );
+  const filteredDailyData = useMemo(
+    () => (report?.dailyData || []).filter((record) => withinDateRange(record, fromDate, toDate)),
+    [fromDate, report?.dailyData, toDate]
+  );
+  const filteredTotal = filteredRecords.reduce((sum, record) => sum + Number(record.total || 0), 0);
+  const filteredRevenue = filteredRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
+  const quality = report?.qualitySummary || {};
+  const session = report?.sessionSummary || {};
+
   return (
     <div className="space-y-6">
-      <PageHeader title="📊 दूध उत्पादन अहवाल" />
+      <PageHeader title="🥛 दूध सविस्तर अहवाल" subtitle="दैनिक दूध, गुणवत्ता, दर आणि उत्पन्न" />
       <MonthSelector value={monthValue} onChange={setMonthValue} />
 
       {loading ? <LoadingState text="दूध अहवाल लोड होत आहे..." /> : null}
@@ -98,10 +159,17 @@ export default function MilkReportPage() {
               color="blue"
             />
             <SummaryCard
+              emoji="💰"
+              title="दूध उत्पन्न"
+              value={formatCurrency(session.totalAmount || 0)}
+              subtext={`सरासरी दर ${formatRate(session.averageRate || 0)}`}
+              color="green"
+            />
+            <SummaryCard
               emoji="📅"
               title="दररोज सरासरी"
               value={`${formatLitres(report.dailyAverage)} लिटर`}
-              subtext="मासिक सरासरी"
+              subtext={`${toMarathiNumerals(session.daysWithMilk || 0)} दिवस नोंद`}
               color="blue"
             />
             <SummaryCard
@@ -111,80 +179,96 @@ export default function MilkReportPage() {
               subtext={formatMarathiDate(report.bestDay?.date)}
               color="green"
             />
-            <SummaryCard
-              emoji="⬇️"
-              title="सर्वात कमी दूध"
-              value={`${formatLitres(report.worstDay?.litres || 0)} लिटर`}
-              subtext={formatMarathiDate(report.worstDay?.date)}
-              color="yellow"
-            />
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">
-              रोजचे दूध चार्ट
-            </h2>
+            <h2 className="text-[24px] font-extrabold text-slate-950">तारीख फिल्टर</h2>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-2 block text-[18px] font-extrabold text-slate-800">पासून</span>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(event) => setFromDate(event.target.value)}
+                  className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-3 text-[18px] font-bold"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-[18px] font-extrabold text-slate-800">पर्यंत</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(event) => setToDate(event.target.value)}
+                  className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-3 text-[18px] font-bold"
+                />
+              </label>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-blue-50 p-3 text-blue-900">
+                <p className="text-[17px] font-extrabold">फिल्टर दूध</p>
+                <p className="mt-1 text-[22px] font-extrabold">{formatLitres(filteredTotal)} लि.</p>
+              </div>
+              <div className="rounded-lg bg-green-50 p-3 text-green-900">
+                <p className="text-[17px] font-extrabold">फिल्टर रक्कम</p>
+                <p className="mt-1 text-[22px] font-extrabold">{formatCurrency(filteredRevenue)}</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="text-[24px] font-extrabold text-slate-950">सकाळ / संध्याकाळ एकूण</h2>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <ReadingTile label="सकाळ दूध" value={formatLitres(session.morningLitres || 0)} suffix=" लि." tone="bg-blue-50 text-blue-900" />
+              <ReadingTile label="संध्याकाळ दूध" value={formatLitres(session.eveningLitres || 0)} suffix=" लि." tone="bg-indigo-50 text-indigo-900" />
+              <ReadingTile label="सकाळ रक्कम" value={formatCurrency(session.morningAmount || 0)} tone="bg-green-50 text-green-900" />
+              <ReadingTile label="संध्याकाळ रक्कम" value={formatCurrency(session.eveningAmount || 0)} tone="bg-green-50 text-green-900" />
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="text-[24px] font-extrabold text-slate-950">फॅट, SNF आणि डिग्री</h2>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <ReadingTile label="सरासरी फॅट" value={quality.averageFat} suffix="%" tone="bg-yellow-50 text-yellow-900" />
+              <ReadingTile label="सरासरी SNF" value={quality.averageSnf} tone="bg-purple-50 text-purple-900" />
+              <ReadingTile label="सरासरी डिग्री" value={quality.averageDegree} tone="bg-slate-50 text-slate-900" />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <ReadingTile label="सकाळ फॅट" value={quality.morningFat} suffix="%" tone="bg-yellow-50 text-yellow-900" />
+              <ReadingTile label="संध्याकाळ फॅट" value={quality.eveningFat} suffix="%" tone="bg-yellow-50 text-yellow-900" />
+              <ReadingTile label="सकाळ SNF" value={quality.morningSnf} tone="bg-purple-50 text-purple-900" />
+              <ReadingTile label="संध्याकाळ SNF" value={quality.eveningSnf} tone="bg-purple-50 text-purple-900" />
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="text-[24px] font-extrabold text-slate-950">रोजचे दूध चार्ट</h2>
             <div className="mt-4">
-              <MilkBarChart data={report.dailyData || []} height={280} />
+              <MilkBarChart data={filteredDailyData} height={280} />
             </div>
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">
-              गायीप्रमाणे दूध
-            </h2>
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-[720px] w-full border-collapse text-[18px]">
-                <thead>
-                  <tr className="bg-blue-50 text-left text-blue-950">
-                    <th className="border border-blue-100 p-3">क्रम</th>
-                    <th className="border border-blue-100 p-3">गायीचे नाव</th>
-                    <th className="border border-blue-100 p-3">एकूण लिटर</th>
-                    <th className="border border-blue-100 p-3">सरासरी/दिवस</th>
-                    <th className="border border-blue-100 p-3">सर्वाधिक</th>
-                    <th className="border border-blue-100 p-3">स्थिती</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(report.perCow || []).map((cow, index) => (
-                    <tr
-                      key={cow.cow_id}
-                      className={cow.total > 0 ? "bg-white" : "bg-slate-50 text-slate-500"}
-                    >
-                      <td className="border border-slate-200 p-3 font-extrabold">
-                        {rankEmoji(index)}
-                      </td>
-                      <td className="border border-slate-200 p-3">
-                        <Link
-                          href={`/gayi/${cow.cow_id}`}
-                          className="font-extrabold text-sheti"
-                        >
-                          {cow.name}
-                        </Link>
-                      </td>
-                      <td className="border border-slate-200 p-3 font-bold">
-                        {formatLitres(cow.total)} लिटर
-                      </td>
-                      <td className="border border-slate-200 p-3 font-bold">
-                        {formatLitres(cow.average)} लिटर
-                      </td>
-                      <td className="border border-slate-200 p-3 font-bold">
-                        {formatLitres(cow.best)} लिटर
-                      </td>
-                      <td className="border border-slate-200 p-3">
-                        <StatusBadge status={cow.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <h2 className="text-[24px] font-extrabold text-slate-950">गायनिहाय उत्पादन</h2>
+            <p className="mt-3 rounded-lg bg-slate-50 p-4 text-[19px] font-bold leading-relaxed text-slate-700">
+              सध्याची दूध नोंद सर्व गायींची एकत्रित आहे. त्यामुळे गायनिहाय दूध उत्पादन वेगळे दाखवता येत नाही.
+            </p>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="text-[24px] font-extrabold text-slate-950">रोजची दूध नोंद</h2>
+            <div className="mt-4 space-y-3">
+              {filteredRecords.length > 0 ? (
+                filteredRecords.map((record) => <DailyMilkCard key={record.id || record.date} record={record} />)
+              ) : (
+                <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-[19px] font-bold text-slate-600">
+                  या तारखांसाठी दूध नोंद नाही.
+                </p>
+              )}
             </div>
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">
-              मागील सहा महिन्यांची तुलना
-            </h2>
+            <h2 className="text-[24px] font-extrabold text-slate-950">मागील सहा महिन्यांची तुलना</h2>
             <div className="mt-4">
               <MilkBarChart
                 data={(report.monthlyTrend || []).map((item) => ({

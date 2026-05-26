@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS cows (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
-  breed TEXT,
+  breed TEXT DEFAULT 'जर्सी',
   date_of_birth DATE,
   tag_number TEXT,
   color TEXT,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS ai_records (
   cow_id UUID REFERENCES cows(id) ON DELETE CASCADE,
   ai_date DATE NOT NULL,
   bull_code TEXT,
-  bull_breed TEXT,
+  bull_breed TEXT DEFAULT 'जर्सी',
   doctor_name TEXT,
   cost NUMERIC(8,2) CHECK (cost IS NULL OR cost >= 0),
   pregnancy_check_date DATE,
@@ -45,12 +45,27 @@ CREATE TABLE IF NOT EXISTS calving_records (
 
 CREATE TABLE IF NOT EXISTS milk_records (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cow_id UUID REFERENCES cows(id) ON DELETE CASCADE,
+  cow_id UUID REFERENCES cows(id) ON DELETE SET NULL,
   date DATE NOT NULL,
-  morning_litres NUMERIC(5,2) DEFAULT 0 CHECK (morning_litres >= 0),
-  evening_litres NUMERIC(5,2) DEFAULT 0 CHECK (evening_litres >= 0),
-  total_litres NUMERIC(5,2) GENERATED ALWAYS AS (morning_litres + evening_litres) STORED,
+  morning_litres NUMERIC(10,2) DEFAULT 0 CHECK (morning_litres >= 0),
+  evening_litres NUMERIC(10,2) DEFAULT 0 CHECK (evening_litres >= 0),
+  total_litres NUMERIC(10,2) GENERATED ALWAYS AS (morning_litres + evening_litres) STORED,
+  price_per_litre NUMERIC(6,2) DEFAULT 0 CHECK (price_per_litre IS NULL OR price_per_litre >= 0),
+  morning_price_per_litre NUMERIC(6,2) CHECK (morning_price_per_litre IS NULL OR morning_price_per_litre >= 0),
+  evening_price_per_litre NUMERIC(6,2) CHECK (evening_price_per_litre IS NULL OR evening_price_per_litre >= 0),
+  total_amount NUMERIC(12,2) GENERATED ALWAYS AS (
+    (COALESCE(morning_litres, 0) * COALESCE(morning_price_per_litre, price_per_litre, 0)) +
+    (COALESCE(evening_litres, 0) * COALESCE(evening_price_per_litre, price_per_litre, 0))
+  ) STORED,
   fat_percentage NUMERIC(4,2) CHECK (fat_percentage IS NULL OR fat_percentage >= 0),
+  morning_fat_percentage NUMERIC(4,2) CHECK (morning_fat_percentage IS NULL OR morning_fat_percentage >= 0),
+  evening_fat_percentage NUMERIC(4,2) CHECK (evening_fat_percentage IS NULL OR evening_fat_percentage >= 0),
+  snf_value NUMERIC(4,2) CHECK (snf_value IS NULL OR snf_value >= 0),
+  morning_snf_value NUMERIC(4,2) CHECK (morning_snf_value IS NULL OR morning_snf_value >= 0),
+  evening_snf_value NUMERIC(4,2) CHECK (evening_snf_value IS NULL OR evening_snf_value >= 0),
+  degree_reading NUMERIC(5,2) CHECK (degree_reading IS NULL OR degree_reading >= 0),
+  morning_degree_reading NUMERIC(5,2) CHECK (morning_degree_reading IS NULL OR morning_degree_reading >= 0),
+  evening_degree_reading NUMERIC(5,2) CHECK (evening_degree_reading IS NULL OR evening_degree_reading >= 0),
   notes TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -76,8 +91,62 @@ CREATE TABLE IF NOT EXISTS finance_records (
   category TEXT CHECK (category IS NULL OR category IN ('दूध विक्री', 'चारा', 'औषध', 'AI खर्च', 'मजुरी', 'इतर')),
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
   cow_id UUID REFERENCES cows(id),
+  accounting_period TEXT NOT NULL DEFAULT 'monthly' CHECK (accounting_period IN ('monthly', 'annual')),
   description TEXT,
   created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS feed_expenses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  section TEXT NOT NULL CHECK (section IN ('मुरघास', 'कॅटल फीड', 'भुसा', 'इतर')),
+  item_name TEXT NOT NULL,
+  quantity NUMERIC(10,2) CHECK (quantity IS NULL OR quantity >= 0),
+  unit TEXT,
+  rate NUMERIC(10,2) CHECK (rate IS NULL OR rate >= 0),
+  bags_count INTEGER CHECK (bags_count IS NULL OR bags_count >= 0),
+  murghas_new_bags_count INTEGER CHECK (murghas_new_bags_count IS NULL OR murghas_new_bags_count >= 0),
+  murghas_new_bag_rate NUMERIC(10,2) CHECK (murghas_new_bag_rate IS NULL OR murghas_new_bag_rate >= 0),
+  murghas_inner_count INTEGER CHECK (murghas_inner_count IS NULL OR murghas_inner_count >= 0),
+  murghas_inner_rate NUMERIC(10,2) CHECK (murghas_inner_rate IS NULL OR murghas_inner_rate >= 0),
+  murghas_filled_bags_count INTEGER CHECK (murghas_filled_bags_count IS NULL OR murghas_filled_bags_count >= 0),
+  murghas_filling_labor_rate NUMERIC(10,2) CHECK (murghas_filling_labor_rate IS NULL OR murghas_filling_labor_rate >= 0),
+  inner_material_cost NUMERIC(10,2) DEFAULT 0 CHECK (inner_material_cost >= 0),
+  labor_cost NUMERIC(10,2) DEFAULT 0 CHECK (labor_cost >= 0),
+  transport_cost NUMERIC(10,2) DEFAULT 0 CHECK (transport_cost >= 0),
+  other_cost NUMERIC(10,2) DEFAULT 0 CHECK (other_cost >= 0),
+  total_cost NUMERIC(10,2) NOT NULL CHECK (total_cost >= 0),
+  accounting_period TEXT NOT NULL DEFAULT 'monthly' CHECK (accounting_period IN ('monthly', 'annual')),
+  supplier_name TEXT,
+  notes TEXT,
+  finance_record_id UUID REFERENCES finance_records(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT feed_expenses_accounting_period_section_check CHECK (
+    (
+      section IN ('मुरघास', 'भुसा')
+      AND accounting_period = 'annual'
+    )
+    OR (
+      section NOT IN ('मुरघास', 'भुसा')
+      AND accounting_period = 'monthly'
+    )
+  ),
+  CONSTRAINT feed_expenses_cattle_feed_bags_check CHECK (
+    section <> 'कॅटल फीड'
+    OR (
+      quantity IS NULL
+      AND unit = 'बॅग'
+      AND COALESCE(inner_material_cost, 0) = 0
+      AND COALESCE(labor_cost, 0) = 0
+      AND COALESCE(transport_cost, 0) = 0
+      AND COALESCE(other_cost, 0) = 0
+    )
+  ),
+  CONSTRAINT feed_expenses_murghas_bag_cost_check CHECK (
+    section <> 'मुरघास'
+    OR COALESCE(transport_cost, 0) = 0
+  )
 );
 
 CREATE TABLE IF NOT EXISTS reminders (
@@ -97,8 +166,12 @@ CREATE INDEX IF NOT EXISTS cows_active_name_idx ON cows (is_active, name);
 CREATE INDEX IF NOT EXISTS ai_records_cow_date_idx ON ai_records (cow_id, ai_date DESC);
 CREATE INDEX IF NOT EXISTS calving_records_cow_date_idx ON calving_records (cow_id, expected_date DESC);
 CREATE INDEX IF NOT EXISTS milk_records_date_cow_idx ON milk_records (date DESC, cow_id);
+CREATE UNIQUE INDEX IF NOT EXISTS milk_records_farm_date_overall_unique
+  ON milk_records (farm_id, date)
+  WHERE cow_id IS NULL;
 CREATE INDEX IF NOT EXISTS health_records_cow_date_idx ON health_records (cow_id, date DESC);
 CREATE INDEX IF NOT EXISTS finance_records_date_idx ON finance_records (date DESC);
+CREATE INDEX IF NOT EXISTS feed_expenses_date_section_idx ON feed_expenses (date DESC, section);
 CREATE INDEX IF NOT EXISTS reminders_due_idx ON reminders (is_done, reminder_date, cow_id);
 
 CREATE OR REPLACE FUNCTION set_ai_calculated_dates()

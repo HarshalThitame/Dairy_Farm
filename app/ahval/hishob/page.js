@@ -21,7 +21,7 @@ import {
   getIndiaMonthParts,
   incomeCategories
 } from "@/lib/reportUtils";
-import { saveFinanceRecord } from "@/lib/offlineActions";
+import { fetchJson, saveFinanceRecord } from "@/lib/offlineActions";
 
 function getInitialMonth() {
   const current = getIndiaMonthParts();
@@ -262,17 +262,11 @@ export default function FinanceReportPage() {
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/reports/finance?month=${monthValue.month}&year=${monthValue.year}`,
-        { cache: "no-store" }
+      const result = await fetchJson(
+        `/api/reports/finance?month=${monthValue.month}&year=${monthValue.year}`
       );
-      const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || "हिशोब अहवाल मिळाला नाही.");
-      }
-
-      setReport(result.data);
+      setReport(result);
     } catch (fetchError) {
       setError(fetchError.message || "अहवाल मिळवताना चूक झाली.");
     } finally {
@@ -305,7 +299,7 @@ export default function FinanceReportPage() {
   }
 
   function openEditTransaction(transaction) {
-    if (!canManageFinance) {
+    if (!canManageFinance || transaction.is_derived) {
       return;
     }
 
@@ -397,7 +391,7 @@ export default function FinanceReportPage() {
         <>
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
             <h2 className="text-[24px] font-extrabold text-slate-950">
-              उत्पन्न आणि खर्च
+              मासिक उत्पन्न आणि खर्च
             </h2>
             <FinancePieChart income={report.totalIncome} expense={report.totalExpense} />
             <p
@@ -411,6 +405,39 @@ export default function FinanceReportPage() {
             </p>
           </section>
 
+          <section className="grid grid-cols-2 gap-3" aria-label="हिशोब सारांश">
+            <article className="rounded-lg border border-green-100 bg-green-50 p-4">
+              <p className="text-[18px] font-extrabold text-green-900">मासिक उत्पन्न</p>
+              <p className="mt-2 text-[24px] font-extrabold leading-none text-green-950">
+                {formatCurrency(report.totalIncome || 0)}
+              </p>
+            </article>
+            <article className="rounded-lg border border-red-100 bg-red-50 p-4">
+              <p className="text-[18px] font-extrabold text-red-900">मासिक खर्च</p>
+              <p className="mt-2 text-[24px] font-extrabold leading-none text-red-950">
+                {formatCurrency(report.totalExpense || 0)}
+              </p>
+            </article>
+            <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <p className="text-[18px] font-extrabold text-blue-900">वार्षिक खर्च</p>
+              <p className="mt-2 text-[24px] font-extrabold leading-none text-blue-950">
+                {formatCurrency(report.annualExpense || 0)}
+              </p>
+            </article>
+            <article
+              className={`rounded-lg border p-4 ${
+                report.netProfit >= 0
+                  ? "border-green-100 bg-green-50 text-green-950"
+                  : "border-red-100 bg-red-50 text-red-950"
+              }`}
+            >
+              <p className="text-[18px] font-extrabold">मासिक नफा</p>
+              <p className="mt-2 text-[24px] font-extrabold leading-none">
+                {formatCurrency(report.netProfit || 0)}
+              </p>
+            </article>
+          </section>
+
           <CategoryBreakdown
             title="💰 उत्पन्न"
             items={report.incomeByCategory || []}
@@ -421,7 +448,7 @@ export default function FinanceReportPage() {
           />
 
           <CategoryBreakdown
-            title="💸 खर्च"
+            title="💸 मासिक खर्च"
             items={report.expenseByCategory || []}
             total={report.totalExpense}
             tone="red"
@@ -429,8 +456,17 @@ export default function FinanceReportPage() {
             onAdd={canManageFinance ? () => openNewTransaction("खर्च") : null}
           />
 
+          <CategoryBreakdown
+            title="🌾 वार्षिक खर्च"
+            items={report.annualExpenseByCategory || []}
+            total={report.annualExpense || 0}
+            tone="red"
+            buttonLabel=""
+            onAdd={null}
+          />
+
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">व्यवहार यादी</h2>
+            <h2 className="text-[24px] font-extrabold text-slate-950">मासिक व्यवहार यादी</h2>
             <div className="mt-4 grid grid-cols-3 gap-2">
               {["सर्व", "उत्पन्न", "खर्च"].map((filter) => (
                 <button
@@ -455,7 +491,7 @@ export default function FinanceReportPage() {
                     key={transaction.id}
                     type="button"
                     onClick={() => openEditTransaction(transaction)}
-                    disabled={!canManageFinance}
+                    disabled={!canManageFinance || transaction.is_derived}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left active:bg-green-50 disabled:cursor-default disabled:active:bg-slate-50"
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -470,6 +506,11 @@ export default function FinanceReportPage() {
                         {transaction.description ? (
                           <p className="mt-1 text-[18px] font-semibold text-slate-600">
                             {transaction.description}
+                          </p>
+                        ) : null}
+                        {transaction.is_derived ? (
+                          <p className="mt-1 text-[17px] font-bold text-green-700">
+                            दूध नोंदीवरून आपोआप दाखवले आहे
                           </p>
                         ) : null}
                       </div>
@@ -493,6 +534,40 @@ export default function FinanceReportPage() {
             <p className="mt-3 text-[18px] font-bold text-slate-500">
               एकूण व्यवहार: {toMarathiNumerals(filteredTransactions.length)}
             </p>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="text-[24px] font-extrabold text-slate-950">वार्षिक खर्च यादी</h2>
+            <div className="mt-4 space-y-3">
+              {(report.annualTransactions || []).length > 0 ? (
+                report.annualTransactions.map((transaction) => (
+                  <article key={transaction.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[20px] font-extrabold text-slate-950">
+                          {displayCategory(transaction.category)}
+                        </p>
+                        <p className="mt-1 text-[18px] font-semibold text-slate-700">
+                          {formatMarathiDate(transaction.date)}
+                        </p>
+                        {transaction.description ? (
+                          <p className="mt-1 text-[18px] font-semibold text-slate-600">
+                            {transaction.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <p className="shrink-0 text-[20px] font-extrabold text-red-700">
+                        - {formatCurrency(transaction.amount)}
+                      </p>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[19px] font-bold text-slate-600">
+                  वार्षिक खर्च नोंदी नाहीत.
+                </p>
+              )}
+            </div>
           </section>
         </>
       ) : null}

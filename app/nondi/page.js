@@ -22,6 +22,13 @@ const recordActions = [
     tone: "border-blue-200 bg-blue-50 text-blue-900"
   },
   {
+    href: "/nondi/chara",
+    title: "चारा खर्च",
+    description: "खाद्य मासिक, मुरघास/भुसा वार्षिक",
+    emoji: "🌾",
+    tone: "border-yellow-200 bg-yellow-50 text-yellow-900"
+  },
+  {
     href: "/nondi/ai",
     title: "कृत्रिम रेतन",
     description: "रेतन तारीख आणि माहिती",
@@ -52,7 +59,9 @@ const tabs = [
 
 function getRecordInfo(tabId, record) {
   if (tabId === "dudh") {
-    return `एकूण ${formatLitres(record.total_litres)} लिटर`;
+    const totalLitres =
+      record.total_litres ?? Number(record.morning_litres || 0) + Number(record.evening_litres || 0);
+    return `एकूण ${formatLitres(totalLitres)} लिटर`;
   }
 
   if (tabId === "retan") {
@@ -116,7 +125,8 @@ export default function NondiPage() {
 
   const todayMilkTotal = useMemo(() => {
     return todayMilkRecords.reduce(
-      (total, record) => total + Number(record.total_litres || 0),
+      (total, record) =>
+        total + Number(record.total_litres ?? Number(record.morning_litres || 0) + Number(record.evening_litres || 0)),
       0
     );
   }, [todayMilkRecords]);
@@ -201,7 +211,7 @@ export default function NondiPage() {
                   className="rounded-lg border border-slate-200 bg-slate-50 p-3"
                 >
                   <p className="text-[20px] font-extrabold text-slate-950">
-                    {record.cows?.name || "गाय"}
+                    {activeTab === "dudh" ? "दैनिक दूध" : record.cows?.name || "गाय"}
                   </p>
                   <p className="mt-1 text-[18px] font-semibold text-slate-700">
                     तारीख: {formatMarathiDate(record[currentTab.dateField])}

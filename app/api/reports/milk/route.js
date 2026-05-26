@@ -7,6 +7,7 @@ import {
   getMonthInput,
   getMonthLabel,
   getMonthRange,
+  getRecordMilkAmount,
   getRecordMilkTotal,
   padDatePart
 } from "@/lib/reportUtils";
@@ -32,51 +33,147 @@ function fillDailyData(records, month, year, daysInMonth) {
   });
 }
 
-function buildPerCow(records, cows, daysInMonth) {
-  const cowMap = new Map();
-
-  cows.forEach((cow) => {
-    cowMap.set(cow.id, {
-      cow_id: cow.id,
-      name: cow.name,
-      breed: cow.breed,
-      status: cow.status,
-      total: 0,
-      average: 0,
-      best: 0
-    });
-  });
-
-  records.forEach((record) => {
-    const cow = record.cows || {};
-    const cowId = record.cow_id;
-
-    if (!cowMap.has(cowId)) {
-      cowMap.set(cowId, {
-        cow_id: cowId,
-        name: cow.name || "गाय",
-        breed: cow.breed || "",
-        status: cow.status || "",
-        total: 0,
-        average: 0,
-        best: 0
-      });
-    }
-
-    const item = cowMap.get(cowId);
+function buildDailyRecords(records) {
+  return records.map((record) => {
     const total = getRecordMilkTotal(record);
-    item.total += total;
-    item.best = Math.max(item.best, total);
-  });
+    const amount = getRecordMilkAmount(record);
 
-  return Array.from(cowMap.values())
-    .map((item) => ({
-      ...item,
-      total: Number(item.total.toFixed(2)),
-      average: Number((item.total / daysInMonth).toFixed(2)),
-      best: Number(item.best.toFixed(2))
-    }))
-    .sort((first, second) => second.total - first.total || first.name.localeCompare(second.name, "mr-IN"));
+    return {
+      id: record.id,
+      date: record.date,
+      morning: Number(record.morning_litres || 0),
+      evening: Number(record.evening_litres || 0),
+      total: Number(total.toFixed(2)),
+      morningRate: toOptionalNumber(record.morning_price_per_litre ?? record.price_per_litre),
+      eveningRate: toOptionalNumber(record.evening_price_per_litre ?? record.price_per_litre),
+      averageRate: total > 0 ? Number((amount / total).toFixed(2)) : 0,
+      morningFat: toOptionalNumber(record.morning_fat_percentage ?? record.fat_percentage),
+      eveningFat: toOptionalNumber(record.evening_fat_percentage ?? record.fat_percentage),
+      morningSnf: toOptionalNumber(record.morning_snf_value ?? record.snf_value),
+      eveningSnf: toOptionalNumber(record.evening_snf_value ?? record.snf_value),
+      morningDegree: toOptionalNumber(record.morning_degree_reading ?? record.degree_reading),
+      eveningDegree: toOptionalNumber(record.evening_degree_reading ?? record.degree_reading),
+      amount: Number(amount.toFixed(2))
+    };
+  });
+}
+
+function toOptionalNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? Number(numberValue.toFixed(2)) : null;
+}
+
+function sumField(records, field) {
+  return records.reduce((sum, record) => sum + Number(record[field] || 0), 0);
+}
+
+function weightedAverage(records, valueField, weightField, fallbackField = null) {
+  const summary = records.reduce(
+    (values, record) => {
+      const rawValue = record[valueField] ?? (fallbackField ? record[fallbackField] : null);
+      const value = Number(rawValue);
+      const weight = Number(record[weightField] || 0);
+
+      if (!Number.isFinite(value) || weight <= 0) {
+        return values;
+      }
+
+      return {
+        total: values.total + value * weight,
+        weight: values.weight + weight
+      };
+    },
+    { total: 0, weight: 0 }
+  );
+
+  return summary.weight > 0 ? Number((summary.total / summary.weight).toFixed(2)) : null;
+}
+
+function combineWeightedAverages(...items) {
+  const summary = items.reduce(
+    (values, item) => {
+      if (item.value === null || item.value === undefined || item.weight <= 0) {
+        return values;
+      }
+
+      return {
+        total: values.total + Number(item.value) * Number(item.weight),
+        weight: values.weight + Number(item.weight)
+      };
+    },
+    { total: 0, weight: 0 }
+  );
+
+  return summary.weight > 0 ? Number((summary.total / summary.weight).toFixed(2)) : null;
+}
+
+function buildSessionSummary(records) {
+  const morningLitres = sumField(records, "morning_litres");
+  const eveningLitres = sumField(records, "evening_litres");
+  const totalLitres = morningLitres + eveningLitres;
+  const morningAmount = records.reduce(
+    (sum, record) =>
+      sum +
+      Number(record.morning_litres || 0) *
+        Number(record.morning_price_per_litre ?? record.price_per_litre ?? 0),
+    0
+  );
+  const eveningAmount = records.reduce(
+    (sum, record) =>
+      sum +
+      Number(record.evening_litres || 0) *
+        Number(record.evening_price_per_litre ?? record.price_per_litre ?? 0),
+    0
+  );
+  const totalAmount = morningAmount + eveningAmount;
+
+  return {
+    morningLitres: Number(morningLitres.toFixed(2)),
+    eveningLitres: Number(eveningLitres.toFixed(2)),
+    totalLitres: Number(totalLitres.toFixed(2)),
+    morningAmount: Number(morningAmount.toFixed(2)),
+    eveningAmount: Number(eveningAmount.toFixed(2)),
+    totalAmount: Number(totalAmount.toFixed(2)),
+    averageRate: totalLitres > 0 ? Number((totalAmount / totalLitres).toFixed(2)) : 0,
+    daysWithMilk: records.filter((record) => getRecordMilkTotal(record) > 0).length,
+    recordCount: records.length
+  };
+}
+
+function buildQualitySummary(records) {
+  const morningLitres = sumField(records, "morning_litres");
+  const eveningLitres = sumField(records, "evening_litres");
+  const morningFat = weightedAverage(records, "morning_fat_percentage", "morning_litres", "fat_percentage");
+  const eveningFat = weightedAverage(records, "evening_fat_percentage", "evening_litres", "fat_percentage");
+  const morningSnf = weightedAverage(records, "morning_snf_value", "morning_litres", "snf_value");
+  const eveningSnf = weightedAverage(records, "evening_snf_value", "evening_litres", "snf_value");
+  const morningDegree = weightedAverage(records, "morning_degree_reading", "morning_litres", "degree_reading");
+  const eveningDegree = weightedAverage(records, "evening_degree_reading", "evening_litres", "degree_reading");
+
+  return {
+    morningFat,
+    eveningFat,
+    averageFat: combineWeightedAverages(
+      { value: morningFat, weight: morningLitres },
+      { value: eveningFat, weight: eveningLitres }
+    ),
+    morningSnf,
+    eveningSnf,
+    averageSnf: combineWeightedAverages(
+      { value: morningSnf, weight: morningLitres },
+      { value: eveningSnf, weight: eveningLitres }
+    ),
+    morningDegree,
+    eveningDegree,
+    averageDegree: combineWeightedAverages(
+      { value: morningDegree, weight: morningLitres },
+      { value: eveningDegree, weight: eveningLitres }
+    )
+  };
 }
 
 function buildMonthlyTrend(records, selectedMonth, selectedYear) {
@@ -126,7 +223,7 @@ export async function GET(request) {
 
     let selectedQuery = supabase
       .from("milk_records")
-      .select("*, cows(id, name, breed, status)")
+      .select("*")
       .eq("farm_id", farmId)
       .gte("date", monthRange.start)
       .lt("date", monthRange.end);
@@ -144,14 +241,17 @@ export async function GET(request) {
 
     if (cowId) {
       trendQuery = trendQuery.eq("cow_id", cowId);
+    } else {
+      trendQuery = trendQuery.is("cow_id", null);
     }
 
-    const [selectedRecords, trendRecords, cowsResult] = await Promise.all([
+    if (!cowId) {
+      selectedQuery = selectedQuery.is("cow_id", null);
+    }
+
+    const [selectedRecords, trendRecords] = await Promise.all([
       selectedQuery.order("date", { ascending: true }),
-      trendQuery.order("date", { ascending: true }),
-      cowId
-        ? supabase.from("cows").select("id, name, breed, status").eq("farm_id", farmId).eq("id", cowId)
-        : supabase.from("cows").select("id, name, breed, status").eq("farm_id", farmId).eq("is_active", true)
+      trendQuery.order("date", { ascending: true })
     ]);
 
     if (selectedRecords.error) {
@@ -160,10 +260,6 @@ export async function GET(request) {
 
     if (trendRecords.error) {
       throw trendRecords.error;
-    }
-
-    if (cowsResult.error) {
-      throw cowsResult.error;
     }
 
     const stats = calculateMilkStats(selectedRecords.data || [], monthRange.daysInMonth);
@@ -187,16 +283,19 @@ export async function GET(request) {
       data: {
         month,
         year,
-        totalLitres: Number(stats.total.toFixed(2)),
-        dailyAverage: Number(stats.average.toFixed(2)),
-        bestDay: bestDay
+	        totalLitres: Number(stats.total.toFixed(2)),
+	        dailyAverage: Number(stats.average.toFixed(2)),
+	        sessionSummary: buildSessionSummary(selectedRecords.data || []),
+	        qualitySummary: buildQualitySummary(selectedRecords.data || []),
+	        bestDay: bestDay
           ? { date: bestDay.date, litres: bestDay.total }
           : { date: null, litres: 0 },
         worstDay: worstDay
           ? { date: worstDay.date, litres: worstDay.total }
           : { date: null, litres: 0 },
         dailyData,
-        perCow: buildPerCow(selectedRecords.data || [], cowsResult.data || [], monthRange.daysInMonth),
+        dailyRecords: buildDailyRecords(selectedRecords.data || []),
+        perCow: [],
         monthlyTrend: buildMonthlyTrend(trendRecords.data || [], month, year)
       }
     });

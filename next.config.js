@@ -1,6 +1,10 @@
 const defaultRuntimeCaching = require("next-pwa/cache");
 const runtimeCaching = [
   {
+    urlPattern: /^https?:\/\/.*\/api\/reports\/.*/,
+    handler: "NetworkOnly"
+  },
+  {
     urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/,
     handler: "NetworkFirst",
     options: {

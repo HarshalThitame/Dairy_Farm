@@ -10,9 +10,7 @@ import StatusBadge from "@/components/StatusBadge";
 import {
   calculateAgeMarathi,
   formatCowBreed,
-  formatLitres,
   formatMarathiDate,
-  getCurrentMonthRange,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
 import { deleteCow, fetchCowProfile } from "@/lib/offlineActions";
@@ -79,18 +77,8 @@ export default function GayDetailPage() {
 
   const records = profile?.records || {};
   const cow = profile?.cow;
-  const milkRecords = records.milk_records || [];
   const aiRecords = records.ai_records || [];
   const healthRecords = records.health_records || [];
-
-  const thisMonthMilk = useMemo(() => {
-    const currentMonth = getCurrentMonthRange();
-    const currentMilkRecords = profile?.records?.milk_records || [];
-
-    return currentMilkRecords
-      .filter((record) => record.date?.startsWith(currentMonth))
-      .reduce((total, record) => total + Number(record.total_litres || 0), 0);
-  }, [profile]);
 
   const lastCalvingDate = useMemo(() => {
     const currentCalvingRecords = profile?.records?.calving_records || [];
@@ -101,21 +89,6 @@ export default function GayDetailPage() {
     return calvingRecord
       ? formatMarathiDate(calvingRecord.actual_date || calvingRecord.expected_date)
       : "नाही";
-  }, [profile]);
-
-  const lastSevenDaysMilk = useMemo(() => {
-    const currentMilkRecords = profile?.records?.milk_records || [];
-    const today = new Date();
-    const cutoff = new Date(today);
-    cutoff.setDate(today.getDate() - 6);
-    cutoff.setHours(0, 0, 0, 0);
-
-    return currentMilkRecords
-      .filter((record) => {
-        const recordDate = new Date(`${record.date}T00:00:00`);
-        return recordDate >= cutoff;
-      })
-      .sort((first, second) => second.date.localeCompare(first.date));
   }, [profile]);
 
   async function removeCow() {
@@ -190,12 +163,6 @@ export default function GayDetailPage() {
 
       <section className="-mx-4 overflow-x-auto px-4" aria-label="झटपट माहिती">
         <div className="flex gap-3 pb-1">
-          <article className="min-w-[170px] rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <p className="text-[18px] font-bold text-slate-600">या महिन्याचे दूध</p>
-            <p className="mt-2 text-[25px] font-extrabold text-slate-950">
-              {formatLitres(thisMonthMilk)} लिटर
-            </p>
-          </article>
           <article className="min-w-[150px] rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
             <p className="text-[18px] font-bold text-slate-600">रेतन नोंदी</p>
             <p className="mt-2 text-[25px] font-extrabold text-slate-950">
@@ -266,47 +233,6 @@ export default function GayDetailPage() {
           </div>
         ) : (
           <EmptyMessage>आरोग्य नोंद अजून नाही.</EmptyMessage>
-        )}
-      </Section>
-
-      <Section
-        title="दूध उत्पादन"
-        actionHref={`/nondi/dudh?cow_id=${cow.id}`}
-        actionText="🥛 दूध नोंद करा"
-      >
-        {lastSevenDaysMilk.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse text-left text-[18px]">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-600">
-                  <th className="py-2 pr-3 font-extrabold">तारीख</th>
-                  <th className="py-2 pr-3 font-extrabold">सकाळ</th>
-                  <th className="py-2 pr-3 font-extrabold">संध्याकाळ</th>
-                  <th className="py-2 pr-3 font-extrabold">एकूण</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lastSevenDaysMilk.map((record) => (
-                  <tr key={record.id} className="border-b border-slate-100">
-                    <td className="py-3 pr-3 font-bold text-slate-900">
-                      {formatMarathiDate(record.date)}
-                    </td>
-                    <td className="py-3 pr-3 font-semibold text-slate-700">
-                      {formatLitres(record.morning_litres)}
-                    </td>
-                    <td className="py-3 pr-3 font-semibold text-slate-700">
-                      {formatLitres(record.evening_litres)}
-                    </td>
-                    <td className="py-3 pr-3 font-extrabold text-slate-950">
-                      {formatLitres(record.total_litres)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <EmptyMessage>मागील सात दिवसांत दूध नोंद नाही.</EmptyMessage>
         )}
       </Section>
 

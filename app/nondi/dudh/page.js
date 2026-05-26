@@ -1,196 +1,322 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import StatusBadge from "@/components/StatusBadge";
+import { useAuth } from "@/context/AuthContext";
 import {
-  calculateMilkTotal,
+  formatCurrency,
+  formatLitres,
   formatMarathiDate,
-  getTodayISODate,
-  toMarathiNumerals
+  getTodayISODate
 } from "@/lib/marathiUtils";
-import {
-  fetchCows as fetchCowsOffline,
-  fetchMilkByDate,
-  saveBulkMilkRecords
-} from "@/lib/offlineActions";
+import { fetchMilkByDate, saveMilkRecord } from "@/lib/offlineActions";
+
+const inputClass =
+  "min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100";
 
 function toNumber(value) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
-function createEmptyEntry(existingRecord) {
+function toOptionalNumber(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function inputValue(value, fallback = "") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  return String(value);
+}
+
+function emptyForm(defaultRate = "") {
   return {
-    id: existingRecord?.id || null,
-    morning: existingRecord?.morning_litres ? String(existingRecord.morning_litres) : "",
-    evening: existingRecord?.evening_litres ? String(existingRecord.evening_litres) : ""
+    id: null,
+    morning_litres: "",
+    evening_litres: "",
+    morning_price_per_litre: defaultRate,
+    evening_price_per_litre: defaultRate,
+    morning_fat_percentage: "",
+    evening_fat_percentage: "",
+    morning_snf_value: "",
+    evening_snf_value: "",
+    morning_degree_reading: "",
+    evening_degree_reading: "",
+    notes: ""
   };
 }
 
+function recordToForm(record, defaultRate = "") {
+  if (!record) {
+    return emptyForm(defaultRate);
+  }
+
+  return {
+    id: record.id || null,
+    morning_litres: inputValue(record.morning_litres),
+    evening_litres: inputValue(record.evening_litres),
+    morning_price_per_litre: inputValue(
+      record.morning_price_per_litre ?? record.price_per_litre,
+      defaultRate
+    ),
+    evening_price_per_litre: inputValue(
+      record.evening_price_per_litre ?? record.price_per_litre,
+      defaultRate
+    ),
+    morning_fat_percentage: inputValue(
+      record.morning_fat_percentage ?? record.fat_percentage
+    ),
+    evening_fat_percentage: inputValue(
+      record.evening_fat_percentage ?? record.fat_percentage
+    ),
+    morning_snf_value: inputValue(record.morning_snf_value ?? record.snf_value),
+    evening_snf_value: inputValue(record.evening_snf_value ?? record.snf_value),
+    morning_degree_reading: inputValue(
+      record.morning_degree_reading ?? record.degree_reading
+    ),
+    evening_degree_reading: inputValue(
+      record.evening_degree_reading ?? record.degree_reading
+    ),
+    notes: record.notes || ""
+  };
+}
+
+function getAmount(form) {
+  return (
+    toNumber(form.morning_litres) * toNumber(form.morning_price_per_litre) +
+    toNumber(form.evening_litres) * toNumber(form.evening_price_per_litre)
+  );
+}
+
+function MilkSessionFields({ title, litresField, rateField, fatField, snfField, degreeField, form, updateField }) {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <h2 className="text-[23px] font-extrabold text-slate-950">{title}</h2>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <FormField label="दूध लिटर" required>
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            value={form[litresField]}
+            onChange={(event) => updateField(litresField, event.target.value)}
+            placeholder="०.०"
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="दर/लि.">
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            value={form[rateField]}
+            onChange={(event) => updateField(rateField, event.target.value)}
+            placeholder="३२"
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="फॅट %">
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.1"
+            value={form[fatField]}
+            onChange={(event) => updateField(fatField, event.target.value)}
+            placeholder="४.०"
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="SNF">
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.1"
+            value={form[snfField]}
+            onChange={(event) => updateField(snfField, event.target.value)}
+            placeholder="८.५"
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="डिग्री">
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.1"
+            value={form[degreeField]}
+            onChange={(event) => updateField(degreeField, event.target.value)}
+            placeholder="२८"
+            className={inputClass}
+          />
+        </FormField>
+      </div>
+    </section>
+  );
+}
+
 export default function DudhNondPage() {
+  const { farm } = useAuth();
   const today = getTodayISODate();
+  const defaultRate = inputValue(farm?.milkRateDefault, "32");
+  const previousDefaultRate = useRef(defaultRate);
   const [selectedDate, setSelectedDate] = useState(today);
-  const [cows, setCows] = useState([]);
-  const [entries, setEntries] = useState({});
+  const [form, setForm] = useState(() => emptyForm(defaultRate));
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [savedCount, setSavedCount] = useState(0);
-  const [saveTotal, setSaveTotal] = useState(0);
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [saveError, setSaveError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dateParam = params.get("date");
+
+    if (dateParam === "today") {
+      setSelectedDate(today);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateParam || "")) {
+      setSelectedDate(dateParam);
+    }
+  }, [today]);
+
+  useEffect(() => {
+    setForm((currentForm) => ({
+      ...currentForm,
+      morning_price_per_litre:
+        !currentForm.morning_price_per_litre ||
+        currentForm.morning_price_per_litre === previousDefaultRate.current
+          ? defaultRate
+          : currentForm.morning_price_per_litre,
+      evening_price_per_litre:
+        !currentForm.evening_price_per_litre ||
+        currentForm.evening_price_per_litre === previousDefaultRate.current
+          ? defaultRate
+          : currentForm.evening_price_per_litre
+    }));
+    previousDefaultRate.current = defaultRate;
+  }, [defaultRate]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     setSuccess("");
-    setSaveError("");
 
     try {
-      const [cowsResult, milkResult] = await Promise.all([
-        fetchCowsOffline(),
-        fetchMilkByDate(selectedDate)
-      ]);
+      const result = await fetchMilkByDate(selectedDate);
+      const overallRecord =
+        (result.data || []).find((record) => !record.cow_id) || (result.data || [])[0] || null;
 
-      const milkByCow = new Map(
-        (milkResult.data || []).map((record) => [record.cow_id, record])
-      );
-      const nextEntries = {};
-
-      (cowsResult.data || []).forEach((cow) => {
-        nextEntries[cow.id] = createEmptyEntry(milkByCow.get(cow.id));
-      });
-
-      setCows(cowsResult.data || []);
-      setEntries(nextEntries);
+      setForm(recordToForm(overallRecord, defaultRate));
     } catch (fetchError) {
-      setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
+      setError(fetchError.message || "दूध नोंद मिळाली नाही.");
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [defaultRate, selectedDate]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  function updateEntry(cowId, field, value) {
-    setEntries((currentEntries) => ({
-      ...currentEntries,
-      [cowId]: {
-        ...currentEntries[cowId],
-        [field]: value
-      }
+  function updateField(field, value) {
+    setForm((currentForm) => ({
+      ...currentForm,
+      [field]: value
     }));
+    setError("");
     setSuccess("");
-    setSaveError("");
   }
 
-  const totalMilk = useMemo(() => {
-    return Object.values(entries).reduce(
-      (total, entry) => total + toNumber(entry.morning) + toNumber(entry.evening),
-      0
-    );
-  }, [entries]);
+  const morningAmount = useMemo(
+    () => toNumber(form.morning_litres) * toNumber(form.morning_price_per_litre),
+    [form.morning_litres, form.morning_price_per_litre]
+  );
+  const eveningAmount = useMemo(
+    () => toNumber(form.evening_litres) * toNumber(form.evening_price_per_litre),
+    [form.evening_litres, form.evening_price_per_litre]
+  );
+  const totalMilk = toNumber(form.morning_litres) + toNumber(form.evening_litres);
+  const totalAmount = getAmount(form);
+  const offlineSuccess = success.startsWith("⏳");
 
-  const recordsToSave = useMemo(() => {
-    return cows
-      .filter((cow) => cow.status !== "वाळलेली")
-      .map((cow) => ({
-        cow,
-        entry: entries[cow.id] || createEmptyEntry()
-      }))
-      .filter(({ entry }) => toNumber(entry.morning) + toNumber(entry.evening) > 0);
-  }, [cows, entries]);
+  async function saveRecord(event) {
+    event.preventDefault();
 
-  async function saveEntries() {
-    setSaving(true);
-    setSavedCount(0);
-    setSaveTotal(recordsToSave.length);
-    setSuccess("");
-    setSaveError("");
-
-    if (recordsToSave.length === 0) {
-      setSaving(false);
-      setSaveError("जतन करण्यासाठी दूधाची नोंद भरा.");
+    if (totalMilk <= 0) {
+      setError("दूधाचे एकूण लिटर भरा.");
       return;
     }
 
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
     try {
-      const savedResult = await saveBulkMilkRecords(
-        recordsToSave.map(({ cow, entry }) => ({
-          id: entry.id,
-          cow_id: cow.id,
-          date: selectedDate,
-          morning_litres: toNumber(entry.morning),
-          evening_litres: toNumber(entry.evening),
-          cowName: cow.name,
-          cows: { id: cow.id, name: cow.name, breed: cow.breed, status: cow.status }
-        }))
-      );
-      const nextEntries = {};
-
-      recordsToSave.forEach(({ cow }, index) => {
-        const savedRecord = savedResult.data?.[index];
-        nextEntries[cow.id] = savedRecord?.id;
+      const result = await saveMilkRecord({
+        id: form.id,
+        cow_id: null,
+        date: selectedDate,
+        morning_litres: toNumber(form.morning_litres),
+        evening_litres: toNumber(form.evening_litres),
+        price_per_litre: null,
+        morning_price_per_litre: toOptionalNumber(form.morning_price_per_litre),
+        evening_price_per_litre: toOptionalNumber(form.evening_price_per_litre),
+        fat_percentage: null,
+        morning_fat_percentage: toOptionalNumber(form.morning_fat_percentage),
+        evening_fat_percentage: toOptionalNumber(form.evening_fat_percentage),
+        snf_value: null,
+        morning_snf_value: toOptionalNumber(form.morning_snf_value),
+        evening_snf_value: toOptionalNumber(form.evening_snf_value),
+        degree_reading: null,
+        morning_degree_reading: toOptionalNumber(form.morning_degree_reading),
+        evening_degree_reading: toOptionalNumber(form.evening_degree_reading),
+        notes: form.notes.trim() || null
       });
 
-      setEntries((currentEntries) => {
-        const updatedEntries = { ...currentEntries };
-
-        Object.entries(nextEntries).forEach(([cowId, id]) => {
-          updatedEntries[cowId] = {
-            ...updatedEntries[cowId],
-            id: id || updatedEntries[cowId]?.id
-          };
-        });
-
-        return updatedEntries;
-      });
-      setSavedCount(recordsToSave.length);
-
+      setForm(recordToForm(result.data, defaultRate));
       setSuccess(
-        savedResult.offline
-          ? `⏳ दूध नोंद फोनवर साठवली. इंटरनेट आल्यावर आपोआप समक्रमण होईल. आज एकूण ${calculateMilkTotal(totalMilk, 0)} दूध नोंदवले`
-          : `✅ दूध नोंद यशस्वीरित्या जतन झाली! आज एकूण ${calculateMilkTotal(
-              totalMilk,
-              0
-            )} दूध नोंदवले`
+        result.offline
+          ? `⏳ दूध नोंद फोनवर साठवली. इंटरनेट आल्यावर आपोआप समक्रमण होईल. एकूण ${formatLitres(totalMilk)} लिटर.`
+          : `✅ दूध नोंद जतन झाली! एकूण ${formatLitres(totalMilk)} लिटर, रक्कम ${formatCurrency(totalAmount)}`
       );
-    } catch (saveFailure) {
-      setSaveError(saveFailure.message || "दूध नोंद जतन झाली नाही.");
+    } catch (saveError) {
+      setError(saveError.message || "दूध नोंद जतन झाली नाही.");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <LoadingState text="दूध नोंदी लोड होत आहेत..." />;
+    return <LoadingState text="दूध नोंद लोड होत आहे..." />;
   }
-
-  if (error) {
-    return <ErrorState message={error} onRetry={fetchData} />;
-  }
-
-  const offlineSuccess = success.startsWith("⏳");
 
   return (
-    <div className="space-y-5 pb-36">
-      <PageHeader title="🥛 दूध नोंद" subtitle="रोजचे दूध नोंदवा" />
+    <form onSubmit={saveRecord} className="space-y-5 pb-24">
+      <PageHeader title="🥛 दूध नोंद" subtitle="सर्व गायींचे एकत्रित दैनिक दूध" />
+
+      {error ? <ErrorState message={error} onRetry={fetchData} /> : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-        <FormField label="तारीख निवडा">
+        <FormField label="तारीख" required>
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <input
               type="date"
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
-              className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+              required
+              className={inputClass}
             />
             <button
               type="button"
@@ -206,67 +332,52 @@ export default function DudhNondPage() {
         </p>
       </section>
 
-      <section className="space-y-3" aria-label="गायींची दूध नोंद">
-        {cows.map((cow) => {
-          const entry = entries[cow.id] || createEmptyEntry();
-          const disabled = cow.status === "वाळलेली";
+      <section className="grid grid-cols-2 gap-3" aria-label="दूध सारांश">
+        <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+          <p className="text-[18px] font-extrabold text-blue-900">एकूण दूध</p>
+          <p className="mt-2 text-[26px] font-extrabold leading-none text-blue-950">
+            {formatLitres(totalMilk)} लि.
+          </p>
+        </article>
+        <article className="rounded-lg border border-green-100 bg-green-50 p-4">
+          <p className="text-[18px] font-extrabold text-green-900">एकूण रक्कम</p>
+          <p className="mt-2 text-[26px] font-extrabold leading-none text-green-950">
+            {formatCurrency(totalAmount)}
+          </p>
+        </article>
+      </section>
 
-          return (
-            <article
-              key={cow.id}
-              className={`rounded-lg border p-4 shadow-soft ${
-                disabled
-                  ? "border-slate-200 bg-slate-100 opacity-70"
-                  : "border-slate-200 bg-white"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <Link
-                  href={`/gayi/${cow.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[23px] font-extrabold leading-tight text-slate-950 underline decoration-green-200 underline-offset-4"
-                >
-                  {cow.name}
-                </Link>
-                <StatusBadge status={cow.status} />
-              </div>
+      <MilkSessionFields
+        title={`सकाळचे दूध - ${formatCurrency(morningAmount)}`}
+        litresField="morning_litres"
+        rateField="morning_price_per_litre"
+        fatField="morning_fat_percentage"
+        snfField="morning_snf_value"
+        degreeField="morning_degree_reading"
+        form={form}
+        updateField={updateField}
+      />
 
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <FormField label="🌅 सकाळ">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.5"
-                    min="0"
-                    placeholder="०.०"
-                    value={entry.morning}
-                    onChange={(event) => updateEntry(cow.id, "morning", event.target.value)}
-                    disabled={disabled}
-                    className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-3 text-[20px] font-bold text-slate-950 outline-none disabled:bg-slate-200 focus:border-sheti focus:ring-4 focus:ring-green-100"
-                  />
-                </FormField>
-                <FormField label="🌆 संध्याकाळ">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.5"
-                    min="0"
-                    placeholder="०.०"
-                    value={entry.evening}
-                    onChange={(event) => updateEntry(cow.id, "evening", event.target.value)}
-                    disabled={disabled}
-                    className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-3 text-[20px] font-bold text-slate-950 outline-none disabled:bg-slate-200 focus:border-sheti focus:ring-4 focus:ring-green-100"
-                  />
-                </FormField>
-              </div>
+      <MilkSessionFields
+        title={`संध्याकाळचे दूध - ${formatCurrency(eveningAmount)}`}
+        litresField="evening_litres"
+        rateField="evening_price_per_litre"
+        fatField="evening_fat_percentage"
+        snfField="evening_snf_value"
+        degreeField="evening_degree_reading"
+        form={form}
+        updateField={updateField}
+      />
 
-              <p className="mt-3 text-[20px] font-extrabold text-slate-800">
-                एकूण: {calculateMilkTotal(entry.morning, entry.evening)}
-              </p>
-            </article>
-          );
-        })}
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <FormField label="नोंद">
+          <textarea
+            value={form.notes}
+            onChange={(event) => updateField("notes", event.target.value)}
+            rows={3}
+            className="min-h-[96px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+          />
+        </FormField>
       </section>
 
       {success ? (
@@ -281,32 +392,13 @@ export default function DudhNondPage() {
         </div>
       ) : null}
 
-      {saveError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-[20px] font-extrabold leading-relaxed text-red-800">
-          {saveError}
-        </div>
-      ) : null}
-
-      <section className="fixed inset-x-0 bottom-[calc(5.9rem+env(safe-area-inset-bottom))] z-30 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
-        <div className="mx-auto max-w-3xl space-y-3">
-          <p className="text-center text-[20px] font-extrabold text-slate-950">
-            आजचे एकूण दूध: {calculateMilkTotal(totalMilk, 0)}
-          </p>
-          {saving ? (
-            <p className="text-center text-[18px] font-bold text-athavan">
-              जतन होत आहे... {toMarathiNumerals(savedCount)}/{toMarathiNumerals(saveTotal)}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            onClick={saveEntries}
-            disabled={saving}
-            className="min-h-[56px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm disabled:opacity-70 active:bg-green-700"
-          >
-            ✅ सर्व नोंदी जतन करा
-          </button>
-        </div>
-      </section>
-    </div>
+      <button
+        type="submit"
+        disabled={saving}
+        className="min-h-[58px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm disabled:opacity-70 active:bg-green-700"
+      >
+        {saving ? "दूध नोंद जतन होत आहे..." : "दैनिक दूध जतन करा"}
+      </button>
+    </form>
   );
 }

@@ -1,36 +1,24 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { pickMilkFields } from "@/lib/milkRecordFields";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-const milkFields = [
-  "cow_id",
-  "date",
-  "morning_litres",
-  "evening_litres",
-  "fat_percentage",
-  "notes"
-];
-
-function pickFields(body) {
-  return milkFields.reduce((payload, field) => {
-    if (body[field] !== undefined) {
-      payload[field] = body[field];
-    }
-    return payload;
-  }, {});
-}
-
 export async function PUT(request, { params }) {
   try {
     const body = await request.json();
-    const auth = await verifyFarmAccess(request, body.cow_id || null);
-    const payload = pickFields(body);
+    const auth = await verifyFarmAccess(request);
+    const pickedFields = pickMilkFields(body);
 
-    if (Object.keys(payload).length === 0) {
+    if (Object.keys(pickedFields).length === 0) {
       return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
     }
+
+    const payload = {
+      ...pickedFields,
+      cow_id: null
+    };
 
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
@@ -38,6 +26,7 @@ export async function PUT(request, { params }) {
       .update(payload)
       .eq("id", params.id)
       .eq("farm_id", auth.farmId)
+      .is("cow_id", null)
       .select()
       .single();
 

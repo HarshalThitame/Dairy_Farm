@@ -16,6 +16,8 @@ const aiFields = [
   "notes"
 ];
 
+const defaultBullBreed = "जर्सी";
+
 function pickFields(body) {
   return aiFields.reduce((payload, field) => {
     if (body[field] !== undefined) {
@@ -66,6 +68,10 @@ export async function POST(request) {
     const { farmId } = await verifyFarmAccess(request, body.cow_id);
     const payload = {
       ...pickFields(body),
+      bull_breed:
+        body.bull_breed && String(body.bull_breed).trim()
+          ? String(body.bull_breed).trim()
+          : defaultBullBreed,
       farm_id: farmId
     };
     const supabase = getSupabaseServerClient();

@@ -6,7 +6,9 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import NotificationBanner from "@/components/NotificationBanner";
 import ReminderCard from "@/components/ReminderCard";
+import TrialBanner from "@/components/TrialBanner";
 import { useAuth } from "@/context/AuthContext";
+import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
 import {
   formatCurrency,
   formatLitres,
@@ -16,6 +18,7 @@ import {
 import { getIndiaMonthParts, getMonthName } from "@/lib/reportUtils";
 import {
   fetchCows as fetchCowsOffline,
+  fetchJson,
   fetchMilkByDate,
   fetchRemindersByFilter,
   markReminderDone as markReminderDoneOffline
@@ -44,32 +47,24 @@ export default function DashboardPage() {
         milkResult,
         todayResult,
         overdueResult,
-        monthlyMilkResponse,
-        monthlyFinanceResponse
+        monthlyMilkResult,
+        monthlyFinanceResult
       ] =
         await Promise.all([
           fetchCowsOffline(),
           fetchMilkByDate(getTodayISODate()),
           fetchRemindersByFilter("today"),
           fetchRemindersByFilter("overdue"),
-          fetch(`/api/reports/milk?${reportQuery}`, { cache: "no-store" }),
-          fetch(`/api/reports/finance?${reportQuery}`, { cache: "no-store" })
+          fetchJson(`/api/reports/milk?${reportQuery}`),
+          fetchJson(`/api/reports/finance?${reportQuery}`)
         ]);
-
-      const [
-        monthlyMilkResult,
-        monthlyFinanceResult
-      ] = await Promise.all([
-        monthlyMilkResponse.json(),
-        monthlyFinanceResponse.json()
-      ]);
 
       setCows(cowsResult.data || []);
       setMilkRecords(milkResult.data || []);
       setTodayReminders(todayResult.data || []);
       setOverdueReminders(overdueResult.data || []);
-      setMonthlyMilkReport(monthlyMilkResponse.ok ? monthlyMilkResult.data || null : null);
-      setMonthlyFinanceReport(monthlyFinanceResponse.ok ? monthlyFinanceResult.data || null : null);
+      setMonthlyMilkReport(monthlyMilkResult || null);
+      setMonthlyFinanceReport(monthlyFinanceResult || null);
     } catch (fetchError) {
       setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
     } finally {
@@ -83,7 +78,8 @@ export default function DashboardPage() {
 
   const todayMilkTotal = useMemo(() => {
     return milkRecords.reduce(
-      (total, record) => total + Number(record.total_litres || 0),
+      (total, record) =>
+        total + Number(record.total_litres ?? Number(record.morning_litres || 0) + Number(record.evening_litres || 0)),
       0
     );
   }, [milkRecords]);
@@ -99,17 +95,34 @@ export default function DashboardPage() {
   const pendingReminderCount = overdueReminders.length + todayReminders.length;
   const todayReminderCount = todayReminders.length;
   const monthlyNetProfit = Number(monthlyFinanceReport?.netProfit || 0);
-  const farmName = farm?.farmName || "गोशाळा व्यवस्थापन";
+  const farmName = farm?.farmName || APP_NAME;
+  const monthlyQuery = `month=${currentMonth.month}&year=${currentMonth.year}`;
 
   const summaries = [
-    { emoji: "🐄", label: "एकूण गायी", value: toMarathiNumerals(farm?.totalCows ?? cows.length) },
-    { emoji: "🥛", label: "आज दूध", value: `${formatLitres(todayMilkTotal)} लिटर` },
+    {
+      emoji: "🐄",
+      label: "एकूण गायी",
+      value: toMarathiNumerals(farm?.totalCows ?? cows.length),
+      href: "/gayi"
+    },
+    {
+      emoji: "🥛",
+      label: "आज दूध",
+      value: `${formatLitres(todayMilkTotal)} लिटर`,
+      href: `/nondi/dudh?date=${getTodayISODate()}`
+    },
     {
       emoji: "🔔",
       label: "आजच्या आठवणी",
-      value: toMarathiNumerals(todayReminderCount)
+      value: toMarathiNumerals(todayReminderCount),
+      href: "/athavan"
     },
-    { emoji: "🤰", label: "गाभण गायी", value: toMarathiNumerals(pregnantCount) }
+    {
+      emoji: "🤰",
+      label: "गाभण गायी",
+      value: toMarathiNumerals(pregnantCount),
+      href: "/nondi/vyayan"
+    }
   ];
 
   async function markReminderDone(reminder) {
@@ -132,6 +145,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <NotificationBanner />
+      <TrialBanner />
 
       <header className="rounded-lg bg-sheti px-4 py-5 text-white shadow-soft">
         <div className="flex items-start justify-between gap-3">
@@ -140,7 +154,7 @@ export default function DashboardPage() {
               🐄 {farmName}
             </h1>
             <p className="mt-2 text-[18px] font-medium text-green-50">
-              रोजच्या गायी, दूध आणि आठवणी एकाच ठिकाणी.
+              {APP_TAGLINE} - रोजच्या गायी, दूध आणि आठवणी एकाच ठिकाणी.
             </p>
           </div>
           <Link
@@ -160,9 +174,10 @@ export default function DashboardPage() {
 
       <section className="grid grid-cols-2 gap-3" aria-label="सारांश">
         {summaries.map((item) => (
-          <article
+          <Link
             key={item.label}
-            className="min-h-[132px] rounded-lg border border-slate-200 bg-white p-4 shadow-soft"
+            href={item.href}
+            className="block min-h-[132px] rounded-lg border border-slate-200 bg-white p-4 shadow-soft active:bg-green-50"
           >
             <div className="text-[28px] leading-none" aria-hidden="true">
               {item.emoji}
@@ -173,7 +188,7 @@ export default function DashboardPage() {
             <p className="mt-2 text-[26px] font-extrabold leading-none text-slate-950">
               {item.value}
             </p>
-          </article>
+          </Link>
         ))}
       </section>
 
@@ -221,34 +236,46 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-blue-50 p-3 text-blue-900">
+          <Link
+            href={`/ahval/dudh?${monthlyQuery}`}
+            className="block rounded-lg bg-blue-50 p-3 text-blue-900 shadow-sm active:bg-blue-100"
+          >
             <p className="text-[18px] font-extrabold">🥛 दूध</p>
             <p className="mt-1 text-[22px] font-extrabold">
               {formatLitres(monthlyMilkReport?.totalLitres || 0)} लिटर
             </p>
-          </div>
-          <div className="rounded-lg bg-green-50 p-3 text-green-900">
+          </Link>
+          <Link
+            href={`/ahval/utpanna?${monthlyQuery}`}
+            className="block rounded-lg bg-green-50 p-3 text-green-900 shadow-sm active:bg-green-100"
+          >
             <p className="text-[18px] font-extrabold">💰 उत्पन्न</p>
             <p className="mt-1 text-[22px] font-extrabold">
               {formatCurrency(monthlyFinanceReport?.totalIncome || 0)}
             </p>
-          </div>
-          <div className="rounded-lg bg-red-50 p-3 text-red-900">
-            <p className="text-[18px] font-extrabold">💸 खर्च</p>
+          </Link>
+          <Link
+            href={`/ahval/kharch?${monthlyQuery}`}
+            className="block rounded-lg bg-red-50 p-3 text-red-900 shadow-sm active:bg-red-100"
+          >
+            <p className="text-[18px] font-extrabold">💸 मासिक खर्च</p>
             <p className="mt-1 text-[22px] font-extrabold">
               {formatCurrency(monthlyFinanceReport?.totalExpense || 0)}
             </p>
-          </div>
-          <div
-            className={`rounded-lg p-3 ${
-              monthlyNetProfit >= 0 ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"
+          </Link>
+          <Link
+            href={`/ahval/nafa?${monthlyQuery}`}
+            className={`block rounded-lg p-3 shadow-sm ${
+              monthlyNetProfit >= 0
+                ? "bg-green-50 text-green-900 active:bg-green-100"
+                : "bg-red-50 text-red-900 active:bg-red-100"
             }`}
           >
-            <p className="text-[18px] font-extrabold">📈 नफा</p>
+            <p className="text-[18px] font-extrabold">📈 मासिक नफा</p>
             <p className="mt-1 text-[22px] font-extrabold">
               {formatCurrency(monthlyNetProfit)}
             </p>
-          </div>
+          </Link>
         </div>
 
         <Link

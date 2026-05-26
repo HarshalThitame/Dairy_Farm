@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import MarathiTextInput from "@/components/MarathiTextInput";
 import StatusBadge from "@/components/StatusBadge";
+import { transliterateMarathiText } from "@/lib/marathiTransliteration";
 import { formatCowBreed } from "@/lib/marathiUtils";
 import { fetchCows as fetchCowsOffline } from "@/lib/offlineActions";
 
@@ -63,7 +65,7 @@ export default function CowSelector({
   }, [cows, initialCowId, onSelect, selectedCow]);
 
   const filteredCows = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("mr-IN");
+    const normalizedQuery = transliterateMarathiText(query).trim().toLocaleLowerCase("mr-IN");
 
     if (!normalizedQuery) {
       return cows;
@@ -104,10 +106,9 @@ export default function CowSelector({
 
   return (
     <div className="space-y-3">
-      <input
-        type="search"
+      <MarathiTextInput
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onValueChange={setQuery}
         placeholder={placeholder}
         autoComplete="off"
         className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
