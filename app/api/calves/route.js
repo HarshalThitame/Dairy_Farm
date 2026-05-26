@@ -1,0 +1,380 @@
+import { NextResponse } from "next/server";
+import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
+import { getCalfAgeText, getCalfLifecycleDates, getCalfMilkStatus } from "@/lib/calfLifecycle";
+import { buildCalfPayload, insertCalfWithReminders } from "@/lib/calfServer";
+import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { getTodayISODate } from "@/lib/marathiUtils";
+import { getSupabaseServerClient } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+const allowedStatuses = new Set(["active", "historical", "sold", "dead", "converted_to_cow"]);
+const editableTextFields = ["name", "color", "breed", "identification_mark", "notes"];
+
+function cleanText(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function normalizeDigits(value) {
+  const digitMap = {
+    "०": "0",
+    "१": "1",
+    "२": "2",
+    "३": "3",
+    "४": "4",
+    "५": "5",
+    "६": "6",
+    "७": "7",
+    "८": "8",
+    "९": "9"
+  };
+
+  return String(value || "").replace(/[०-९]/g, (digit) => digitMap[digit] || digit);
+}
+
+function parseSaleAmount(value) {
+  const amount = Number(normalizeDigits(value).replace(/[₹,\s]/g, ""));
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+
+  return Number(amount.toFixed(2));
+}
+
+function isISODate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
+function normalizeGender(value) {
+  return value === "नर" ? "नर" : "मादी";
+}
+
+function buildSaleDescription(calf) {
+  const calfName = calf.name || (calf.gender === "मादी" ? "मादी वासरी" : "नर वासरू");
+  const details = [
+    `${calfName} विक्री`,
+    calf.mother?.name ? `आई: ${calf.mother.name}` : "",
+    calf.sale_notes
+  ].filter(Boolean);
+
+  return details.join(" | ");
+}
+
+async function upsertSaleFinanceRecord(supabase, farmId, calf) {
+  const payload = {
+    farm_id: farmId,
+    date: calf.sold_date,
+    type: "उत्पन्न",
+    category: "वासरू विक्री",
+    amount: Number(calf.sale_amount || 0),
+    cow_id: calf.mother_cow_id || null,
+    accounting_period: ACCOUNTING_PERIOD_MONTHLY,
+    description: buildSaleDescription(calf)
+  };
+
+  if (calf.finance_record_id) {
+    const { data, error } = await supabase
+      .from("finance_records")
+      .update(payload)
+      .eq("id", calf.finance_record_id)
+      .eq("farm_id", farmId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from("finance_records")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function deleteSaleFinanceRecord(supabase, farmId, financeRecordId) {
+  if (!financeRecordId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("finance_records")
+    .delete()
+    .eq("id", financeRecordId)
+    .eq("farm_id", farmId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+function enrichCalf(calf) {
+  return {
+    ...calf,
+    age_text: getCalfAgeText(calf.birth_date),
+    milk_status_label: getCalfMilkStatus(calf)
+  };
+}
+
+function buildStats(calves) {
+  const active = calves.filter((calf) => calf.status === "active" && calf.is_raised);
+  const milkFeeding = active.filter((calf) => calf.milk_status_label === "दूध पाजायचे सुरू आहे");
+
+  return {
+    total: calves.length,
+    active: active.length,
+    milkFeeding: milkFeeding.length,
+    historical: calves.filter((calf) => calf.status === "historical").length,
+    sold: calves.filter((calf) => calf.status === "sold").length,
+    dead: calves.filter((calf) => calf.status === "dead").length,
+    converted: calves.filter((calf) => calf.status === "converted_to_cow").length
+  };
+}
+
+export async function GET(request) {
+  try {
+    const { farmId } = await verifyFarmAccess(request);
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status") || "all";
+    const supabase = getSupabaseServerClient();
+    let query = supabase
+      .from("calves")
+      .select("*, mother:cows(id, name, breed, status)")
+      .eq("farm_id", farmId)
+      .order("birth_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (allowedStatuses.has(status)) {
+      query = query.eq("status", status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    const calves = (data || []).map(enrichCalf);
+
+    return NextResponse.json({
+      data: calves,
+      summary: buildStats(calves)
+    });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+
+    if (!body.birth_date || !body.gender) {
+      return NextResponse.json({ error: "जन्म तारीख आणि लिंग आवश्यक आहे." }, { status: 400 });
+    }
+
+    const { farmId } = await verifyFarmAccess(request, body.mother_cow_id || null);
+    const supabase = getSupabaseServerClient();
+    const calf = await insertCalfWithReminders(supabase, buildCalfPayload(body, farmId));
+
+    return NextResponse.json({ data: enrichCalf(calf) }, { status: 201 });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+
+    if (!body.id) {
+      return NextResponse.json({ error: "वासराचा आयडी आवश्यक आहे." }, { status: 400 });
+    }
+
+    const requestedStatus = body.status === undefined ? null : body.status;
+
+    if (requestedStatus && !allowedStatuses.has(requestedStatus)) {
+      return NextResponse.json({ error: "वासराची स्थिती चुकीची आहे." }, { status: 400 });
+    }
+
+    const { farmId } = await verifyFarmAccess(request);
+    if (body.mother_cow_id) {
+      await verifyFarmAccess(request, body.mother_cow_id);
+    }
+
+    const supabase = getSupabaseServerClient();
+    const { data: existingCalf, error: existingError } = await supabase
+      .from("calves")
+      .select("*, mother:cows(id, name, breed, status)")
+      .eq("id", body.id)
+      .eq("farm_id", farmId)
+      .single();
+
+    if (existingError || !existingCalf) {
+      return NextResponse.json({ error: "वासरू सापडले नाही." }, { status: 404 });
+    }
+
+    const updates = {};
+
+    if (requestedStatus) {
+      updates.status = requestedStatus;
+    }
+
+    editableTextFields.forEach((field) => {
+      if (body[field] !== undefined) {
+        updates[field] = cleanText(body[field]);
+      }
+    });
+
+    if (body.mother_cow_id !== undefined) {
+      updates.mother_cow_id = body.mother_cow_id || null;
+    }
+
+    if (body.birth_date !== undefined) {
+      if (!isISODate(body.birth_date)) {
+        return NextResponse.json({ error: "जन्म तारीख चुकीची आहे." }, { status: 400 });
+      }
+      updates.birth_date = body.birth_date;
+    }
+
+    if (body.gender !== undefined) {
+      updates.gender = normalizeGender(body.gender);
+    }
+
+    const lifecycleChanged =
+      body.birth_date !== undefined || body.gender !== undefined || body.is_raised !== undefined;
+
+    if (lifecycleChanged) {
+      const nextGender = updates.gender || existingCalf.gender;
+      const nextBirthDate = updates.birth_date || existingCalf.birth_date;
+      const nextStatus = requestedStatus || existingCalf.status;
+      const nextIsRaised =
+        nextGender === "मादी"
+          ? Boolean(body.is_raised !== undefined ? body.is_raised : existingCalf.is_raised)
+          : false;
+      const lifecycle = getCalfLifecycleDates(nextBirthDate);
+
+      updates.is_raised = nextIsRaised;
+      updates.milk_reduce_date = nextIsRaised ? lifecycle.milkReduceDate : null;
+      updates.milk_stop_date = nextIsRaised ? lifecycle.milkStopDate : null;
+      updates.milk_feeding_status = nextIsRaised && nextStatus === "active"
+        ? getCalfMilkStatus({
+            ...existingCalf,
+            ...updates,
+            status: "active"
+          })
+        : "not_tracked";
+
+      if (!requestedStatus && ["active", "historical"].includes(existingCalf.status)) {
+        updates.status = nextIsRaised ? "active" : "historical";
+      }
+    }
+
+    if (requestedStatus === "sold") {
+      const saleAmount = parseSaleAmount(body.sale_amount);
+
+      if (saleAmount === null) {
+        return NextResponse.json({ error: "विक्रीची योग्य रक्कम लिहा." }, { status: 400 });
+      }
+
+      const soldDate = body.sold_date || getTodayISODate();
+
+      if (!isISODate(soldDate)) {
+        return NextResponse.json({ error: "विक्री तारीख चुकीची आहे." }, { status: 400 });
+      }
+
+      updates.sold_date = soldDate;
+      updates.sale_amount = saleAmount;
+      updates.sale_notes = cleanText(body.sale_notes);
+    } else if (requestedStatus && existingCalf.status === "sold") {
+      updates.sold_date = null;
+      updates.sale_amount = null;
+      updates.sale_notes = null;
+      updates.finance_record_id = null;
+    } else if (
+      existingCalf.status === "sold" &&
+      (body.sale_amount !== undefined || body.sold_date !== undefined || body.sale_notes !== undefined)
+    ) {
+      if (body.sale_amount !== undefined) {
+        const saleAmount = parseSaleAmount(body.sale_amount);
+
+        if (saleAmount === null) {
+          return NextResponse.json({ error: "विक्रीची योग्य रक्कम लिहा." }, { status: 400 });
+        }
+
+        updates.sale_amount = saleAmount;
+      }
+
+      if (body.sold_date !== undefined) {
+        if (!isISODate(body.sold_date)) {
+          return NextResponse.json({ error: "विक्री तारीख चुकीची आहे." }, { status: 400 });
+        }
+        updates.sold_date = body.sold_date;
+      }
+
+      if (body.sale_notes !== undefined) {
+        updates.sale_notes = cleanText(body.sale_notes);
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "बदल करण्यासाठी माहिती नाही." }, { status: 400 });
+    }
+
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("calves")
+      .update(updates)
+      .eq("id", body.id)
+      .eq("farm_id", farmId)
+      .select("*, mother:cows(id, name, breed, status)")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    let calf = data;
+
+    if (calf.status === "sold" && Number(calf.sale_amount || 0) > 0 && calf.sold_date) {
+      const financeRecord = await upsertSaleFinanceRecord(supabase, farmId, calf);
+
+      if (financeRecord.id !== calf.finance_record_id) {
+        const { data: calfWithFinanceRecord, error: financeLinkError } = await supabase
+          .from("calves")
+          .update({
+            finance_record_id: financeRecord.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", calf.id)
+          .eq("farm_id", farmId)
+          .select("*, mother:cows(id, name, breed, status)")
+          .single();
+
+        if (financeLinkError) {
+          throw financeLinkError;
+        }
+
+        calf = calfWithFinanceRecord;
+      }
+    } else if (existingCalf.status === "sold" && existingCalf.finance_record_id) {
+      await deleteSaleFinanceRecord(supabase, farmId, existingCalf.finance_record_id);
+    }
+
+    return NextResponse.json({ data: enrichCalf(calf) });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}

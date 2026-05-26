@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createCalvesForCalving } from "@/lib/calfServer";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -9,6 +10,7 @@ const calvingFields = [
   "ai_record_id",
   "expected_date",
   "actual_date",
+  "calf_count",
   "calf_gender",
   "calf_name",
   "calf_weight",
@@ -63,8 +65,10 @@ export async function POST(request) {
     }
 
     const { farmId } = await verifyFarmAccess(request, body.cow_id);
+    const calfCount = Math.max(1, Math.min(2, Number(body.calf_count || 1)));
     const payload = {
       ...pickFields(body),
+      calf_count: calfCount,
       farm_id: farmId
     };
     const supabase = getSupabaseServerClient();
@@ -78,7 +82,12 @@ export async function POST(request) {
       throw error;
     }
 
-    return NextResponse.json({ data }, { status: 201 });
+    const calves = await createCalvesForCalving(supabase, farmId, data, {
+      ...body,
+      calf_count: calfCount
+    });
+
+    return NextResponse.json({ data: { ...data, calves } }, { status: 201 });
   } catch (error) {
     return farmErrorResponse(error);
   }

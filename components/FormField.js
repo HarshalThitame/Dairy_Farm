@@ -1,6 +1,6 @@
 export default function FormField({ label, required = false, children, hint }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="mb-2 block text-[20px] font-extrabold leading-tight text-slate-900">
         {label} {required ? <span className="text-tatkal">*</span> : null}
       </span>
@@ -10,6 +10,6 @@ export default function FormField({ label, required = false, children, hint }) {
           {hint}
         </span>
       ) : null}
-    </label>
+    </div>
   );
 }

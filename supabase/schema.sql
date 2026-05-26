@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS calving_records (
   ai_record_id UUID REFERENCES ai_records(id),
   expected_date DATE,
   actual_date DATE,
+  calf_count INTEGER NOT NULL DEFAULT 1 CHECK (calf_count >= 1 AND calf_count <= 2),
   calf_gender TEXT CHECK (calf_gender IS NULL OR calf_gender IN ('नर', 'मादी')),
   calf_name TEXT,
   calf_weight NUMERIC(5,2) CHECK (calf_weight IS NULL OR calf_weight >= 0),
@@ -86,9 +87,10 @@ CREATE TABLE IF NOT EXISTS health_records (
 
 CREATE TABLE IF NOT EXISTS finance_records (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('उत्पन्न', 'खर्च')),
-  category TEXT CHECK (category IS NULL OR category IN ('दूध विक्री', 'चारा', 'औषध', 'AI खर्च', 'मजुरी', 'इतर')),
+  category TEXT CHECK (category IS NULL OR category IN ('दूध विक्री', 'वासरू विक्री', 'चारा', 'खाद्य', 'औषध', 'AI खर्च', 'रेतन खर्च', 'पशुवैद्यक', 'मजुरी', 'वीज', 'वाहतूक', 'इतर')),
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
   cow_id UUID REFERENCES cows(id),
   accounting_period TEXT NOT NULL DEFAULT 'monthly' CHECK (accounting_period IN ('monthly', 'annual')),
@@ -151,15 +153,41 @@ CREATE TABLE IF NOT EXISTS feed_expenses (
 
 CREATE TABLE IF NOT EXISTS reminders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
   cow_id UUID REFERENCES cows(id) ON DELETE CASCADE,
   reminder_date DATE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'दूध बंद')),
+  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'दूध बंद', 'वासरी दूध कमी', 'वासरी दूध बंद')),
   message TEXT NOT NULL,
   is_done BOOLEAN DEFAULT false,
   done_at TIMESTAMP,
   skipped BOOLEAN DEFAULT false,
   related_record_id UUID,
   created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS calves (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  farm_id UUID NOT NULL REFERENCES farms(id) ON DELETE CASCADE,
+  mother_cow_id UUID REFERENCES cows(id) ON DELETE SET NULL,
+  calving_record_id UUID REFERENCES calving_records(id) ON DELETE SET NULL,
+  name TEXT,
+  birth_date DATE NOT NULL,
+  gender TEXT NOT NULL CHECK (gender IN ('नर', 'मादी')),
+  breed TEXT,
+  color TEXT,
+  identification_mark TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'historical', 'sold', 'dead', 'converted_to_cow')),
+  is_raised BOOLEAN NOT NULL DEFAULT false,
+  milk_feeding_status TEXT NOT NULL DEFAULT 'not_tracked' CHECK (milk_feeding_status IN ('not_tracked', 'दूध पाजायचे सुरू आहे', 'दूध कमी करायचे', 'दूध बंद')),
+  milk_reduce_date DATE,
+  milk_stop_date DATE,
+  sold_date DATE,
+  sale_amount NUMERIC(12,2) CHECK (sale_amount IS NULL OR sale_amount >= 0),
+  sale_notes TEXT,
+  finance_record_id UUID REFERENCES finance_records(id) ON DELETE SET NULL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS cows_active_name_idx ON cows (is_active, name);
@@ -173,6 +201,11 @@ CREATE INDEX IF NOT EXISTS health_records_cow_date_idx ON health_records (cow_id
 CREATE INDEX IF NOT EXISTS finance_records_date_idx ON finance_records (date DESC);
 CREATE INDEX IF NOT EXISTS feed_expenses_date_section_idx ON feed_expenses (date DESC, section);
 CREATE INDEX IF NOT EXISTS reminders_due_idx ON reminders (is_done, reminder_date, cow_id);
+CREATE INDEX IF NOT EXISTS idx_reminders_farm_id ON reminders(farm_id);
+CREATE INDEX IF NOT EXISTS calves_farm_status_idx ON calves(farm_id, status, birth_date DESC);
+CREATE INDEX IF NOT EXISTS calves_mother_idx ON calves(mother_cow_id, birth_date DESC);
+CREATE INDEX IF NOT EXISTS calves_farm_sold_date_idx ON calves(farm_id, sold_date DESC) WHERE status = 'sold';
+CREATE INDEX IF NOT EXISTS calves_finance_record_idx ON calves(finance_record_id);
 
 CREATE OR REPLACE FUNCTION set_ai_calculated_dates()
 RETURNS TRIGGER
@@ -239,11 +272,11 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  INSERT INTO reminders (cow_id, reminder_date, type, message, related_record_id)
+  INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
   VALUES
-    (NEW.cow_id, NEW.ai_date + 21, 'माज तपासणी', cow_name || ' माजावर आली का तपासा', NEW.id),
-    (NEW.cow_id, NEW.ai_date + 60, 'गर्भधारणा तपासणी', cow_name || ' ची गर्भधारणा तपासणी करा', NEW.id),
-    (NEW.cow_id, NEW.ai_date + 270, 'व्यायण', cow_name || ' व्यायण्याची वेळ जवळ आली आहे', NEW.id);
+    (NEW.farm_id, NEW.cow_id, NEW.ai_date + 21, 'माज तपासणी', cow_name || ' माजावर आली का तपासा', NEW.id),
+    (NEW.farm_id, NEW.cow_id, NEW.ai_date + 60, 'गर्भधारणा तपासणी', cow_name || ' ची गर्भधारणा तपासणी करा', NEW.id),
+    (NEW.farm_id, NEW.cow_id, NEW.ai_date + 270, 'व्यायण', cow_name || ' व्यायण्याची वेळ जवळ आली आहे', NEW.id);
 
   RETURN NEW;
 END;
@@ -290,8 +323,8 @@ BEGIN
       cow_name || ' ला ' || NEW.vaccine_name || ' लस देण्याची वेळ झाली'
   END;
 
-  INSERT INTO reminders (cow_id, reminder_date, type, message, related_record_id)
-  VALUES (NEW.cow_id, NEW.next_due_date, reminder_type, reminder_message, NEW.id);
+  INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
+  VALUES (NEW.farm_id, NEW.cow_id, NEW.next_due_date, reminder_type, reminder_message, NEW.id);
 
   RETURN NEW;
 END;

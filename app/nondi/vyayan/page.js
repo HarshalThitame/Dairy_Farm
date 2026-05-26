@@ -86,8 +86,13 @@ export default function VyayanNondPage() {
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     actual_date: today,
+    calf_count: "1",
     calf_gender: "मादी",
+    raise_female_calf: "हो",
     calf_name: "",
+    calf_color: "",
+    calf_breed: "",
+    calf_identification_mark: "",
     calf_weight: "",
     calving_notes: "",
     milk_start_date: today
@@ -184,10 +189,24 @@ export default function VyayanNondPage() {
         ai_record_id: selectedCow.last_ai_record?.id || null,
         expected_date: selectedCow.expected_calving_date || null,
         actual_date: form.actual_date,
+        calf_count: Number(form.calf_count || 1),
         calf_gender: form.calf_gender,
         calf_name: form.calf_name.trim() || null,
         calf_weight: form.calf_weight === "" ? null : Number(form.calf_weight),
         calving_notes: form.calving_notes.trim() || null,
+        raise_calf: form.calf_gender === "मादी" && form.raise_female_calf === "हो",
+        calf_color:
+          form.calf_gender === "मादी" && form.raise_female_calf === "हो"
+            ? form.calf_color.trim() || null
+            : null,
+        calf_breed:
+          form.calf_gender === "मादी" && form.raise_female_calf === "हो"
+            ? form.calf_breed.trim() || selectedCow.breed || null
+            : null,
+        calf_identification_mark:
+          form.calf_gender === "मादी" && form.raise_female_calf === "हो"
+            ? form.calf_identification_mark.trim() || null
+            : null,
         dryOffDate,
         reminderId
       });
@@ -197,7 +216,10 @@ export default function VyayanNondPage() {
           ? "⏳ व्यायण नोंद फोनवर साठवली. इंटरनेट आल्यावर आपोआप समक्रमण होईल."
           : "✅ व्यायण नोंद जतन झाली! 🐄 वासरू जन्मले!"
       );
-      window.setTimeout(() => router.push(`/gayi/${selectedCow.id}`), 1100);
+      window.setTimeout(
+        () => router.push(form.calf_gender === "मादी" && form.raise_female_calf === "हो" ? "/vasare" : `/gayi/${selectedCow.id}`),
+        1100
+      );
     } catch (saveFailure) {
       setSaveError(saveFailure.message || "व्यायण नोंद जतन झाली नाही.");
     } finally {
@@ -364,13 +386,91 @@ export default function VyayanNondPage() {
                 </div>
               </div>
 
-              <FormField label="वासराचे नाव">
-                <MarathiTextInput
-                  value={form.calf_name}
-                  onValueChange={(value) => updateField("calf_name", value)}
-                  className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
-                />
-              </FormField>
+              <div>
+                <p className="mb-2 text-[20px] font-extrabold text-slate-900">
+                  वासरांची संख्या
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: "1", label: "१ वासरू" },
+                    { value: "2", label: "जुळे" }
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateField("calf_count", option.value)}
+                      className={`min-h-[58px] rounded-lg border-2 px-4 text-[20px] font-extrabold ${
+                        form.calf_count === option.value
+                          ? "border-green-300 bg-green-100 text-sheti"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {form.calf_gender === "मादी" ? (
+                <div>
+                  <p className="mb-2 text-[20px] font-extrabold text-slate-900">
+                    आपल्याला ही वासरी पाळायची आहे का?
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {["हो", "नाही"].map((answer) => (
+                      <button
+                        key={answer}
+                        type="button"
+                        onClick={() => updateField("raise_female_calf", answer)}
+                        className={`min-h-[58px] rounded-lg border-2 px-4 text-[20px] font-extrabold ${
+                          form.raise_female_calf === answer
+                            ? "border-green-300 bg-green-100 text-sheti"
+                            : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        {answer === "हो" ? "✅ हो" : "नाही"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {form.calf_gender === "मादी" && form.raise_female_calf === "हो" ? (
+                <>
+                  <FormField label="वासरीचे नाव">
+                    <MarathiTextInput
+                      value={form.calf_name}
+                      onValueChange={(value) => updateField("calf_name", value)}
+                      className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+                    />
+                  </FormField>
+
+                  <FormField label="रंग">
+                    <MarathiTextInput
+                      value={form.calf_color}
+                      onValueChange={(value) => updateField("calf_color", value)}
+                      className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+                    />
+                  </FormField>
+
+                  <FormField label="जात">
+                    <MarathiTextInput
+                      value={form.calf_breed}
+                      onValueChange={(value) => updateField("calf_breed", value)}
+                      placeholder={selectedCow.breed || "जर्सी"}
+                      className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+                    />
+                  </FormField>
+
+                  <FormField label="ओळख खूण">
+                    <MarathiTextInput
+                      value={form.calf_identification_mark}
+                      onValueChange={(value) => updateField("calf_identification_mark", value)}
+                      className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+                    />
+                  </FormField>
+                </>
+              ) : null}
 
               <FormField label="वासराचे वजन" hint="किलोमध्ये लिहा">
                 <input

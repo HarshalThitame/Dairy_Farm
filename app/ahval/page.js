@@ -130,7 +130,7 @@ export default function AhvalPage() {
                 emoji="💸"
                 title="मासिक खर्च"
                 value={formatCurrency(financeReport?.totalExpense || 0)}
-                subtext="खाद्य + औषध + रेतन + इतर"
+                subtext="खाद्य + औषध + इतर"
                 color="red"
               />
             </Link>

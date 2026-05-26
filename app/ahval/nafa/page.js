@@ -121,7 +121,7 @@ export default function ProfitAnalyticsPage() {
               emoji="💸"
               title="मासिक खर्च"
               value={formatCurrency(report.totalExpense || 0)}
-              subtext="नफा गणनेत घेतलेला"
+              subtext="खाद्य + औषध + इतर"
               color="red"
             />
             <SummaryCard

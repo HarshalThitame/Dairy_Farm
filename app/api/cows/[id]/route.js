@@ -63,6 +63,7 @@ export async function GET(request, { params }) {
       milkRecords,
       healthRecords,
       financeRecords,
+      calves,
       reminders
     ] = await Promise.all([
       supabase
@@ -96,6 +97,12 @@ export async function GET(request, { params }) {
         .eq("cow_id", params.id)
         .order("date", { ascending: false }),
       supabase
+        .from("calves")
+        .select("*")
+        .eq("farm_id", farmId)
+        .eq("mother_cow_id", params.id)
+        .order("birth_date", { ascending: false }),
+      supabase
         .from("reminders")
         .select("*")
         .eq("farm_id", farmId)
@@ -109,6 +116,7 @@ export async function GET(request, { params }) {
       milkRecords,
       healthRecords,
       financeRecords,
+      calves,
       reminders
     ]);
 
@@ -125,6 +133,7 @@ export async function GET(request, { params }) {
           milk_records: milkRecords.data || [],
           health_records: healthRecords.data || [],
           finance_records: financeRecords.data || [],
+          calves: calves.data || [],
           reminders: reminders.data || []
         }
       }

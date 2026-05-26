@@ -417,6 +417,9 @@ export default function FinanceReportPage() {
               <p className="mt-2 text-[24px] font-extrabold leading-none text-red-950">
                 {formatCurrency(report.totalExpense || 0)}
               </p>
+              <p className="mt-2 text-[16px] font-bold leading-snug text-red-800">
+                खाद्य + औषध + इतर
+              </p>
             </article>
             <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
               <p className="text-[18px] font-extrabold text-blue-900">वार्षिक खर्च</p>
@@ -510,7 +513,9 @@ export default function FinanceReportPage() {
                         ) : null}
                         {transaction.is_derived ? (
                           <p className="mt-1 text-[17px] font-bold text-green-700">
-                            दूध नोंदीवरून आपोआप दाखवले आहे
+                            {transaction.source === "health_records"
+                              ? "आरोग्य नोंदीवरून आपोआप दाखवले आहे"
+                              : "दूध नोंदीवरून आपोआप दाखवले आहे"}
                           </p>
                         ) : null}
                       </div>

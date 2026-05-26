@@ -36,6 +36,10 @@ function routeForReminder(reminder) {
     return `/nondi/dudh?${query}`;
   }
 
+  if (reminder.type === "वासरी दूध कमी" || reminder.type === "वासरी दूध बंद") {
+    return "/vasare";
+  }
+
   return `/nondi/ai?${query}`;
 }
 

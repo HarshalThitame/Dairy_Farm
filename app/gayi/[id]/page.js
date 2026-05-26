@@ -7,9 +7,11 @@ import AdminOnly from "@/components/AdminOnly";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import StatusBadge from "@/components/StatusBadge";
+import { calfStatuses, getCalfMilkStatus } from "@/lib/calfLifecycle";
 import {
   calculateAgeMarathi,
   formatCowBreed,
+  formatCurrency,
   formatMarathiDate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
@@ -79,6 +81,7 @@ export default function GayDetailPage() {
   const cow = profile?.cow;
   const aiRecords = records.ai_records || [];
   const healthRecords = records.health_records || [];
+  const calves = records.calves || [];
 
   const lastCalvingDate = useMemo(() => {
     const currentCalvingRecords = profile?.records?.calving_records || [];
@@ -175,8 +178,55 @@ export default function GayDetailPage() {
               {lastCalvingDate}
             </p>
           </article>
+          <article className="min-w-[150px] rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <p className="text-[18px] font-bold text-slate-600">वासरे</p>
+            <p className="mt-2 text-[25px] font-extrabold text-slate-950">
+              {toMarathiNumerals(calves.length)}
+            </p>
+          </article>
         </div>
       </section>
+
+      <Section
+        title="वासरांचा इतिहास"
+        actionHref="/vasare"
+        actionText="🐮 वासरे बघा"
+      >
+        {calves.length > 0 ? (
+          <div className="space-y-3">
+            {calves.map((calf) => (
+              <article
+                key={calf.id}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[19px] font-extrabold text-slate-950">
+                      {calf.name || (calf.gender === "मादी" ? "मादी वासरी" : "नर वासरू")}
+                    </p>
+                    <p className="mt-1 text-[18px] font-semibold text-slate-700">
+                      जन्म: {formatMarathiDate(calf.birth_date)} | वय: {calculateAgeMarathi(calf.birth_date)}
+                    </p>
+                    <p className="mt-1 text-[18px] font-semibold text-slate-700">
+                      दूध स्थिती: {getCalfMilkStatus(calf)}
+                    </p>
+                    {calf.status === "sold" ? (
+                      <p className="mt-1 text-[18px] font-semibold text-green-700">
+                        विक्री: {formatMarathiDate(calf.sold_date)} | {formatCurrency(calf.sale_amount || 0)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-[15px] font-extrabold text-sheti">
+                    {calfStatuses[calf.status] || calf.status}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyMessage>या गायीची वासरांची नोंद नाही.</EmptyMessage>
+        )}
+      </Section>
 
       <Section
         title="कृत्रिम रेतन इतिहास"

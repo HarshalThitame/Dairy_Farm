@@ -17,6 +17,10 @@ import {
   getAccountingPeriodLabel,
   getFeedExpenseAccountingPeriod
 } from "@/lib/accountingPeriods";
+import {
+  displayFeedSectionName,
+  FEED_SECTION_CATTLE_FEED
+} from "@/lib/feedExpenseSections";
 import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 import { transliterateMarathiText } from "@/lib/marathiTransliteration";
@@ -26,8 +30,8 @@ const inputClass =
 
 const sections = [
   {
-    id: "कॅटल फीड",
-    label: "खाद्य",
+    id: FEED_SECTION_CATTLE_FEED,
+    label: displayFeedSectionName(FEED_SECTION_CATTLE_FEED),
     emoji: "🛢️",
     tone: "border-blue-200 bg-blue-50 text-blue-900",
     defaultItem: "सुग्रास",
@@ -66,7 +70,7 @@ function getSection(sectionId) {
   return sections.find((section) => section.id === sectionId) || sections[0];
 }
 
-function emptyForm(sectionId = "कॅटल फीड") {
+function emptyForm(sectionId = FEED_SECTION_CATTLE_FEED) {
   const section = getSection(sectionId);
 
   return {
@@ -75,7 +79,7 @@ function emptyForm(sectionId = "कॅटल फीड") {
     item_name: section.defaultItem,
     custom_item: "",
     quantity: "",
-    unit: section.id === "कॅटल फीड" ? "बॅग" : section.id === "भुसा" ? "गाडी" : "किलो",
+    unit: section.id === FEED_SECTION_CATTLE_FEED ? "बॅग" : section.id === "भुसा" ? "गाडी" : "किलो",
     rate: "",
     bags_count: "",
     murghas_new_bags_count: "",
@@ -133,7 +137,7 @@ function calculateTotal(form) {
     return (toNumber(form.quantity) || 1) * toNumber(form.rate) + toNumber(form.other_cost);
   }
 
-  if (form.section === "कॅटल फीड") {
+  if (form.section === FEED_SECTION_CATTLE_FEED) {
     return bagTotal;
   }
 
@@ -199,7 +203,7 @@ function buildRecordDetails(record) {
     return parts.join(" · ");
   }
 
-  if (record.section === "कॅटल फीड") {
+  if (record.section === FEED_SECTION_CATTLE_FEED) {
     if (hasRecordValue(record.bags_count || record.quantity)) {
       parts.push(`${toMarathiNumerals(record.bags_count || record.quantity)} बॅग`);
     }
@@ -249,8 +253,8 @@ function TextWithVoice({ value, onChange, placeholder, field, voiceField, startV
 
 export default function CharaCostPage() {
   const [monthValue, setMonthValue] = useState(getInitialMonth);
-  const [activeSection, setActiveSection] = useState("कॅटल फीड");
-  const [form, setForm] = useState(() => emptyForm("कॅटल फीड"));
+  const [activeSection, setActiveSection] = useState(FEED_SECTION_CATTLE_FEED);
+  const [form, setForm] = useState(() => emptyForm(FEED_SECTION_CATTLE_FEED));
   const [records, setRecords] = useState([]);
   const [summary, setSummary] = useState({ total: 0, count: 0, bySection: [] });
   const [loading, setLoading] = useState(true);
@@ -350,7 +354,7 @@ export default function CharaCostPage() {
         body: JSON.stringify(buildPayload(form))
       });
 
-      setSuccess(`${form.section} खर्च जतन झाला: ${formatCurrency(total)}`);
+      setSuccess(`${displayFeedSectionName(form.section)} खर्च जतन झाला: ${formatCurrency(total)}`);
       setForm(emptyForm(activeSection));
       await fetchExpenses();
     } catch (saveError) {
@@ -554,7 +558,7 @@ export default function CharaCostPage() {
               </FormField>
             </div>
           </div>
-        ) : activeSection === "कॅटल फीड" ? (
+        ) : activeSection === FEED_SECTION_CATTLE_FEED ? (
           <div className="grid grid-cols-2 gap-3">
             <FormField label="एकूण बॅग">
               <input

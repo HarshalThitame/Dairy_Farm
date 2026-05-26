@@ -48,6 +48,13 @@ const recordActions = [
     description: "लस आणि जंतनाशक",
     emoji: "💊",
     tone: "border-green-200 bg-green-50 text-green-900"
+  },
+  {
+    href: "/vasare",
+    title: "वासरे",
+    description: "जन्म, दूध आणि वाढ",
+    emoji: "🐮",
+    tone: "border-orange-200 bg-orange-50 text-orange-900"
   }
 ];
 

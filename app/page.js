@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [milkRecords, setMilkRecords] = useState([]);
   const [todayReminders, setTodayReminders] = useState([]);
   const [overdueReminders, setOverdueReminders] = useState([]);
+  const [calvesSummary, setCalvesSummary] = useState(null);
   const [monthlyMilkReport, setMonthlyMilkReport] = useState(null);
   const [monthlyFinanceReport, setMonthlyFinanceReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ export default function DashboardPage() {
         milkResult,
         todayResult,
         overdueResult,
+        calvesResult,
         monthlyMilkResult,
         monthlyFinanceResult
       ] =
@@ -55,6 +57,7 @@ export default function DashboardPage() {
           fetchMilkByDate(getTodayISODate()),
           fetchRemindersByFilter("today"),
           fetchRemindersByFilter("overdue"),
+          fetchJson("/api/calves", { unwrapData: false }),
           fetchJson(`/api/reports/milk?${reportQuery}`),
           fetchJson(`/api/reports/finance?${reportQuery}`)
         ]);
@@ -63,6 +66,7 @@ export default function DashboardPage() {
       setMilkRecords(milkResult.data || []);
       setTodayReminders(todayResult.data || []);
       setOverdueReminders(overdueResult.data || []);
+      setCalvesSummary(calvesResult.summary || null);
       setMonthlyMilkReport(monthlyMilkResult || null);
       setMonthlyFinanceReport(monthlyFinanceResult || null);
     } catch (fetchError) {
@@ -122,6 +126,12 @@ export default function DashboardPage() {
       label: "गाभण गायी",
       value: toMarathiNumerals(pregnantCount),
       href: "/nondi/vyayan"
+    },
+    {
+      emoji: "🐮",
+      label: "वासरे",
+      value: toMarathiNumerals(calvesSummary?.active || 0),
+      href: "/vasare"
     }
   ];
 
@@ -261,6 +271,9 @@ export default function DashboardPage() {
             <p className="text-[18px] font-extrabold">💸 मासिक खर्च</p>
             <p className="mt-1 text-[22px] font-extrabold">
               {formatCurrency(monthlyFinanceReport?.totalExpense || 0)}
+            </p>
+            <p className="mt-1 text-[15px] font-bold leading-snug text-red-800">
+              खाद्य + औषध + इतर
             </p>
           </Link>
           <Link

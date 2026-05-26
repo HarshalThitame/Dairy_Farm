@@ -77,6 +77,13 @@ export default function TopHeader() {
               >
                 🔑 PIN बदला
               </Link>
+              <Link
+                href="/vasare"
+                onClick={() => setOpen(false)}
+                className="mt-1 flex min-h-[52px] items-center rounded-lg px-3 text-[18px] font-extrabold text-slate-800 active:bg-slate-100"
+              >
+                🐮 वासरे
+              </Link>
               <button
                 type="button"
                 onClick={handleLogout}

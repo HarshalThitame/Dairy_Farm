@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getFeedExpenseAccountingPeriod } from "@/lib/accountingPeriods";
+import {
+  displayFeedSectionName,
+  FEED_SECTION_CATTLE_FEED
+} from "@/lib/feedExpenseSections";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-const allowedSections = new Set(["मुरघास", "कॅटल फीड", "भुसा", "इतर"]);
+const allowedSections = new Set(["मुरघास", FEED_SECTION_CATTLE_FEED, "भुसा", "इतर"]);
 
 function isFeedExpenseSchemaError(error) {
   const message = String(error?.message || "");
@@ -134,7 +138,7 @@ function calculateTotal(body) {
     return (toNumber(body.quantity) || 1) * toNumber(body.rate) + toNumber(body.other_cost);
   }
 
-  if (body.section === "कॅटल फीड") {
+  if (body.section === FEED_SECTION_CATTLE_FEED) {
     return cattleFeedBagTotal;
   }
 
@@ -146,7 +150,7 @@ function calculateTotal(body) {
 }
 
 function buildDescription(payload) {
-  const parts = [payload.section, payload.item_name];
+  const parts = [displayFeedSectionName(payload.section), payload.item_name];
 
   if (payload.section === "मुरघास") {
     if (payload.murghas_new_bags_count) {
@@ -303,26 +307,26 @@ export async function POST(request) {
       date: body.date,
       section,
       item_name: normalizeText(body.item_name) || section,
-      quantity: section === "कॅटल फीड" || section === "मुरघास" ? null : toOptionalNumber(body.quantity),
+      quantity: section === FEED_SECTION_CATTLE_FEED || section === "मुरघास" ? null : toOptionalNumber(body.quantity),
       unit:
-        section === "कॅटल फीड"
+        section === FEED_SECTION_CATTLE_FEED
           ? "बॅग"
           : section === "मुरघास"
             ? "बॅग"
             : normalizeText(body.unit) || null,
       rate: section === "मुरघास" ? null : toOptionalNumber(body.rate),
       bags_count:
-        section === "कॅटल फीड"
+        section === FEED_SECTION_CATTLE_FEED
           ? getCattleFeedBags(body)
           : section === "मुरघास"
             ? murghasDetails.filledBagsCount
             : toOptionalInteger(body.bags_count),
       inner_material_cost:
-        section === "कॅटल फीड" ? 0 : section === "मुरघास" ? murghasDetails.innerMaterialCost : toNumber(body.inner_material_cost),
+        section === FEED_SECTION_CATTLE_FEED ? 0 : section === "मुरघास" ? murghasDetails.innerMaterialCost : toNumber(body.inner_material_cost),
       labor_cost:
-        section === "कॅटल फीड" ? 0 : section === "मुरघास" ? murghasDetails.fillingLaborCost : toNumber(body.labor_cost),
-      transport_cost: section === "कॅटल फीड" || section === "मुरघास" ? 0 : toNumber(body.transport_cost),
-      other_cost: section === "कॅटल फीड" ? 0 : toNumber(body.other_cost),
+        section === FEED_SECTION_CATTLE_FEED ? 0 : section === "मुरघास" ? murghasDetails.fillingLaborCost : toNumber(body.labor_cost),
+      transport_cost: section === FEED_SECTION_CATTLE_FEED || section === "मुरघास" ? 0 : toNumber(body.transport_cost),
+      other_cost: section === FEED_SECTION_CATTLE_FEED ? 0 : toNumber(body.other_cost),
       total_cost: totalCost,
       accounting_period: accountingPeriod,
       supplier_name: normalizeText(body.supplier_name) || null,

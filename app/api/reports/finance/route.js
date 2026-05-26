@@ -109,7 +109,38 @@ function buildMilkIncomeTransaction(milkRecords, amount, monthRange) {
   };
 }
 
-function buildMonthlyTrend(financeRecords, milkRecords, selectedMonth, selectedYear) {
+function buildHealthExpenseDescription(record) {
+  const details = [
+    record.vaccine_name ? `औषध: ${record.vaccine_name}` : record.type || "आरोग्य नोंद",
+    record.description ? String(record.description).replace(/\s+/g, " ").trim() : "",
+    record.cows?.name ? `गाय: ${record.cows.name}` : "",
+    record.doctor_name ? `पशुवैद्यक: ${record.doctor_name}` : ""
+  ].filter(Boolean);
+
+  return details.join(" | ");
+}
+
+function buildHealthExpenseTransactions(healthRecords) {
+  return (healthRecords || [])
+    .filter((record) => Number(record.cost || 0) > 0)
+    .map((record) => ({
+      id: `health-expense-${record.id}`,
+      farm_id: record.farm_id,
+      cow_id: record.cow_id,
+      date: record.date,
+      type: "खर्च",
+      category: "औषध",
+      amount: Number(record.cost || 0),
+      accounting_period: ACCOUNTING_PERIOD_MONTHLY,
+      description: buildHealthExpenseDescription(record),
+      cows: record.cows || null,
+      is_derived: true,
+      source: "health_records",
+      source_record_id: record.id
+    }));
+}
+
+function buildMonthlyTrend(financeRecords, milkRecords, healthRecords, selectedMonth, selectedYear) {
   const months = Array.from({ length: 6 }, (_, index) =>
     addMonths(selectedMonth, selectedYear, index - 5)
   );
@@ -123,11 +154,18 @@ function buildMonthlyTrend(financeRecords, milkRecords, selectedMonth, selectedY
     const monthlyMilk = (milkRecords || []).filter(
       (record) => record.date >= monthRange.start && record.date < monthRange.end
     );
+    const monthlyHealthExpenses = buildHealthExpenseTransactions(
+      (healthRecords || []).filter(
+        (record) => record.date >= monthRange.start && record.date < monthRange.end
+      )
+    );
     const milkIncomeToAdd = getMilkIncomeToAdd(monthlyFinance, monthlyMilk);
     const milkIncomeTransaction = buildMilkIncomeTransaction(monthlyMilk, milkIncomeToAdd, monthRange);
-    const transactions = milkIncomeTransaction
-      ? [milkIncomeTransaction, ...monthlyFinance]
-      : monthlyFinance;
+    const transactions = [
+      ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
+      ...monthlyFinance,
+      ...monthlyHealthExpenses
+    ];
     const stats = calculateFinanceStats(transactions);
 
     return {
@@ -165,7 +203,8 @@ export async function GET(request) {
       annualFinanceRecords,
       milkRecords,
       trendFinanceRecords,
-      trendMilkRecords
+      trendMilkRecords,
+      trendHealthRecords
     ] = await Promise.all([
       supabase
         .from("finance_records")
@@ -210,7 +249,18 @@ export async function GET(request) {
         .is("cow_id", null)
         .gte("date", oldestRange.start)
         .lt("date", monthRange.end)
-        .order("date", { ascending: true })
+        .order("date", { ascending: true }),
+      supabase
+        .from("health_records")
+        .select(
+          "id, farm_id, cow_id, date, type, description, doctor_name, cost, vaccine_name, notes, cows(id, name, breed)"
+        )
+        .eq("farm_id", farmId)
+        .gt("cost", 0)
+        .gte("date", oldestRange.start)
+        .lt("date", monthRange.end)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false })
     ]);
 
     if (monthFinanceRecords.error) {
@@ -233,6 +283,10 @@ export async function GET(request) {
       throw trendMilkRecords.error;
     }
 
+    if (trendHealthRecords.error) {
+      throw trendHealthRecords.error;
+    }
+
     const monthlyFinance = (monthFinanceRecords.data || [])
       .map(normalizeFinanceRecord)
       .filter((record) => record.accounting_period !== "annual");
@@ -245,9 +299,16 @@ export async function GET(request) {
       milkIncomeToAdd,
       monthRange
     );
-    const transactions = milkIncomeTransaction
-      ? [milkIncomeTransaction, ...monthlyFinance]
-      : monthlyFinance;
+    const monthlyHealthExpenses = buildHealthExpenseTransactions(
+      (trendHealthRecords.data || []).filter(
+        (record) => record.date >= monthRange.start && record.date < monthRange.end
+      )
+    );
+    const transactions = [
+      ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
+      ...monthlyFinance,
+      ...monthlyHealthExpenses
+    ];
     const stats = calculateFinanceStats(transactions);
     const annualStats = calculateFinanceStats(annualFinance);
 
@@ -265,19 +326,20 @@ export async function GET(request) {
         ),
         derivedMilkIncome: milkIncomeToAdd,
         annualExpense: Number(annualStats.totalExpense.toFixed(2)),
-	        annualExpenseByCategory: categoriesToArray(expenseCategories, annualStats.byCategory.expense),
-	        annualTransactions: annualFinance,
-	        incomeByCategory: categoriesToArray(incomeCategories, stats.byCategory.income),
-	        expenseByCategory: categoriesToArray(expenseCategories, stats.byCategory.expense),
-	        monthlyTrend: buildMonthlyTrend(
-	          trendFinanceRecords.data || [],
-	          trendMilkRecords.data || [],
-	          monthInput.month,
-	          monthInput.year
-	        ),
-	        transactions
-	      }
-	    });
+        annualExpenseByCategory: categoriesToArray(expenseCategories, annualStats.byCategory.expense),
+        annualTransactions: annualFinance,
+        incomeByCategory: categoriesToArray(incomeCategories, stats.byCategory.income),
+        expenseByCategory: categoriesToArray(expenseCategories, stats.byCategory.expense),
+        monthlyTrend: buildMonthlyTrend(
+          trendFinanceRecords.data || [],
+          trendMilkRecords.data || [],
+          trendHealthRecords.data || [],
+          monthInput.month,
+          monthInput.year
+        ),
+        transactions
+      }
+    });
   } catch (error) {
     return farmErrorResponse(error);
   }
