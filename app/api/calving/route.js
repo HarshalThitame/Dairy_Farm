@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { createCalvesForCalving } from "@/lib/calfServer";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { addDaysToISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+
+const motherStatusAfterCalving = "व्याललेली";
 
 const calvingFields = [
   "cow_id",
@@ -24,6 +27,47 @@ function pickFields(body) {
     }
     return payload;
   }, {});
+}
+
+async function ensureDryOffReminder(supabase, farmId, calvingRecord, cowName) {
+  const reminderDate = addDaysToISODate(calvingRecord.actual_date, 60);
+  const reminderType = "दूध बंद";
+
+  const { data: existing, error: existingError } = await supabase
+    .from("reminders")
+    .select()
+    .eq("farm_id", farmId)
+    .eq("related_record_id", calvingRecord.id)
+    .eq("type", reminderType)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data, error } = await supabase
+    .from("reminders")
+    .insert({
+      farm_id: farmId,
+      cow_id: calvingRecord.cow_id,
+      reminder_date: reminderDate,
+      type: reminderType,
+      message: `${cowName || "गाय"} चे दूध बंद करण्याची वेळ आली आहे`,
+      related_record_id: calvingRecord.id,
+      is_done: false
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
 
 export async function GET(request) {
@@ -87,7 +131,21 @@ export async function POST(request) {
       calf_count: calfCount
     });
 
-    return NextResponse.json({ data: { ...data, calves } }, { status: 201 });
+    const { data: cow, error: cowError } = await supabase
+      .from("cows")
+      .update({ status: motherStatusAfterCalving })
+      .eq("id", body.cow_id)
+      .eq("farm_id", farmId)
+      .select()
+      .single();
+
+    if (cowError) {
+      throw cowError;
+    }
+
+    const reminder = await ensureDryOffReminder(supabase, farmId, data, cow?.name);
+
+    return NextResponse.json({ data: { ...data, calves, cow, reminder } }, { status: 201 });
   } catch (error) {
     return farmErrorResponse(error);
   }

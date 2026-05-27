@@ -15,13 +15,11 @@ import {
   toISODate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
-import { addLocalReminder, addToPendingSync } from "@/lib/localDB";
 import {
   fetchCows as fetchCowsOffline,
-  saveHealthRecord
+  saveHealthRecord,
+  saveReminder
 } from "@/lib/offlineActions";
-import { isOnline } from "@/lib/networkStatus";
-import { registerBackgroundSync } from "@/lib/syncManager";
 
 const vaccineOptions = [
   { value: "खुरपका-तोंडपका", label: "खुरपका-तोंडपका" },
@@ -184,38 +182,14 @@ export default function LasikaranNondPage() {
       message: `सर्व गायींना ${actualVaccineName} देण्याची वेळ झाली`
     };
 
-    if (isOnline()) {
-      const reminderResponse = await fetch("/api/reminders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(reminderPayload)
-      });
-      const reminderResult = await reminderResponse.json();
-
-      if (!reminderResponse.ok) {
-        throw new Error(reminderResult.error || "पुढील आठवण तयार झाली नाही.");
-      }
-    } else {
-      await addLocalReminder(reminderPayload);
-      await addToPendingSync({
-        type: "CREATE",
-        entity: "reminder",
-        endpoint: "/api/reminders",
-        method: "POST",
-        payload: reminderPayload,
-        cow_id: null,
-        cowName: "",
-        createdAt: new Date().toISOString()
-      });
-      registerBackgroundSync();
-    }
+    const reminderResult = form.next_due_date
+      ? await saveReminder(reminderPayload)
+      : { offline: false };
 
     setSuccess(
-      isOnline()
-        ? `✅ सर्व ${toMarathiNumerals(cows.length)} गायींची लस नोंद जतन झाली!`
-        : `⏳ सर्व ${toMarathiNumerals(cows.length)} गायींची लस नोंद फोनवर साठवली. इंटरनेट आल्यावर आपोआप समक्रमण होईल.`
+      reminderResult.offline
+        ? `⏳ सर्व ${toMarathiNumerals(cows.length)} गायींची लस नोंद फोनवर साठवली. इंटरनेट आल्यावर आपोआप समक्रमण होईल.`
+        : `✅ सर्व ${toMarathiNumerals(cows.length)} गायींची लस नोंद जतन झाली!`
     );
   }
 

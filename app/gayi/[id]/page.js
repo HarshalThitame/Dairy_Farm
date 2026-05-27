@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -135,7 +137,14 @@ export default function GayDetailPage() {
   return (
     <div className="space-y-5">
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-4">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+            {cow.photo_url ? (
+              <img src={cow.photo_url} alt={cow.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[42px]">🐄</div>
+            )}
+          </div>
           <div className="min-w-0">
             <h1 className="text-[30px] font-extrabold leading-tight text-slate-950">
               {cow.name}
@@ -144,14 +153,16 @@ export default function GayDetailPage() {
               <StatusBadge status={cow.status} />
             </div>
           </div>
-          <AdminOnly>
-            <Link
-              href={`/gayi/${cow.id}/edit`}
-              className="flex min-h-[52px] shrink-0 items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-3 text-[18px] font-extrabold text-sheti active:bg-green-100"
-            >
-              ✏️ संपादित करा
-            </Link>
-          </AdminOnly>
+          <div className="ml-auto shrink-0">
+            <AdminOnly>
+              <Link
+                href={`/gayi/${cow.id}/edit`}
+                className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-3 text-[18px] font-extrabold text-sheti active:bg-green-100"
+              >
+                ✏️ संपादित करा
+              </Link>
+            </AdminOnly>
+          </div>
         </div>
 
         <div className="mt-4 space-y-2 text-[19px] font-semibold leading-snug text-slate-700">
@@ -199,7 +210,14 @@ export default function GayDetailPage() {
                 key={calf.id}
                 className="rounded-lg border border-slate-200 bg-slate-50 p-3"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    {calf.photo_url ? (
+                      <img src={calf.photo_url} alt={calf.name || "वासरू"} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[28px]">🐮</div>
+                    )}
+                  </div>
                   <div>
                     <p className="text-[19px] font-extrabold text-slate-950">
                       {calf.name || (calf.gender === "मादी" ? "मादी वासरी" : "नर वासरू")}
@@ -216,7 +234,7 @@ export default function GayDetailPage() {
                       </p>
                     ) : null}
                   </div>
-                  <p className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-[15px] font-extrabold text-sheti">
+                  <p className="ml-auto shrink-0 rounded-full bg-green-50 px-3 py-1 text-[15px] font-extrabold text-sheti">
                     {calfStatuses[calf.status] || calf.status}
                   </p>
                 </div>

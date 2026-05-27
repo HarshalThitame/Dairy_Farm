@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import AnimalPhotoInput from "@/components/AnimalPhotoInput";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import { cowStatuses } from "@/components/StatusBadge";
 
@@ -24,6 +25,8 @@ const emptyForm = {
   tag_number: "",
   purchased_on: "",
   status: "रिकामी",
+  photo_url: "",
+  photo_storage_path: "",
   notes: ""
 };
 
@@ -40,6 +43,8 @@ function normalizeInitialCow(cow) {
     tag_number: cow.tag_number || "",
     purchased_on: cow.purchased_on || "",
     status: cow.status || "रिकामी",
+    photo_url: cow.photo_url || "",
+    photo_storage_path: cow.photo_storage_path || "",
     notes: cow.notes || ""
   };
 }
@@ -112,6 +117,16 @@ export default function CowForm({
           className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
         />
       </label>
+
+      <AnimalPhotoInput
+        label="गायीचा फोटो"
+        animalType="cow"
+        value={{ photo_url: form.photo_url, photo_storage_path: form.photo_storage_path }}
+        onChange={(photo) => {
+          updateField("photo_url", photo.photo_url || "");
+          updateField("photo_storage_path", photo.photo_storage_path || "");
+        }}
+      />
 
       <label className="block">
         <span className="mb-2 block text-[20px] font-extrabold text-slate-900">

@@ -62,14 +62,21 @@ BEGIN
 
   reminder_type := CASE
     WHEN NEW.type = 'जंतनाशक' THEN 'जंतनाशक'
-    ELSE 'लसीकरण'
+    WHEN NEW.type = 'लसीकरण' THEN 'लसीकरण'
+    ELSE 'तपासणी'
   END;
 
   reminder_message := CASE
-    WHEN NEW.vaccine_name IS NULL OR btrim(NEW.vaccine_name) = '' THEN
+    WHEN NEW.type = 'जंतनाशक' AND NEW.vaccine_name IS NOT NULL AND btrim(NEW.vaccine_name) <> '' THEN
+      cow_name || ' ला ' || NEW.vaccine_name || ' देण्याची वेळ झाली'
+    WHEN NEW.type = 'जंतनाशक' THEN
+      cow_name || ' ला जंतनाशक देण्याची वेळ झाली'
+    WHEN NEW.type = 'लसीकरण' AND NEW.vaccine_name IS NOT NULL AND btrim(NEW.vaccine_name) <> '' THEN
+      cow_name || ' ला ' || NEW.vaccine_name || ' लस देण्याची वेळ झाली'
+    WHEN NEW.type = 'लसीकरण' THEN
       cow_name || ' ला लस देण्याची वेळ झाली'
     ELSE
-      cow_name || ' ला ' || NEW.vaccine_name || ' लस देण्याची वेळ झाली'
+      cow_name || ' ची पुढील तपासणी करा'
   END;
 
   INSERT INTO public.reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)

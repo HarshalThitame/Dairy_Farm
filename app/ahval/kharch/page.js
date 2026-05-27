@@ -21,7 +21,7 @@ import {
 import { fetchJson } from "@/lib/offlineActions";
 import { displayFinanceCategory, getIndiaMonthParts } from "@/lib/reportUtils";
 
-const expenseSectionOrder = ["चारा", "औषध", "रेतन खर्च", "पशुवैद्यक", "मजुरी", "इतर"];
+const expenseSectionOrder = ["खाद्य", "चारा", "औषध", "रेतन खर्च", "पशुवैद्यक", "मजुरी", "इतर"];
 const filterOptions = ["सर्व", ...expenseSectionOrder];
 const feedSectionOrder = [FEED_SECTION_CATTLE_FEED, "मुरघास", "भुसा", "इतर"];
 
@@ -84,7 +84,11 @@ function ExpenseTransaction({ transaction, annual = false }) {
       ? "आरोग्य नोंदीवरून आपोआप खर्च"
       : transaction.source === "milk_records"
         ? "दूध नोंदीवरून आपोआप मोजलेले"
-        : "";
+        : transaction.source === "monthly_expenses"
+          ? "मासिक खर्च नोंदीवरून आपोआप"
+          : transaction.source === "dairy_settlements"
+            ? "डेअरी देयक कपात"
+            : "";
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
@@ -264,7 +268,7 @@ export default function ExpenseAnalyticsPage() {
               emoji="💸"
               title="मासिक खर्च"
               value={formatCurrency(financeReport.totalExpense || 0)}
-              subtext="खाद्य + औषध + इतर"
+              subtext="खाद्य + औषध + कपात + इतर"
               color="red"
             />
             <SummaryCard

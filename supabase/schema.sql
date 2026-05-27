@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS cows (
   status TEXT DEFAULT 'रिकामी' CHECK (status IN ('गाभण', 'रिकामी', 'व्याललेली', 'उपचार सुरू', 'वाळलेली')),
   purchased_on DATE,
   notes TEXT,
+  photo_url TEXT,
+  photo_storage_path TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -156,7 +158,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
   cow_id UUID REFERENCES cows(id) ON DELETE CASCADE,
   reminder_date DATE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'दूध बंद', 'वासरी दूध कमी', 'वासरी दूध बंद')),
+  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'तपासणी', 'दूध बंद', 'वासरी दूध कमी', 'वासरी दूध बंद')),
   message TEXT NOT NULL,
   is_done BOOLEAN DEFAULT false,
   done_at TIMESTAMP,
@@ -176,6 +178,8 @@ CREATE TABLE IF NOT EXISTS calves (
   breed TEXT,
   color TEXT,
   identification_mark TEXT,
+  photo_url TEXT,
+  photo_storage_path TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'historical', 'sold', 'dead', 'converted_to_cow')),
   is_raised BOOLEAN NOT NULL DEFAULT false,
   milk_feeding_status TEXT NOT NULL DEFAULT 'not_tracked' CHECK (milk_feeding_status IN ('not_tracked', 'दूध पाजायचे सुरू आहे', 'दूध कमी करायचे', 'दूध बंद')),
@@ -318,14 +322,21 @@ BEGIN
 
   reminder_type := CASE
     WHEN NEW.type = 'जंतनाशक' THEN 'जंतनाशक'
-    ELSE 'लसीकरण'
+    WHEN NEW.type = 'लसीकरण' THEN 'लसीकरण'
+    ELSE 'तपासणी'
   END;
 
   reminder_message := CASE
-    WHEN NEW.vaccine_name IS NULL OR btrim(NEW.vaccine_name) = '' THEN
+    WHEN NEW.type = 'जंतनाशक' AND NEW.vaccine_name IS NOT NULL AND btrim(NEW.vaccine_name) <> '' THEN
+      cow_name || ' ला ' || NEW.vaccine_name || ' देण्याची वेळ झाली'
+    WHEN NEW.type = 'जंतनाशक' THEN
+      cow_name || ' ला जंतनाशक देण्याची वेळ झाली'
+    WHEN NEW.type = 'लसीकरण' AND NEW.vaccine_name IS NOT NULL AND btrim(NEW.vaccine_name) <> '' THEN
+      cow_name || ' ला ' || NEW.vaccine_name || ' लस देण्याची वेळ झाली'
+    WHEN NEW.type = 'लसीकरण' THEN
       cow_name || ' ला लस देण्याची वेळ झाली'
     ELSE
-      cow_name || ' ला ' || NEW.vaccine_name || ' लस देण्याची वेळ झाली'
+      cow_name || ' ची पुढील तपासणी करा'
   END;
 
   INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)

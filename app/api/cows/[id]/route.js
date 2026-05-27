@@ -13,6 +13,8 @@ const cowFields = [
   "status",
   "purchased_on",
   "notes",
+  "photo_url",
+  "photo_storage_path",
   "is_active"
 ];
 

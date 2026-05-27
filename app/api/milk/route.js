@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { pickMilkFields } from "@/lib/milkRecordFields";
+import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -102,6 +104,9 @@ export async function POST(request) {
     if (error) {
       throw error;
     }
+
+    await syncMilkRecordToDairySlips(supabase, farmId, data);
+    await refreshSummaryForDate(supabase, farmId, data.date);
 
     return NextResponse.json({ data }, { status: existingRecord?.id ? 200 : 201 });
   } catch (error) {

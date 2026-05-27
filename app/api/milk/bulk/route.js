@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { pickMilkFields } from "@/lib/milkRecordFields";
+import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +121,8 @@ export async function POST(request) {
         throw error;
       }
 
+      await syncMilkRecordToDairySlips(supabase, farmId, data);
+      await refreshSummaryForDate(supabase, farmId, data.date);
       savedRecords.push(data);
     }
 

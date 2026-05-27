@@ -121,14 +121,14 @@ export default function ProfitAnalyticsPage() {
               emoji="💸"
               title="मासिक खर्च"
               value={formatCurrency(report.totalExpense || 0)}
-              subtext="खाद्य + औषध + इतर"
+              subtext="खाद्य + औषध + कपात + इतर"
               color="red"
             />
             <SummaryCard
               emoji={Number(report.netProfit || 0) >= 0 ? "📈" : "📉"}
               title={Number(report.netProfit || 0) >= 0 ? "नफा" : "तोटा"}
               value={formatCurrency(Math.abs(report.netProfit || 0))}
-              subtext="उत्पन्न - मासिक खर्च"
+              subtext="कपात धरून"
               color={Number(report.netProfit || 0) >= 0 ? "green" : "red"}
             />
             <SummaryCard

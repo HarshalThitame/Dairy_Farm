@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const allowedStatuses = new Set(["active", "historical", "sold", "dead", "converted_to_cow"]);
 const editableTextFields = ["name", "color", "breed", "identification_mark", "notes"];
+const editablePhotoFields = ["photo_url", "photo_storage_path"];
 
 function cleanText(value) {
   const text = String(value || "").trim();
@@ -189,6 +190,8 @@ async function createCowFromConversion(supabase, farmId, calf, conversion) {
       tag_number: cleanText(conversion.tag_number || calf.identification_mark),
       color: cleanText(conversion.color || calf.color),
       status: "गाभण",
+      photo_url: cleanText(conversion.photo_url || calf.photo_url),
+      photo_storage_path: cleanText(conversion.photo_storage_path || calf.photo_storage_path),
       notes: buildConversionNotes(calf, conversion),
       is_active: true
     })
@@ -355,6 +358,12 @@ export async function PATCH(request) {
     }
 
     editableTextFields.forEach((field) => {
+      if (body[field] !== undefined) {
+        updates[field] = cleanText(body[field]);
+      }
+    });
+
+    editablePhotoFields.forEach((field) => {
       if (body[field] !== undefined) {
         updates[field] = cleanText(body[field]);
       }

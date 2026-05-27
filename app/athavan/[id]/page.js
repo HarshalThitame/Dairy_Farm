@@ -32,6 +32,10 @@ function routeForReminder(reminder) {
     return `/nondi/lasikaran?${query}`;
   }
 
+  if (reminder.type === "तपासणी") {
+    return `/nondi/arogya?${query}`;
+  }
+
   if (reminder.type === "दूध बंद") {
     return `/nondi/dudh?${query}`;
   }

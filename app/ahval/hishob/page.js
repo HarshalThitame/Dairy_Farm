@@ -101,6 +101,26 @@ function CategoryBreakdown({ title, items, total, tone, buttonLabel, onAdd }) {
   );
 }
 
+function getDerivedTransactionLabel(transaction) {
+  if (transaction.source === "health_records") {
+    return "आरोग्य नोंदीवरून आपोआप दाखवले आहे";
+  }
+
+  if (transaction.source === "milk_records") {
+    return "दूध नोंदीवरून आपोआप दाखवले आहे";
+  }
+
+  if (transaction.source === "monthly_expenses") {
+    return "मासिक खर्च नोंदीवरून आपोआप दाखवले आहे";
+  }
+
+  if (transaction.source === "dairy_settlements") {
+    return "डेअरी देयक कपात म्हणून आपोआप दाखवले आहे";
+  }
+
+  return "आपोआप दाखवले आहे";
+}
+
 function TransactionModal({ form, setForm, selectedCow, setSelectedCow, onClose, onSubmit, onDelete, saving }) {
   const categories = form.type === "उत्पन्न" ? incomeCategories : expenseCategories;
 
@@ -329,16 +349,10 @@ export default function FinanceReportPage() {
 
     try {
       if (form.id) {
-        const response = await fetch("/api/finance", {
+        await fetchJson("/api/finance", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-          const result = await response.json().catch(() => ({}));
-          throw new Error(result.error || "व्यवहार जतन झाला नाही.");
-        }
       } else {
         await saveFinanceRecord({
           ...payload,
@@ -367,15 +381,14 @@ export default function FinanceReportPage() {
     }
 
     setSaving(true);
-    const response = await fetch(`/api/finance?id=${form.id}`, { method: "DELETE" });
-    setSaving(false);
-
-    if (response.ok) {
+    try {
+      await fetchJson(`/api/finance?id=${form.id}`, { method: "DELETE" });
       setModalOpen(false);
       fetchReport();
-    } else {
-      const result = await response.json().catch(() => ({}));
-      setError(result.error || "व्यवहार काढला गेला नाही.");
+    } catch (deleteError) {
+      setError(deleteError.message || "व्यवहार काढला गेला नाही.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -418,7 +431,7 @@ export default function FinanceReportPage() {
                 {formatCurrency(report.totalExpense || 0)}
               </p>
               <p className="mt-2 text-[16px] font-bold leading-snug text-red-800">
-                खाद्य + औषध + इतर
+                खाद्य + औषध + कपात + इतर
               </p>
             </article>
             <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
@@ -513,9 +526,7 @@ export default function FinanceReportPage() {
                         ) : null}
                         {transaction.is_derived ? (
                           <p className="mt-1 text-[17px] font-bold text-green-700">
-                            {transaction.source === "health_records"
-                              ? "आरोग्य नोंदीवरून आपोआप दाखवले आहे"
-                              : "दूध नोंदीवरून आपोआप दाखवले आहे"}
+                            {getDerivedTransactionLabel(transaction)}
                           </p>
                         ) : null}
                       </div>

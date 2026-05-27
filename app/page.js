@@ -273,7 +273,7 @@ export default function DashboardPage() {
               {formatCurrency(monthlyFinanceReport?.totalExpense || 0)}
             </p>
             <p className="mt-1 text-[15px] font-bold leading-snug text-red-800">
-              खाद्य + औषध + इतर
+              खाद्य + औषध + कपात + इतर
             </p>
           </Link>
           <Link

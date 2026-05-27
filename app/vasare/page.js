@@ -1,7 +1,10 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AnimalPhotoInput from "@/components/AnimalPhotoInput";
 import CowSelector from "@/components/CowSelector";
 import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
@@ -105,7 +108,14 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          {calf.photo_url ? (
+            <img src={calf.photo_url} alt={getCalfTitle(calf)} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[42px]">🐮</div>
+          )}
+        </div>
         <div className="min-w-0">
           <h2 className="text-[24px] font-extrabold leading-tight text-slate-950">
             {getCalfTitle(calf)}
@@ -133,7 +143,7 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
             </p>
           ) : null}
         </div>
-        <p className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-[16px] font-extrabold text-sheti">
+        <p className="ml-auto shrink-0 rounded-full bg-green-50 px-3 py-1 text-[16px] font-extrabold text-sheti">
           {calfStatuses[calf.status] || calf.status}
         </p>
       </div>
@@ -217,7 +227,9 @@ function emptyForm() {
     status: "active",
     sold_date: getTodayISODate(),
     sale_amount: "",
-    sale_notes: ""
+    sale_notes: "",
+    photo_url: "",
+    photo_storage_path: ""
   };
 }
 
@@ -335,7 +347,9 @@ export default function CalvesPage() {
       status: calf.status || "active",
       sold_date: calf.sold_date || getTodayISODate(),
       sale_amount: calf.sale_amount ? String(calf.sale_amount) : "",
-      sale_notes: calf.sale_notes || ""
+      sale_notes: calf.sale_notes || "",
+      photo_url: calf.photo_url || "",
+      photo_storage_path: calf.photo_storage_path || ""
     });
     setSelectedCow(calf.mother || null);
     closeConversionForm();
@@ -391,6 +405,8 @@ export default function CalvesPage() {
         color: form.color.trim() || null,
         breed: form.breed.trim() || selectedCow?.breed || null,
         identification_mark: form.identification_mark.trim() || null,
+        photo_url: form.photo_url || null,
+        photo_storage_path: form.photo_storage_path || null,
         notes: form.notes.trim() || null
       };
 
@@ -637,6 +653,16 @@ export default function CalvesPage() {
               </div>
             </div>
           ) : null}
+
+          <AnimalPhotoInput
+            label="वासराचा फोटो"
+            animalType="calf"
+            value={{ photo_url: form.photo_url, photo_storage_path: form.photo_storage_path }}
+            onChange={(photo) => {
+              updateField("photo_url", photo.photo_url || "");
+              updateField("photo_storage_path", photo.photo_storage_path || "");
+            }}
+          />
 
           {form.gender === "मादी" && form.is_raised === "हो" ? (
             <>

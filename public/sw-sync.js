@@ -1,6 +1,6 @@
 (function () {
   const DB_NAME = "goshala-local";
-  const DB_VERSION = 2;
+  const DB_VERSION = 4;
 
   function openLocalDB() {
     return new Promise((resolve, reject) => {
@@ -61,6 +61,35 @@
           store.createIndex("cow_id", "cow_id");
           store.createIndex("ai_date", "ai_date");
           store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("dairy_slips_cache")) {
+          store = db.createObjectStore("dairy_slips_cache", { keyPath: "id" });
+          store.createIndex("slip_date", "slip_date");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("settlements_cache")) {
+          store = db.createObjectStore("settlements_cache", { keyPath: "id" });
+          store.createIndex("settlement_date", "settlement_date");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("expenses_cache")) {
+          store = db.createObjectStore("expenses_cache", { keyPath: "id" });
+          store.createIndex("expense_date", "expense_date");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("slip_uploads_pending")) {
+          store = db.createObjectStore("slip_uploads_pending", {
+            keyPath: "localId",
+            autoIncrement: true
+          });
+          store.createIndex("farm_id", "farm_id");
+          store.createIndex("status", "status");
+          store.createIndex("slip_type", "slip_type");
+          store.createIndex("uploadedAt", "uploadedAt");
         }
       };
 

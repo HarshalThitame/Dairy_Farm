@@ -23,6 +23,7 @@ const typeFilters = [
   { value: "व्यायण", label: "व्यायण" },
   { value: "लसीकरण", label: "लसीकरण" },
   { value: "जंतनाशक", label: "जंतनाशक" },
+  { value: "तपासणी", label: "तपासणी" },
   { value: "दूध बंद", label: "दूध बंद" },
   { value: "वासरी दूध कमी", label: "वासरी दूध" },
   { value: "वासरी दूध बंद", label: "वासरी दूध बंद" }

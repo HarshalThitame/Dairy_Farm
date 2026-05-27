@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getFeedExpenseAccountingPeriod } from "@/lib/accountingPeriods";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import {
   displayFeedSectionName,
   FEED_SECTION_CATTLE_FEED
@@ -185,6 +186,10 @@ function buildDescription(payload) {
   return parts.filter(Boolean).join(" | ");
 }
 
+function getFinanceCategory(section) {
+  return section === FEED_SECTION_CATTLE_FEED ? "खाद्य" : "चारा";
+}
+
 function getYearRange(year) {
   return {
     start: `${year}-01-01`,
@@ -351,7 +356,7 @@ export async function POST(request) {
         farm_id: farmId,
         date: payload.date,
         type: "खर्च",
-        category: "चारा",
+        category: getFinanceCategory(section),
         amount: totalCost,
         accounting_period: accountingPeriod,
         description: buildDescription(payload)
@@ -380,6 +385,10 @@ export async function POST(request) {
         throw feedExpenseSchemaError();
       }
       throw error;
+    }
+
+    if (accountingPeriod === "monthly") {
+      await refreshSummaryForDate(supabase, farmId, payload.date);
     }
 
     return NextResponse.json({ data }, { status: 201 });

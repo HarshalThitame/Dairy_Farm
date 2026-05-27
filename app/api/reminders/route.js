@@ -196,7 +196,12 @@ export async function PATCH(request) {
 
       const { data, error } = await supabase
         .from("reminders")
-        .update({ reminder_date: addDaysToISODate(reminder.reminder_date, days) })
+        .update({
+          reminder_date: addDaysToISODate(reminder.reminder_date, days),
+          is_done: false,
+          skipped: false,
+          done_at: null
+        })
         .eq("id", body.id)
         .eq("farm_id", farmId)
         .select()
@@ -253,6 +258,25 @@ export async function POST(request) {
 
     const { farmId } = await verifyFarmAccess(request, body.cow_id || null);
     const supabase = getSupabaseServerClient();
+
+    if (body.related_record_id) {
+      const { data: existing, error: existingError } = await supabase
+        .from("reminders")
+        .select()
+        .eq("farm_id", farmId)
+        .eq("related_record_id", body.related_record_id)
+        .eq("type", body.type)
+        .maybeSingle();
+
+      if (existingError) {
+        throw existingError;
+      }
+
+      if (existing) {
+        return NextResponse.json({ data: existing }, { status: 200 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("reminders")
       .insert({

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -23,6 +24,40 @@ function pickFields(body) {
     }
     return payload;
   }, {});
+}
+
+function normalizeHealthPayload(body) {
+  const payload = pickFields(body);
+
+  if (payload.cost !== undefined) {
+    payload.cost = payload.cost === "" || payload.cost === null ? null : Number(payload.cost);
+  }
+
+  ["description", "doctor_name", "vaccine_name", "notes"].forEach((field) => {
+    if (payload[field] !== undefined) {
+      const text = String(payload[field] || "").trim();
+      payload[field] = text || null;
+    }
+  });
+
+  return payload;
+}
+
+function validateHealth(body) {
+  if (!body.cow_id || !body.date || !body.type) {
+    return "गाय, तारीख आणि प्रकार आवश्यक आहे.";
+  }
+
+  if (
+    body.cost !== undefined &&
+    body.cost !== "" &&
+    body.cost !== null &&
+    (!Number.isFinite(Number(body.cost)) || Number(body.cost) < 0)
+  ) {
+    return "खर्च शून्य किंवा त्यापेक्षा जास्त असावा.";
+  }
+
+  return "";
 }
 
 export async function GET(request) {
@@ -58,14 +93,15 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    const validationError = validateHealth(body);
 
-    if (!body.cow_id || !body.date || !body.type) {
-      return NextResponse.json({ error: "गाय, तारीख आणि प्रकार आवश्यक आहे." }, { status: 400 });
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmAccess(request, body.cow_id);
     const payload = {
-      ...pickFields(body),
+      ...normalizeHealthPayload(body),
       farm_id: farmId
     };
     const supabase = getSupabaseServerClient();
@@ -77,6 +113,10 @@ export async function POST(request) {
 
     if (error) {
       throw error;
+    }
+
+    if (Number(data.cost || 0) > 0) {
+      await refreshSummaryForDate(supabase, farmId, data.date);
     }
 
     return NextResponse.json({ data }, { status: 201 });

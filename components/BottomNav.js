@@ -9,7 +9,7 @@ const tabs = [
   { href: "/gayi", icon: "🐄", label: "गायी" },
   { href: "/nondi", icon: "📋", label: "नोंदी" },
   { href: "/athavan", icon: "🔔", label: "आठवण" },
-  { href: "/ahval", icon: "📊", label: "अहवाल" }
+  { href: "/accounting", icon: "💰", label: "हिशोब" }
 ];
 
 function isActive(pathname, href) {

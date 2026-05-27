@@ -16,6 +16,8 @@ function cleanCowPayload(form) {
     tag_number: form.tag_number.trim() || null,
     purchased_on: form.purchased_on || null,
     status: form.status,
+    photo_url: form.photo_url || null,
+    photo_storage_path: form.photo_storage_path || null,
     notes: form.notes.trim() || null
   };
 }

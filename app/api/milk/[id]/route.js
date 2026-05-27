@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { pickMilkFields } from "@/lib/milkRecordFields";
+import { deleteDairySlipsForMilkDate, syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,18 @@ export async function PUT(request, { params }) {
     };
 
     const supabase = getSupabaseServerClient();
+    const { data: oldRecord, error: oldRecordError } = await supabase
+      .from("milk_records")
+      .select("id, date")
+      .eq("id", params.id)
+      .eq("farm_id", auth.farmId)
+      .is("cow_id", null)
+      .maybeSingle();
+
+    if (oldRecordError) {
+      throw oldRecordError;
+    }
+
     const { data, error } = await supabase
       .from("milk_records")
       .update(payload)
@@ -33,6 +47,14 @@ export async function PUT(request, { params }) {
     if (error || !data) {
       return NextResponse.json({ error: "दूध नोंद सापडली नाही." }, { status: 404 });
     }
+
+    if (oldRecord?.date && oldRecord.date !== data.date) {
+      await deleteDairySlipsForMilkDate(supabase, auth.farmId, oldRecord.date);
+      await refreshSummaryForDate(supabase, auth.farmId, oldRecord.date);
+    }
+
+    await syncMilkRecordToDairySlips(supabase, auth.farmId, data);
+    await refreshSummaryForDate(supabase, auth.farmId, data.date);
 
     return NextResponse.json({ data });
   } catch (error) {

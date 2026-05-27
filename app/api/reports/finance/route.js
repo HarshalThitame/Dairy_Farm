@@ -67,6 +67,17 @@ function isAnnualCharaByDescription(record) {
   );
 }
 
+function getFinanceRecordDisplayCategory(record) {
+  const displayCategory = displayFinanceCategory(record.category);
+  const description = String(record.description || "").trim();
+
+  if (displayCategory === "चारा" && description.startsWith("खाद्य")) {
+    return "खाद्य";
+  }
+
+  return displayCategory;
+}
+
 function getFinanceAccountingPeriod(record) {
   if (record.accounting_period === "annual") {
     return "annual";
@@ -82,6 +93,7 @@ function getFinanceAccountingPeriod(record) {
 function normalizeFinanceRecord(record) {
   return {
     ...record,
+    category: getFinanceRecordDisplayCategory(record),
     accounting_period: getFinanceAccountingPeriod(record)
   };
 }
@@ -140,7 +152,77 @@ function buildHealthExpenseTransactions(healthRecords) {
     }));
 }
 
-function buildMonthlyTrend(financeRecords, milkRecords, healthRecords, selectedMonth, selectedYear) {
+function buildSettlementDeductionTransactions(settlements) {
+  return (settlements || []).flatMap((settlement) => {
+    const period = `${settlement.period_start} ते ${settlement.period_end}`;
+    const base = {
+      farm_id: settlement.farm_id,
+      cow_id: null,
+      date: settlement.settlement_date,
+      type: "खर्च",
+      accounting_period: ACCOUNTING_PERIOD_MONTHLY,
+      cows: null,
+      is_derived: true,
+      source: "dairy_settlements",
+      source_record_id: settlement.id
+    };
+    const deductions = [];
+
+    if (Number(settlement.cattle_feed_deduction || 0) > 0) {
+      deductions.push({
+        ...base,
+        id: `settlement-feed-deduction-${settlement.id}`,
+        category: "खाद्य",
+        amount: Number(settlement.cattle_feed_deduction || 0),
+        description: `डेअरी देयक खाद्य कपात | ${period}`
+      });
+    }
+
+    if (Number(settlement.other_deductions || 0) > 0) {
+      deductions.push({
+        ...base,
+        id: `settlement-other-deduction-${settlement.id}`,
+        category: "इतर",
+        amount: Number(settlement.other_deductions || 0),
+        description: `डेअरी देयक इतर कपात | ${period}`
+      });
+    }
+
+    return deductions;
+  });
+}
+
+function buildAccountingExpenseTransactions(expenses) {
+  return (expenses || [])
+    .filter((record) => Number(record.amount || 0) > 0)
+    .map((record) => ({
+      id: `accounting-expense-${record.id}`,
+      farm_id: record.farm_id,
+      cow_id: null,
+      date: record.expense_date,
+      type: "खर्च",
+      category: record.category || "इतर",
+      amount: Number(record.amount || 0),
+      accounting_period: ACCOUNTING_PERIOD_MONTHLY,
+      description: [record.description, record.vendor_name ? `विक्रेता: ${record.vendor_name}` : ""]
+        .filter(Boolean)
+        .join(" | "),
+      cows: null,
+      is_derived: true,
+      source: "monthly_expenses",
+      source_record_id: record.id
+    }));
+}
+
+function buildMonthlyTrend(
+  financeRecords,
+  milkRecords,
+  healthRecords,
+  accountingExpenses,
+  settlements,
+  selectedMonth,
+  selectedYear
+) {
   const months = Array.from({ length: 6 }, (_, index) =>
     addMonths(selectedMonth, selectedYear, index - 5)
   );
@@ -159,12 +241,24 @@ function buildMonthlyTrend(financeRecords, milkRecords, healthRecords, selectedM
         (record) => record.date >= monthRange.start && record.date < monthRange.end
       )
     );
+    const monthlyAccountingExpenses = buildAccountingExpenseTransactions(
+      (accountingExpenses || []).filter(
+        (record) => record.expense_date >= monthRange.start && record.expense_date < monthRange.end
+      )
+    );
+    const monthlySettlementDeductions = buildSettlementDeductionTransactions(
+      (settlements || []).filter(
+        (record) => record.settlement_date >= monthRange.start && record.settlement_date < monthRange.end
+      )
+    );
     const milkIncomeToAdd = getMilkIncomeToAdd(monthlyFinance, monthlyMilk);
     const milkIncomeTransaction = buildMilkIncomeTransaction(monthlyMilk, milkIncomeToAdd, monthRange);
     const transactions = [
       ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
       ...monthlyFinance,
-      ...monthlyHealthExpenses
+      ...monthlyHealthExpenses,
+      ...monthlyAccountingExpenses,
+      ...monthlySettlementDeductions
     ];
     const stats = calculateFinanceStats(transactions);
 
@@ -201,10 +295,14 @@ export async function GET(request) {
     const [
       monthFinanceRecords,
       annualFinanceRecords,
+      monthAccountingExpenses,
+      monthSettlements,
       milkRecords,
       trendFinanceRecords,
       trendMilkRecords,
-      trendHealthRecords
+      trendHealthRecords,
+      trendAccountingExpenses,
+      trendSettlements
     ] = await Promise.all([
       supabase
         .from("finance_records")
@@ -218,10 +316,25 @@ export async function GET(request) {
         .from("finance_records")
         .select("*, cows(id, name, breed)")
         .eq("farm_id", farmId)
-        .eq("accounting_period", "annual")
         .gte("date", yearRange.start)
         .lt("date", yearRange.end)
         .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("monthly_expenses")
+        .select("*")
+        .eq("farm_id", farmId)
+        .gte("expense_date", monthRange.start)
+        .lt("expense_date", monthRange.end)
+        .order("expense_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("dairy_settlements")
+        .select("id, farm_id, settlement_date, period_start, period_end, cattle_feed_deduction, other_deductions")
+        .eq("farm_id", farmId)
+        .gte("settlement_date", monthRange.start)
+        .lt("settlement_date", monthRange.end)
+        .order("settlement_date", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("milk_records")
@@ -260,6 +373,22 @@ export async function GET(request) {
         .gte("date", oldestRange.start)
         .lt("date", monthRange.end)
         .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("monthly_expenses")
+        .select("*")
+        .eq("farm_id", farmId)
+        .gte("expense_date", oldestRange.start)
+        .lt("expense_date", monthRange.end)
+        .order("expense_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("dairy_settlements")
+        .select("id, farm_id, settlement_date, period_start, period_end, cattle_feed_deduction, other_deductions")
+        .eq("farm_id", farmId)
+        .gte("settlement_date", oldestRange.start)
+        .lt("settlement_date", monthRange.end)
+        .order("settlement_date", { ascending: false })
         .order("created_at", { ascending: false })
     ]);
 
@@ -269,6 +398,14 @@ export async function GET(request) {
 
     if (annualFinanceRecords.error) {
       throw annualFinanceRecords.error;
+    }
+
+    if (monthAccountingExpenses.error) {
+      throw monthAccountingExpenses.error;
+    }
+
+    if (monthSettlements.error) {
+      throw monthSettlements.error;
     }
 
     if (milkRecords.error) {
@@ -287,12 +424,20 @@ export async function GET(request) {
       throw trendHealthRecords.error;
     }
 
+    if (trendAccountingExpenses.error) {
+      throw trendAccountingExpenses.error;
+    }
+
+    if (trendSettlements.error) {
+      throw trendSettlements.error;
+    }
+
     const monthlyFinance = (monthFinanceRecords.data || [])
       .map(normalizeFinanceRecord)
       .filter((record) => record.accounting_period !== "annual");
     const annualFinance = (annualFinanceRecords.data || [])
       .map(normalizeFinanceRecord)
-      .filter((record) => record.type === "खर्च");
+      .filter((record) => record.type === "खर्च" && record.accounting_period === "annual");
     const milkIncomeToAdd = getMilkIncomeToAdd(monthlyFinance, milkRecords.data || []);
     const milkIncomeTransaction = buildMilkIncomeTransaction(
       milkRecords.data || [],
@@ -304,13 +449,21 @@ export async function GET(request) {
         (record) => record.date >= monthRange.start && record.date < monthRange.end
       )
     );
+    const monthlyAccountingExpenses = buildAccountingExpenseTransactions(monthAccountingExpenses.data || []);
+    const monthlySettlementDeductions = buildSettlementDeductionTransactions(monthSettlements.data || []);
     const transactions = [
       ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
       ...monthlyFinance,
-      ...monthlyHealthExpenses
+      ...monthlyHealthExpenses,
+      ...monthlyAccountingExpenses,
+      ...monthlySettlementDeductions
     ];
     const stats = calculateFinanceStats(transactions);
     const annualStats = calculateFinanceStats(annualFinance);
+    const totalDeductions = monthlySettlementDeductions.reduce(
+      (sum, transaction) => sum + Number(transaction.amount || 0),
+      0
+    );
 
     return NextResponse.json({
       data: {
@@ -319,6 +472,7 @@ export async function GET(request) {
         totalIncome: Number(stats.totalIncome.toFixed(2)),
         totalExpense: Number(stats.totalExpense.toFixed(2)),
         netProfit: Number(stats.netProfit.toFixed(2)),
+        totalDeductions: Number(totalDeductions.toFixed(2)),
         milkIncome: Number(
           (milkRecords.data || [])
             .reduce((sum, record) => sum + getRecordMilkAmount(record), 0)
@@ -334,6 +488,8 @@ export async function GET(request) {
           trendFinanceRecords.data || [],
           trendMilkRecords.data || [],
           trendHealthRecords.data || [],
+          trendAccountingExpenses.data || [],
+          trendSettlements.data || [],
           monthInput.month,
           monthInput.year
         ),

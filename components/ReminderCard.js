@@ -48,7 +48,7 @@ export default function ReminderCard({
 }) {
   const urgency = getUrgencyLevel(reminder.reminder_date);
   const emoji = getReminderEmoji(reminder.type);
-  const cowName = reminder.cows?.name || "गाय";
+  const cowName = reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
   const canComplete = urgency === "overdue" || urgency === "today";
 
   const colorClass =

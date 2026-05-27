@@ -1,4 +1,5 @@
 import Link from "next/link";
+/* eslint-disable @next/next/no-img-element */
 import StatusBadge, { getStatusBorderClass } from "@/components/StatusBadge";
 import {
   calculateAgeMarathi,
@@ -12,11 +13,22 @@ export default function CowCard({ cow }) {
     <article
       className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-soft ${borderClass}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="min-w-0 text-[24px] font-extrabold leading-tight text-slate-950">
-          {cow.name}
-        </h2>
-        <StatusBadge status={cow.status} />
+      <div className="flex items-start gap-3">
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          {cow.photo_url ? (
+            <img src={cow.photo_url} alt={cow.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[36px]">🐄</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="min-w-0 text-[24px] font-extrabold leading-tight text-slate-950">
+              {cow.name}
+            </h2>
+            <StatusBadge status={cow.status} />
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 space-y-2 text-[18px] font-semibold leading-snug text-slate-700">

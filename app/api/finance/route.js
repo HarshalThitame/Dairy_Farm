@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -10,8 +11,12 @@ const financeFields = [
   "category",
   "amount",
   "cow_id",
-  "description"
+  "description",
+  "accounting_period"
 ];
+
+const allowedTypes = new Set(["उत्पन्न", "खर्च"]);
+const allowedAccountingPeriods = new Set(["monthly", "annual"]);
 
 function pickFields(body) {
   return financeFields.reduce((payload, field) => {
@@ -20,6 +25,66 @@ function pickFields(body) {
     }
     return payload;
   }, {});
+}
+
+function validateFinancePayload(payload, { requireBasics = false } = {}) {
+  if (requireBasics && (!payload.date || !payload.type || payload.amount === undefined || payload.amount === null || payload.amount === "")) {
+    return "तारीख, प्रकार आणि रक्कम आवश्यक आहे.";
+  }
+
+  if (payload.type !== undefined && !allowedTypes.has(payload.type)) {
+    return "व्यवहाराचा प्रकार चुकीचा आहे.";
+  }
+
+  if (payload.amount !== undefined) {
+    const amount = Number(payload.amount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return "रक्कम शून्यापेक्षा जास्त असावी.";
+    }
+  }
+
+  if (
+    payload.accounting_period !== undefined &&
+    payload.accounting_period !== null &&
+    payload.accounting_period !== "" &&
+    !allowedAccountingPeriods.has(payload.accounting_period)
+  ) {
+    return "खर्चाचा कालावधी चुकीचा आहे.";
+  }
+
+  return "";
+}
+
+function normalizeFinancePayload(payload) {
+  const normalized = { ...payload };
+
+  if (normalized.amount !== undefined) {
+    normalized.amount = Number(normalized.amount);
+  }
+
+  if (normalized.cow_id !== undefined) {
+    normalized.cow_id = normalized.cow_id || null;
+  }
+
+  if (normalized.category !== undefined) {
+    normalized.category = String(normalized.category || "इतर").trim() || "इतर";
+  }
+
+  if (normalized.description !== undefined) {
+    const description = String(normalized.description || "").trim();
+    normalized.description = description || null;
+  }
+
+  if (normalized.accounting_period !== undefined) {
+    normalized.accounting_period = normalized.accounting_period || "monthly";
+  }
+
+  return normalized;
+}
+
+function shouldRefreshAccounting(record) {
+  return record?.type === "खर्च" && record?.accounting_period !== "annual" && record?.date;
 }
 
 function padDatePart(value) {
@@ -91,19 +156,21 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    if (!body.date || !body.type || body.amount === undefined || body.amount === null || body.amount === "") {
-      return NextResponse.json({ error: "तारीख, प्रकार आणि रक्कम आवश्यक आहे." }, { status: 400 });
+    const validationError = validateFinancePayload(body, { requireBasics: true });
+
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmOwner(request);
     if (body.cow_id) {
       await verifyFarmAccess(request, body.cow_id);
     }
-    const payload = {
-      ...pickFields(body),
+    const payload = normalizeFinancePayload({
+      ...pickFields({ ...body, accounting_period: body.accounting_period || "monthly" }),
       cow_id: body.cow_id || null,
       farm_id: farmId
-    };
+    });
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("finance_records")
@@ -113,6 +180,10 @@ export async function POST(request) {
 
     if (error) {
       throw error;
+    }
+
+    if (shouldRefreshAccounting(data)) {
+      await refreshSummaryForDate(supabase, farmId, data.date);
     }
 
     return NextResponse.json({ data }, { status: 201 });
@@ -133,13 +204,30 @@ export async function PUT(request) {
     if (body.cow_id) {
       await verifyFarmAccess(request, body.cow_id);
     }
-    const payload = pickFields(body);
+    const validationError = validateFinancePayload(body);
+
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const payload = normalizeFinancePayload(pickFields(body));
 
     if (Object.keys(payload).length === 0) {
       return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
     }
 
     const supabase = getSupabaseServerClient();
+    const { data: oldRecord, error: oldError } = await supabase
+      .from("finance_records")
+      .select("id, date, type, accounting_period")
+      .eq("id", body.id)
+      .eq("farm_id", farmId)
+      .single();
+
+    if (oldError || !oldRecord) {
+      return NextResponse.json({ error: "व्यवहार सापडला नाही." }, { status: 404 });
+    }
+
     const { data, error } = await supabase
       .from("finance_records")
       .update(payload)
@@ -150,6 +238,14 @@ export async function PUT(request) {
 
     if (error || !data) {
       return NextResponse.json({ error: "व्यवहार सापडला नाही." }, { status: 404 });
+    }
+
+    if (shouldRefreshAccounting(oldRecord)) {
+      await refreshSummaryForDate(supabase, farmId, oldRecord.date);
+    }
+
+    if (shouldRefreshAccounting(data)) {
+      await refreshSummaryForDate(supabase, farmId, data.date);
     }
 
     return NextResponse.json({ data });
@@ -184,6 +280,10 @@ export async function DELETE(request) {
 
     if (error || !data) {
       return NextResponse.json({ error: "व्यवहार सापडला नाही." }, { status: 404 });
+    }
+
+    if (shouldRefreshAccounting(data)) {
+      await refreshSummaryForDate(supabase, farmId, data.date);
     }
 
     return NextResponse.json({ data });

@@ -1,0 +1,299 @@
+import { NextResponse } from "next/server";
+import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import {
+  calculateSettlementMatch,
+  matchSettlementToSlips,
+  refreshSummaryForDate
+} from "@/lib/accountingUtils";
+import { getSupabaseServerClient } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+const settlementFields = [
+  "settlement_date",
+  "period_start",
+  "period_end",
+  "dairy_name",
+  "dairy_member_number",
+  "total_liters",
+  "total_milk_income",
+  "cattle_feed_deduction",
+  "other_deductions",
+  "payment_received",
+  "payment_received_date",
+  "payment_received_amount",
+  "discrepancy_notes",
+  "settlement_notes",
+  "settlement_image_url"
+];
+
+function cleanOptional(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function pickFields(body) {
+  return settlementFields.reduce((payload, field) => {
+    if (body[field] !== undefined) {
+      payload[field] = body[field];
+    }
+    return payload;
+  }, {});
+}
+
+function hasField(payload, field) {
+  return Object.prototype.hasOwnProperty.call(payload, field);
+}
+
+function normalizePayload(payload) {
+  ["dairy_name", "dairy_member_number", "discrepancy_notes", "settlement_notes", "settlement_image_url"].forEach(
+    (field) => {
+      if (payload[field] !== undefined) {
+        payload[field] = cleanOptional(payload[field]);
+      }
+    }
+  );
+
+  ["cattle_feed_deduction", "other_deductions"].forEach((field) => {
+    if (!hasField(payload, field)) {
+      return;
+    }
+
+    if (payload[field] === "" || payload[field] === null) {
+      payload[field] = 0;
+    } else {
+      payload[field] = Number(payload[field]);
+    }
+  });
+
+  ["total_milk_income", "payment_received_amount"].forEach((field) => {
+    if (!hasField(payload, field)) {
+      return;
+    }
+
+    payload[field] = payload[field] === "" || payload[field] === null ? null : Number(payload[field]);
+  });
+
+  if (hasField(payload, "total_liters")) {
+    payload.total_liters = payload.total_liters === "" || payload.total_liters === null ? null : Number(payload.total_liters);
+  }
+
+  if (payload.payment_received === false) {
+    payload.payment_received_date = null;
+    payload.payment_received_amount = null;
+  }
+
+  payload.updated_at = new Date().toISOString();
+  return payload;
+}
+
+function validateNumericPayload(payload) {
+  const labels = {
+    total_liters: "एकूण दूध",
+    total_milk_income: "एकूण उत्पन्न",
+    cattle_feed_deduction: "खाद्य कपात",
+    other_deductions: "इतर कपात",
+    payment_received_amount: "प्राप्त रक्कम"
+  };
+
+  for (const [field, label] of Object.entries(labels)) {
+    if (!hasField(payload, field) || payload[field] === null) {
+      continue;
+    }
+
+    if (!Number.isFinite(Number(payload[field])) || Number(payload[field]) < 0) {
+      return `${label} शून्य किंवा त्यापेक्षा जास्त असावी.`;
+    }
+  }
+
+  if (hasField(payload, "total_milk_income") && Number(payload.total_milk_income || 0) <= 0) {
+    return "एकूण उत्पन्न शून्यापेक्षा जास्त असावे.";
+  }
+
+  return "";
+}
+
+async function fetchSettlement(supabase, farmId, id) {
+  const { data, error } = await supabase
+    .from("dairy_settlements")
+    .select("*")
+    .eq("id", id)
+    .eq("farm_id", farmId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data;
+}
+
+export async function GET(request, { params }) {
+  try {
+    const { farmId } = await verifyFarmAccess(request);
+    const supabase = getSupabaseServerClient();
+    const settlement = await fetchSettlement(supabase, farmId, params.id);
+
+    if (!settlement) {
+      return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
+    }
+
+    const reconciliation = await calculateSettlementMatch(supabase, farmId, settlement);
+
+    return NextResponse.json({
+      data: {
+        settlement,
+        matchedSlips: reconciliation.matchedSlips,
+        reconciliation
+      }
+    });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}
+
+export async function PUT(request, { params }) {
+  try {
+    const { farmId } = await verifyFarmAccess(request);
+    const body = await request.json();
+    const payload = normalizePayload(pickFields(body));
+
+    if (Object.keys(payload).length === 1 && payload.updated_at) {
+      return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
+    }
+
+    if (payload.period_start && payload.period_end && payload.period_end < payload.period_start) {
+      return NextResponse.json({ error: "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा." }, { status: 400 });
+    }
+
+    const numericError = validateNumericPayload(payload);
+
+    if (numericError) {
+      return NextResponse.json({ error: numericError }, { status: 400 });
+    }
+
+    const supabase = getSupabaseServerClient();
+    const oldSettlement = await fetchSettlement(supabase, farmId, params.id);
+
+    if (!oldSettlement) {
+      return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
+    }
+
+    const nextPeriodStart = payload.period_start || oldSettlement.period_start;
+    const nextPeriodEnd = payload.period_end || oldSettlement.period_end;
+
+    if (nextPeriodStart && nextPeriodEnd && nextPeriodEnd < nextPeriodStart) {
+      return NextResponse.json({ error: "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा." }, { status: 400 });
+    }
+
+    const { data: updated, error } = await supabase
+      .from("dairy_settlements")
+      .update(payload)
+      .eq("id", params.id)
+      .eq("farm_id", farmId)
+      .select()
+      .single();
+
+    if (error?.code === "23505") {
+      return NextResponse.json(
+        { error: "या पीरियडचे दुसरे सेटलमेंट आधीच आहे." },
+        { status: 409 }
+      );
+    }
+
+    if (error || !updated) {
+      return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
+    }
+
+    const matched = await matchSettlementToSlips(supabase, farmId, updated);
+    await refreshSummaryForDate(supabase, farmId, oldSettlement.settlement_date);
+    const summary = await refreshSummaryForDate(supabase, farmId, updated.settlement_date);
+
+    return NextResponse.json({
+      data: {
+        success: true,
+        settlement: matched.settlement,
+        matchedSlips: matched.reconciliation.matchedSlips,
+        reconciliation: matched.reconciliation,
+        summary
+      }
+    });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const { farmId } = await verifyFarmAccess(request);
+    const body = await request.json();
+    const supabase = getSupabaseServerClient();
+    const settlement = await fetchSettlement(supabase, farmId, params.id);
+
+    if (!settlement) {
+      return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
+    }
+
+    const payload = {
+      payment_received: Boolean(body.payment_received ?? true),
+      payment_received_date: body.payment_received_date || settlement.settlement_date,
+      payment_received_amount:
+        body.payment_received_amount === undefined || body.payment_received_amount === ""
+          ? settlement.net_payable
+          : Number(body.payment_received_amount),
+      updated_at: new Date().toISOString()
+    };
+
+    if (
+      payload.payment_received &&
+      (!Number.isFinite(Number(payload.payment_received_amount)) || Number(payload.payment_received_amount) < 0)
+    ) {
+      return NextResponse.json({ error: "प्राप्त रक्कम शून्य किंवा त्यापेक्षा जास्त असावी." }, { status: 400 });
+    }
+
+    if (!payload.payment_received) {
+      payload.payment_received_date = null;
+      payload.payment_received_amount = null;
+    }
+
+    const { data, error } = await supabase
+      .from("dairy_settlements")
+      .update(payload)
+      .eq("id", params.id)
+      .eq("farm_id", farmId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ error: "पेमेंट स्थिती बदलली नाही." }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: { success: true, settlement: data } });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const { farmId } = await verifyFarmAccess(request);
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("dairy_settlements")
+      .delete()
+      .eq("id", params.id)
+      .eq("farm_id", farmId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
+    }
+
+    const summary = await refreshSummaryForDate(supabase, farmId, data.settlement_date);
+
+    return NextResponse.json({ data: { success: true, settlement: data, summary } });
+  } catch (error) {
+    return farmErrorResponse(error);
+  }
+}
