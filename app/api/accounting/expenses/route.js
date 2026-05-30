@@ -46,6 +46,47 @@ function validateExpense(body) {
   return "";
 }
 
+function buildSettlementDeductionExpenses(settlements = []) {
+  return (settlements || []).flatMap((settlement) => {
+    const period = `${settlement.period_start} ते ${settlement.period_end}`;
+    const base = {
+      farm_id: settlement.farm_id,
+      cow_id: null,
+      expense_date: settlement.settlement_date,
+      vendor_name: settlement.dairy_name || "डेअरी",
+      source: "dairy_settlements",
+      source_record_id: settlement.id,
+      is_derived: true,
+      editable: false
+    };
+    const rows = [];
+
+    if (Number(settlement.cattle_feed_deduction || 0) > 0) {
+      rows.push({
+        ...base,
+        id: `settlement-feed-${settlement.id}`,
+        category: "चारा",
+        display_category: "डेअरी खाद्य कपात",
+        amount: Number(settlement.cattle_feed_deduction || 0),
+        description: `सेटलमेंट खाद्य कपात | ${period}`
+      });
+    }
+
+    if (Number(settlement.other_deductions || 0) > 0) {
+      rows.push({
+        ...base,
+        id: `settlement-other-${settlement.id}`,
+        category: "इतर",
+        display_category: "डेअरी इतर कपात",
+        amount: Number(settlement.other_deductions || 0),
+        description: `सेटलमेंट इतर कपात | ${period}`
+      });
+    }
+
+    return rows;
+  });
+}
+
 export async function GET(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
@@ -58,7 +99,7 @@ export async function GET(request) {
 
     const range = getMonthRange(monthInput.month, monthInput.year);
     const supabase = getSupabaseServerClient();
-    const [monthlyExpenses, financeExpenses, healthExpenses] = await Promise.all([
+    const [monthlyExpenses, financeExpenses, healthExpenses, settlementDeductions] = await Promise.all([
       supabase
         .from("monthly_expenses")
         .select("*")
@@ -83,10 +124,18 @@ export async function GET(request) {
         .gte("date", range.start)
         .lt("date", range.end)
         .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("dairy_settlements")
+        .select("id, farm_id, settlement_date, period_start, period_end, dairy_name, cattle_feed_deduction, other_deductions")
+        .eq("farm_id", farmId)
+        .gte("settlement_date", range.start)
+        .lt("settlement_date", range.end)
+        .order("settlement_date", { ascending: false })
         .order("created_at", { ascending: false })
     ]);
 
-    const firstError = [monthlyExpenses.error, financeExpenses.error, healthExpenses.error].find(Boolean);
+    const firstError = [monthlyExpenses.error, financeExpenses.error, healthExpenses.error, settlementDeductions.error].find(Boolean);
 
     if (firstError) {
       throw firstError;
@@ -96,7 +145,7 @@ export async function GET(request) {
       monthlyExpenses: monthlyExpenses.data || [],
       financeRecords: financeExpenses.data || [],
       healthRecords: healthExpenses.data || []
-    });
+    }).concat(buildSettlementDeductionExpenses(settlementDeductions.data || []));
     const summary = summarizeExpenses(expenses);
 
     return NextResponse.json({

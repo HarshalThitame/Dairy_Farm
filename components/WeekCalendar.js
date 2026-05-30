@@ -7,11 +7,12 @@ const shortDayNames = ["सोम", "मंगळ", "बुध", "गुरु",
 
 function startOfWeekISO() {
   const today = getTodayISODate();
-  const date = new Date(`${today}T00:00:00`);
-  const day = date.getDay();
+  const [year, month, dayOfMonth] = today.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, dayOfMonth));
+  const day = date.getUTCDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
 
-  date.setDate(date.getDate() + mondayOffset);
+  date.setUTCDate(date.getUTCDate() + mondayOffset);
   return date.toISOString().slice(0, 10);
 }
 

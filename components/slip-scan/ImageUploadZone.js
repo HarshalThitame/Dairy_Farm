@@ -32,8 +32,7 @@ export default function ImageUploadZone({ onFileSelect, loading = false }) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
-        capture="environment"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif"
         className="hidden"
         onChange={(event) => handleFiles(event.target.files)}
       />
@@ -47,7 +46,12 @@ export default function ImageUploadZone({ onFileSelect, loading = false }) {
       <button
         type="button"
         disabled={loading}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (inputRef.current) {
+            inputRef.current.value = "";
+            inputRef.current.click();
+          }
+        }}
         className="mt-5 min-h-[58px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white disabled:opacity-70 active:bg-green-700"
       >
         {loading ? "फोटो तयार करत आहे..." : "📁 गॅलरी मधून निवडा"}

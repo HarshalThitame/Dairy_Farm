@@ -6,6 +6,8 @@ function Step({ label, amount, tone }) {
   const toneClass =
     tone === "income"
       ? "border-green-200 bg-green-50 text-green-900"
+      : tone === "anamat"
+        ? "border-yellow-200 bg-yellow-50 text-yellow-950"
       : tone === "finalProfit"
         ? "border-green-300 bg-green-100 text-green-950"
         : tone === "finalLoss"
@@ -20,8 +22,10 @@ function Step({ label, amount, tone }) {
   );
 }
 
-export default function ProfitWaterfall({ income = 0, expenses = 0, deductions = 0 }) {
-  const netProfit = Number(income || 0) - Number(expenses || 0) - Number(deductions || 0);
+export default function ProfitWaterfall({ income = 0, expenses = 0, deductions = 0, anamat = 0 }) {
+  const anamatAmount = Number(anamat || 0);
+  const countedDeductions = Number(deductions || 0);
+  const netProfit = Number(income || 0) - Number(expenses || 0) - countedDeductions;
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
@@ -29,7 +33,12 @@ export default function ProfitWaterfall({ income = 0, expenses = 0, deductions =
       <div className="mt-4 grid gap-3">
         <Step label="दूध उत्पन्न" amount={income} tone="income" />
         <div className="text-center text-[24px] font-extrabold text-slate-400">↓</div>
-        <Step label="(-) इतर देयक कपात" amount={deductions} tone="expense" />
+        <Step label="(-) खाद्य/इतर देयक कपात" amount={countedDeductions} tone="expense" />
+        <div className="text-center text-[24px] font-extrabold text-slate-400">↓</div>
+        <Step label="अनामत जमा" amount={anamatAmount} tone="anamat" />
+        <p className="-mt-1 rounded-lg bg-yellow-50 px-3 py-2 text-[16px] font-bold text-yellow-900">
+          अनामत खर्च नाही, त्यामुळे नफ्यातून वजा केलेली नाही. ही रक्कम डेअरीकडे साठते आणि नियमाप्रमाणे परत मिळते.
+        </p>
         <div className="text-center text-[24px] font-extrabold text-slate-400">↓</div>
         <Step label="(-) फार्म खर्च" amount={expenses} tone="expense" />
         <div className="text-center text-[24px] font-extrabold text-slate-400">=</div>

@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS finance_records (
   farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('उत्पन्न', 'खर्च')),
-  category TEXT CHECK (category IS NULL OR category IN ('दूध विक्री', 'वासरू विक्री', 'चारा', 'खाद्य', 'औषध', 'AI खर्च', 'रेतन खर्च', 'पशुवैद्यक', 'मजुरी', 'वीज', 'वाहतूक', 'इतर')),
+  category TEXT CHECK (category IS NULL OR category IN ('दूध विक्री', 'वासरू विक्री', 'चारा', 'खाद्य', 'भूसा', 'औषध', 'AI खर्च', 'रेतन खर्च', 'पशुवैद्यक', 'मजुरी', 'वीज', 'वाहतूक', 'परिवहन', 'इतर', 'अनामत परतावा')),
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
   cow_id UUID REFERENCES cows(id),
   accounting_period TEXT NOT NULL DEFAULT 'monthly' CHECK (accounting_period IN ('monthly', 'annual')),

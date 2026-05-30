@@ -4,8 +4,9 @@ import Link from "next/link";
 import { formatMarathiDate, toMarathiCurrency } from "@/lib/marathiUtils";
 
 export default function SettlementCard({ settlement, onMarkPaid, onDelete }) {
-  const deductions = Number(settlement.cattle_feed_deduction || 0) + Number(settlement.other_deductions || 0);
-  const netPayable = Number(settlement.net_payable ?? Number(settlement.total_milk_income || 0) - deductions);
+  const anamat = Number(settlement.anamat_cut || 0);
+  const deductions = Number(settlement.cattle_feed_deduction || 0) + anamat + Number(settlement.other_deductions || 0);
+  const netPayable = Number(settlement.total_milk_income || 0) - deductions;
 
   return (
     <article className="dashboard-card rounded-lg border border-slate-200 bg-white/90 p-4 shadow-soft backdrop-blur">
@@ -40,6 +41,11 @@ export default function SettlementCard({ settlement, onMarkPaid, onDelete }) {
             <p className="mt-1 text-[19px] font-extrabold">{toMarathiCurrency(netPayable)}</p>
           </div>
         </div>
+        {anamat > 0 ? (
+          <p className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-[16px] font-extrabold text-yellow-900">
+            🏦 अनामत कपात: {toMarathiCurrency(anamat)} · परत मिळणारी बचत
+          </p>
+        ) : null}
       </Link>
 
       <div className="mt-3 grid grid-cols-2 gap-2">

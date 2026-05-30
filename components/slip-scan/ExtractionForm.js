@@ -31,7 +31,10 @@ const missingMap = {
   total_liters: ["total_liters", "total milk", "एकूण दूध"],
   total_milk_income: ["total_milk_income", "income", "उत्पन्न"],
   cattle_feed_deduction: ["cattle_feed_deduction", "खाद्य"],
+  anamat_cut: ["anamat_cut", "anamat_deduction", "अनामत", "अनामत कपात"],
   other_deductions: ["other_deductions", "कपात"],
+  total_deductions: ["total_deductions", "एकूण कपात"],
+  net_payable: ["net_payable", "निर्बळ रक्कम", "निव्वळ रक्कम"],
   settlement_date: ["settlement_date", "सेटलमेंट तारीख"]
 };
 
@@ -77,6 +80,22 @@ function displaySlipDate(date) {
   return `${day}/${month}/${year}`;
 }
 
+function entryLiters(entry) {
+  return numberValue(entry?.total_liters ?? entry?.liters);
+}
+
+function entryAmount(entry) {
+  return numberValue(entry?.total_amount ?? entry?.amount);
+}
+
+function sessionLine(label, row) {
+  if (!row || (numberValue(row.liters) <= 0 && numberValue(row.amount) <= 0)) {
+    return null;
+  }
+
+  return `${label}: ${numberValue(row.liters).toFixed(2)} लि. | फॅट ${row.fat_percent ?? "-"} | SNF ${row.snf_percent ?? "-"} | दर ${row.rate_per_liter ?? "-"} | ${toMarathiCurrency(numberValue(row.amount))}`;
+}
+
 function isMissingField(missingFields, field) {
   const aliases = missingMap[field] || [field];
   const normalized = (missingFields || []).map((item) => String(item).toLowerCase());
@@ -85,18 +104,33 @@ function isMissingField(missingFields, field) {
 
 function buildInitialForm(data = {}) {
   const slipType = data.slip_type === "settlement" ? "settlement" : "daily";
+  const deductions = data.deductions || {};
   const dairyMemberCode = data.dairy_member_code || data.code_no || data.member_number || data.dairy_member_number;
   const clrScore = data.clr_score ?? data.clr_degree;
+  const amountWasAutoFilled = Array.isArray(data.gaps_filled)
+    ? data.gaps_filled.some((gap) => gap.field === "total_amount" || String(gap.field || "").endsWith(".amount"))
+    : false;
   const printedAmount =
     data.slip_printed_amount ??
     data.printed_total_amount ??
     data.ocr_total_amount ??
     data.amount_verification?.printed_amount ??
-    data.total_amount;
+    (data.calculated_total_amount === undefined && !amountWasAutoFilled ? data.total_amount : "");
+  const feedDeduction = data.cattle_feed_deduction ?? data.feed_deduction ?? deductions.feed_deduction ?? 0;
+  const anamatCut = data.anamat_cut ?? data.anamat_deduction ?? deductions.anamat_cut ?? 0;
+  const explicitOtherDeduction = data.other_deductions ?? deductions.other_deductions ?? 0;
+  const explicitTotalDeductions = data.total_deductions ?? deductions.total_deductions;
+  const inferredOtherDeduction =
+    numberValue(explicitTotalDeductions) > numberValue(feedDeduction) + numberValue(anamatCut) + numberValue(explicitOtherDeduction) &&
+    numberValue(explicitOtherDeduction) <= 0
+      ? roundMoney(numberValue(explicitTotalDeductions) - numberValue(feedDeduction) - numberValue(anamatCut))
+      : explicitOtherDeduction;
 
   return {
     slip_type: slipType,
     dairy_name: text(data.dairy_name),
+    farmer_name: text(data.farmer_name),
+    farmer_code: text(data.farmer_code || data.dairy_member_code || data.member_number),
     member_number: text(data.member_number || dairyMemberCode),
     dairy_member_code: text(dairyMemberCode),
     slip_date: text(data.slip_date),
@@ -113,10 +147,24 @@ function buildInitialForm(data = {}) {
     settlement_date: text(data.settlement_date || getTodayISODate()),
     period_start: text(data.period_start),
     period_end: text(data.period_end),
-    total_liters: text(data.total_liters),
+    daily_total_liters: text(data.daily_total_liters),
+    daily_total_amount: text(data.daily_total_amount),
+    total_liters: text(data.total_liters || data.daily_total_liters || data.total_liters_section2),
     total_milk_income: text(data.total_milk_income),
-    cattle_feed_deduction: text(data.cattle_feed_deduction || 0),
-    other_deductions: text(data.other_deductions || 0),
+    cattle_feed_deduction: text(feedDeduction),
+    anamat_cut: text(anamatCut),
+    other_deductions: text(inferredOtherDeduction),
+    total_deductions: text(explicitTotalDeductions),
+    net_payable: text(data.net_payable),
+    bank_name: text(data.bank_name),
+    bank_account_no: text(data.bank_account_no),
+    session_entries: Array.isArray(data.session_entries) ? data.session_entries : [],
+    daily_entries: Array.isArray(data.daily_entries) ? data.daily_entries : [],
+    gaps_filled: Array.isArray(data.gaps_filled) ? data.gaps_filled : [],
+    inferred_fields: data.inferred_fields || {},
+    has_reconstructed: Boolean(data.has_reconstructed),
+    confidence_after_filling: data.confidence_after_filling || null,
+    original_missing_fields: Array.isArray(data.original_missing_fields) ? data.original_missing_fields : [],
     notes: text(data.notes || data.settlement_notes)
   };
 }
@@ -148,6 +196,12 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   }, [amountDifference, printedAmount]);
   const clrQuality = useMemo(() => getClrQuality(form.clr_score || form.clr_degree), [form.clr_degree, form.clr_score]);
   const paperQuality = useMemo(() => estimateThermalPaperAge(confidence), [confidence]);
+  const settlementValidation = extractedData?.settlement_validation || {};
+  const settlementErrors = Array.isArray(settlementValidation.errors) ? settlementValidation.errors : [];
+  const settlementWarnings = Array.isArray(settlementValidation.warnings) ? settlementValidation.warnings : [];
+  const requiresManualReview =
+    form.slip_type === "settlement" &&
+    (Boolean(extractedData?.ocr_requires_manual_review) || settlementErrors.length > 0 || settlementWarnings.length > 0);
   const slipValidation = useMemo(() => {
     if (form.slip_type !== "daily") {
       return { valid: true, errors: [] };
@@ -158,12 +212,28 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
       total_amount: totalAmount
     });
   }, [form, totalAmount]);
-  const netPayable = useMemo(
+  const effectiveOtherDeductions = useMemo(() => {
+    const feed = numberValue(form.cattle_feed_deduction);
+    const anamat = numberValue(form.anamat_cut);
+    const other = numberValue(form.other_deductions);
+    const explicitTotal = numberValue(form.total_deductions);
+
+    if (explicitTotal > feed + anamat + other && other <= 0) {
+      return roundMoney(explicitTotal - feed - anamat);
+    }
+
+    return other;
+  }, [form.total_deductions, form.cattle_feed_deduction, form.anamat_cut, form.other_deductions]);
+  const totalDeductions = useMemo(
     () =>
-      numberValue(form.total_milk_income) -
-      numberValue(form.cattle_feed_deduction) -
-      numberValue(form.other_deductions),
-    [form.total_milk_income, form.cattle_feed_deduction, form.other_deductions]
+      numberValue(form.cattle_feed_deduction) +
+        numberValue(form.anamat_cut) +
+        effectiveOtherDeductions,
+    [form.cattle_feed_deduction, form.anamat_cut, effectiveOtherDeductions]
+  );
+  const netPayable = useMemo(
+    () => numberValue(form.total_milk_income) - totalDeductions,
+    [form.total_milk_income, totalDeductions]
   );
 
   function updateField(field, value) {
@@ -193,7 +263,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
 
     if (!form.period_start || !form.period_end) return "पीरियड तारीख भरा.";
     if (form.period_end < form.period_start) return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
-    if (numberValue(form.total_milk_income) < 0 || form.total_milk_income === "") return "एकूण उत्पन्न भरा.";
+    if (numberValue(form.total_milk_income) <= 0 || form.total_milk_income === "") return "एकूण उत्पन्न भरा.";
     return "";
   }
 
@@ -204,6 +274,17 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
     if (validationError) {
       setError(validationError);
       return;
+    }
+
+    if (requiresManualReview) {
+      const confirmed = window.confirm(
+        "AI ने काही आर्थिक आकडे संशयास्पद/अस्पष्ट वाचले आहेत. तुम्ही स्लिपवरील एकूण लिटर, दूध उत्पन्न, एकूण कपात आणि निव्वळ रक्कम स्वतः तपासली आहे का?"
+      );
+
+      if (!confirmed) {
+        setError("कृपया स्लिपवरील आकडे तपासून मग जतन करा.");
+        return;
+      }
     }
 
     const amountVerification = {
@@ -223,7 +304,19 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             amount_matches: amountStatus === "matched",
             amount_verification: amountVerification
           }
-        : form;
+        : {
+            ...form,
+            farmer_code: form.farmer_code || form.member_number || form.dairy_member_code,
+            dairy_member_code: form.farmer_code || form.member_number || form.dairy_member_code,
+            total_deductions: totalDeductions,
+            net_payable: netPayable,
+            deductions: {
+              feed_deduction: numberValue(form.cattle_feed_deduction),
+              anamat_cut: numberValue(form.anamat_cut),
+              other_deductions: effectiveOtherDeductions,
+              total_deductions: totalDeductions
+            }
+          };
 
     await onSave?.({
       slip_type: form.slip_type,
@@ -271,6 +364,43 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
           ))}
         </div>
       </section>
+
+      {requiresManualReview ? (
+        <section className="rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-yellow-950 shadow-soft">
+          <h2 className="text-[22px] font-extrabold">⚠️ आर्थिक माहिती तपासा</h2>
+          <p className="mt-1 text-[17px] font-bold">
+            AI result पूर्ण खात्रीशीर नाही. सेव्ह करण्यापूर्वी summary मधील एकूण लिटर, दूध उत्पन्न, कपात आणि निव्वळ रक्कम जुळवा.
+          </p>
+          {settlementErrors.length ? (
+            <div className="mt-3 rounded-lg border border-red-200 bg-white p-3 text-[16px] font-extrabold text-red-900">
+              {settlementErrors.map((item) => (
+                <p key={item}>• {item}</p>
+              ))}
+            </div>
+          ) : null}
+          {settlementWarnings.length ? (
+            <div className="mt-3 rounded-lg border border-yellow-200 bg-white p-3 text-[16px] font-bold text-yellow-900">
+              {settlementWarnings.map((item) => (
+                <p key={item}>• {item}</p>
+              ))}
+            </div>
+          ) : null}
+          {settlementValidation.daily_liters_sum || settlementValidation.daily_amount_sum ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[15px] font-extrabold">
+              <div className="rounded-lg bg-white p-3">
+                <p className="text-slate-500">दैनिक बेरीज</p>
+                <p>{Number(settlementValidation.daily_liters_sum || 0).toFixed(2)} लि.</p>
+                <p>{toMarathiCurrency(numberValue(settlementValidation.daily_amount_sum))}</p>
+              </div>
+              <div className="rounded-lg bg-white p-3">
+                <p className="text-slate-500">Summary वापरले</p>
+                <p>{Number(settlementValidation.summary_total_liters || 0).toFixed(2)} लि.</p>
+                <p>{toMarathiCurrency(numberValue(settlementValidation.summary_total_income))}</p>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {form.slip_type === "daily" ? (
         <section className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-950 shadow-soft">
@@ -446,6 +576,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
       ) : (
         <>
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-3 text-[21px] font-extrabold text-slate-950">सेटलमेंट माहिती</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="सेटलमेंट तारीख">
                 <input type="date" value={form.settlement_date} onChange={(event) => updateField("settlement_date", event.target.value)} className={fieldClass("settlement_date")} />
@@ -459,28 +590,107 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               <FormField label="एकूण दूध">
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_liters} onChange={(event) => updateField("total_liters", event.target.value)} className={fieldClass("total_liters")} />
               </FormField>
+              <FormField label="शेतकरी कोड">
+                <input value={form.farmer_code || form.member_number} onChange={(event) => {
+                  updateField("farmer_code", event.target.value);
+                  updateField("member_number", event.target.value);
+                }} className={fieldClass("member_number")} />
+              </FormField>
+              <FormField label="शेतकरी नाव">
+                <MarathiTextInput value={form.farmer_name} onValueChange={(value) => updateField("farmer_name", value)} className={fieldClass("farmer_name")} />
+              </FormField>
             </div>
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <div className="space-y-3">
-              <FormField label="एकूण उत्पन्न" required>
+            <h2 className="text-[22px] font-extrabold text-slate-950">कपात तपशील</h2>
+            <p className="mt-1 text-[17px] font-bold text-slate-600">अनामत ही परत मिळणारी बचत कपात आहे.</p>
+            <div className="mt-4 space-y-3">
+              <FormField label="दूध उत्पन्न" required>
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${fieldClass("total_milk_income", true)} text-[26px]`} />
               </FormField>
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="खाद्य कपात">
                   <input type="number" inputMode="decimal" min="0" step="0.01" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={fieldClass("cattle_feed_deduction")} />
                 </FormField>
+                <FormField label="अनामत कपात">
+                  <input type="number" inputMode="decimal" min="0" step="0.01" value={form.anamat_cut} onChange={(event) => updateField("anamat_cut", event.target.value)} className={`${fieldClass("anamat_cut")} border-yellow-300 bg-yellow-50`} />
+                </FormField>
                 <FormField label="इतर कपात">
                   <input type="number" inputMode="decimal" min="0" step="0.01" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={fieldClass("other_deductions")} />
                 </FormField>
+                <FormField label="एकूण कपात">
+                  <div className="flex min-h-[56px] items-center rounded-lg border-2 border-red-100 bg-red-50 px-4 text-[22px] font-extrabold text-red-800">
+                    {toMarathiCurrency(totalDeductions)}
+                  </div>
+                </FormField>
               </div>
-              <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4 text-green-900">
+              <div className="rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4 text-yellow-950">
+                <p className="text-[18px] font-extrabold">🏦 अनामत माहिती</p>
+                <p className="mt-1 text-[25px] font-extrabold">{toMarathiCurrency(numberValue(form.anamat_cut))}</p>
+                <p className="mt-1 text-[16px] font-bold leading-snug">ही रक्कम वेगळी जमा राहील. साधारण १ वर्षानंतर किंवा डेअरीच्या नियमानुसार परत मिळू शकते.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[17px] font-extrabold text-slate-800">
+                <div className="flex justify-between gap-3"><span>दूध उत्पन्न</span><span>{toMarathiCurrency(numberValue(form.total_milk_income))}</span></div>
+                <div className="mt-2 flex justify-between gap-3 text-red-800"><span>(-) खाद्य कपात</span><span>{toMarathiCurrency(numberValue(form.cattle_feed_deduction))}</span></div>
+                <div className="mt-2 flex justify-between gap-3 text-yellow-900"><span>(-) अनामत कपात</span><span>{toMarathiCurrency(numberValue(form.anamat_cut))}</span></div>
+                <div className="mt-2 flex justify-between gap-3 text-red-800"><span>(-) इतर कपात</span><span>{toMarathiCurrency(effectiveOtherDeductions)}</span></div>
+              </div>
+              <div className={`rounded-lg border-2 p-4 ${netPayable >= 0 ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-900"}`}>
                 <p className="text-[18px] font-extrabold">शुद्ध देय</p>
                 <p className="mt-1 text-[30px] font-extrabold">{toMarathiCurrency(netPayable)}</p>
               </div>
             </div>
           </section>
+
+          {form.daily_entries?.length > 0 ? (
+            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+              <h2 className="text-[22px] font-extrabold text-slate-950">दैनिक तक्ता</h2>
+              <p className="mt-1 text-[17px] font-bold text-slate-600">
+                AI ने {form.daily_entries.length} दिवसांच्या नोंदी वाचल्या. प्रत्येक तारीख तपासा.
+              </p>
+              <div className="mt-3 max-h-[520px] overflow-auto rounded-lg border border-slate-200">
+                {form.daily_entries.map((entry, index) => {
+                  const morning = sessionLine("सकाळ", entry.morning);
+                  const evening = sessionLine("संध्याकाळ", entry.evening);
+                  const suspicious =
+                    entryLiters(entry) > 500 ||
+                    numberValue(entry.morning?.liters) > 500 ||
+                    numberValue(entry.evening?.liters) > 500;
+
+                  return (
+                    <div
+                      key={`${entry.date || index}-${index}`}
+                      className={`border-b p-3 text-[16px] font-bold last:border-b-0 ${
+                        suspicious ? "border-red-100 bg-red-50 text-red-900" : "border-slate-100 text-slate-700"
+                      }`}
+                    >
+                      <div className="flex justify-between gap-3">
+                        <span className="text-[18px] font-extrabold text-slate-950">
+                          {displaySlipDate(entry.date) || "तारीख नाही"}
+                        </span>
+                        <span className="text-right font-extrabold text-green-800">
+                          {entryLiters(entry).toFixed(2)} लि. · {toMarathiCurrency(entryAmount(entry))}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1 text-[15px] text-slate-600">
+                        {morning ? <p>{morning}</p> : null}
+                        {evening ? <p>{evening}</p> : null}
+                        {!morning && !evening ? (
+                          <p>दर {entry.rate_per_liter ?? "-"} | फॅट {entry.fat_percent ?? "-"} | SNF {entry.snf_percent ?? "-"}</p>
+                        ) : null}
+                        {suspicious ? <p className="font-extrabold text-red-900">⚠️ हा row अवास्तव वाटतो. सेव्ह करण्यापूर्वी तपासा.</p> : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[18px] font-extrabold text-green-900">
+                एकूण: {form.daily_entries.reduce((sum, entry) => sum + entryLiters(entry), 0).toFixed(2)} लि. ·{" "}
+                {toMarathiCurrency(form.daily_entries.reduce((sum, entry) => sum + entryAmount(entry), 0))}
+              </div>
+            </section>
+          ) : null}
         </>
       )}
 

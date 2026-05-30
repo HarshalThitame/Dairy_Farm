@@ -66,6 +66,7 @@ function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, month
   const healthExpense = sum(healthRecords, "cost");
   const accountingExpense = sum(monthlyExpenses, "amount");
   const otherDeductions = sum(settlements, "other_deductions");
+  const feedDeductions = sum(settlements, "cattle_feed_deduction");
 
   const totalIncome = roundMoney(manualIncome + derivedMilkIncome);
   const totalExpense = roundMoney(manualExpense + healthExpense + accountingExpense);
@@ -73,10 +74,10 @@ function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, month
   return {
     totalIncome,
     totalExpense,
-    netProfit: roundMoney(totalIncome - totalExpense - otherDeductions),
+    netProfit: roundMoney(totalIncome - totalExpense - feedDeductions - otherDeductions),
     milkIncome: roundMoney(milkIncome),
-    totalDeductions: roundMoney(sum(settlements, "cattle_feed_deduction") + otherDeductions),
-    deductionsCountedInProfit: roundMoney(otherDeductions)
+    totalDeductions: roundMoney(feedDeductions + otherDeductions),
+    deductionsCountedInProfit: roundMoney(feedDeductions + otherDeductions)
   };
 }
 

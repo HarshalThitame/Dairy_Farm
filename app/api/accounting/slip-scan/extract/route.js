@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { fillSlipGaps } from "@/lib/slipGapFilling";
 import {
   DEFAULT_SLIP_OCR_MODEL,
   FALLBACK_SLIP_OCR_MODEL,
@@ -31,10 +32,45 @@ function getStorageBucket() {
   return process.env.SUPABASE_STORAGE_BUCKET || "dairy-slips";
 }
 
+function cachedExtractionNeedsRefresh(uploadRecord) {
+  const raw = uploadRecord?.ai_raw_response;
+  return raw?.slip_type === "settlement" && !raw.settlement_validation;
+}
+
+function gapFillingResponse(extractedData) {
+  if (!extractedData?.slip_type) {
+    return {};
+  }
+
+  const gapResult = fillSlipGaps(extractedData, extractedData.slip_type);
+  const gapsFilled = gapResult.gapsFilled || [];
+  const gapsDetected = gapResult.gapsDetected || [];
+
+  if (!gapsDetected.length && !gapsFilled.length) {
+    return {
+      has_gaps: false,
+      gaps_detected: 0,
+      gaps_filled: []
+    };
+  }
+
+  return {
+    has_gaps: gapsDetected.length > 0 || gapsFilled.length > 0,
+    gaps_detected: gapsDetected.length,
+    gaps_filled: gapsFilled,
+    originalData: extractedData,
+    filledData: gapResult.filledData,
+    gapAnalysis: gapResult.analysis,
+    gap_message: gapsFilled.length
+      ? `${gapsFilled.length} फील्ड AI ने भरली. कृपया तपासा.`
+      : "काही माहिती अस्पष्ट आहे. कृपया हाताने तपासा."
+  };
+}
+
 export async function POST(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
-    const { uploadId } = await request.json();
+    const { uploadId, force = false } = await request.json();
 
     if (!uploadId) {
       return NextResponse.json({ error: "स्लिप फोटो ID आवश्यक आहे." }, { status: 400 });
@@ -53,12 +89,16 @@ export async function POST(request) {
     }
 
     if (
+      !force &&
       (uploadRecord.extraction_status === "success" || uploadRecord.extraction_status === "saved") &&
-      uploadRecord.ai_raw_response
+      uploadRecord.ai_raw_response &&
+      !cachedExtractionNeedsRefresh(uploadRecord)
     ) {
+      const gapResponse = gapFillingResponse(uploadRecord.ai_raw_response);
       return NextResponse.json({
         data: extractionResponse(uploadRecord, {
-          message: "डेटा आधीच वाचला आहे. कृपया तपासा आणि जतन करा.",
+          ...gapResponse,
+          message: gapResponse.gap_message || "डेटा आधीच वाचला आहे. कृपया तपासा आणि जतन करा.",
           cached: true
         })
       });
@@ -72,7 +112,14 @@ export async function POST(request) {
 
     await supabase
       .from("slip_uploads")
-      .update({ extraction_status: "processing", extraction_error: null, updated_at: new Date().toISOString() })
+      .update({
+        extraction_status: "processing",
+        extraction_error: null,
+        linked_milk_record_id: force ? null : uploadRecord.linked_milk_record_id,
+        linked_settlement_id: force ? null : uploadRecord.linked_settlement_id,
+        linked_dairy_slip_id: force ? null : uploadRecord.linked_dairy_slip_id,
+        updated_at: new Date().toISOString()
+      })
       .eq("id", uploadId)
       .eq("farm_id", farmId);
 
@@ -137,13 +184,16 @@ export async function POST(request) {
       throw updateError;
     }
 
+    const gapResponse = gapFillingResponse(result.data);
+
     return NextResponse.json({
       data: extractionResponse(updatedUpload, {
+        ...gapResponse,
         retried: Boolean(result.retried),
         tokensUsed: result.tokensUsed || 0,
         cost_estimate: result.cost_estimate || 0,
         model_used: result.model_used,
-        message: "डेटा वाचली गेले. कृपया तपासा आणि जतन करा."
+        message: gapResponse.gap_message || "डेटा वाचली गेले. कृपया तपासा आणि जतन करा."
       })
     });
   } catch (error) {

@@ -12,8 +12,9 @@ import { getTodayISODate } from "@/lib/marathiUtils";
 export const dynamic = "force-dynamic";
 
 function addDays(date, days) {
-  const nextDate = new Date(`${date}T00:00:00`);
-  nextDate.setDate(nextDate.getDate() + days);
+  const [year, month, day] = String(date).split("-").map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1, day));
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
   return nextDate.toISOString().slice(0, 10);
 }
 

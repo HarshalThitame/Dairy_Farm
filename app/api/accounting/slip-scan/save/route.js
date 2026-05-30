@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { refreshMonthlyAnamatSummary, syncAnamatTrackingForSettlement } from "@/lib/anamatUtils";
 import {
   DAIRY_SESSION_EVENING,
   DAIRY_SESSION_MORNING,
@@ -8,6 +9,7 @@ import {
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
+import { calculateSettlementNetPayable, getSettlementDeductions } from "@/lib/settlementValidation";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -121,11 +123,14 @@ function withAmountNote(notes, verification) {
   return base;
 }
 
-function mergeData(extractedData, userEdits) {
-  return {
-    ...(extractedData || {}),
-    ...(userEdits || {})
-  };
+function mergeData(...sources) {
+  return sources.reduce(
+    (merged, source) => ({
+      ...merged,
+      ...(source || {})
+    }),
+    {}
+  );
 }
 
 function validateDaily(data) {
@@ -149,6 +154,150 @@ function validateSettlement(data) {
     return "एकूण उत्पन्न नीट भरा.";
   }
   return "";
+}
+
+function getSettlementTotalLiters(data) {
+  return numberOrNull(data.total_liters ?? data.daily_total_liters ?? data.total_liters_section2);
+}
+
+function settlementSessionRows(data = {}) {
+  const rows = [];
+
+  if (Array.isArray(data.session_entries)) {
+    rows.push(...data.session_entries);
+  }
+
+  if (Array.isArray(data.daily_entries)) {
+    data.daily_entries.forEach((entry) => {
+      if (entry?.morning) {
+        rows.push({ ...entry.morning, date: entry.date, session: DAIRY_SESSION_MORNING });
+      }
+      if (entry?.evening) {
+        rows.push({ ...entry.evening, date: entry.date, session: DAIRY_SESSION_EVENING });
+      }
+      if (!entry?.morning && !entry?.evening && entry?.session) {
+        rows.push(entry);
+      }
+    });
+  }
+
+  const seen = new Set();
+  return rows
+    .map((row) => ({
+      date: cleanText(row?.date || row?.slip_date),
+      session: row?.session === DAIRY_SESSION_EVENING ? DAIRY_SESSION_EVENING : DAIRY_SESSION_MORNING,
+      liters: numberOrNull(row?.liters ?? row?.litre),
+      fat_percentage: numberOrNull(row?.fat_percentage ?? row?.fat_percent ?? row?.fat),
+      snf_percentage: numberOrNull(row?.snf_percentage ?? row?.snf_percent ?? row?.snf),
+      rate_per_liter: numberOrNull(row?.rate_per_liter ?? row?.rate),
+      amount: numberOrNull(row?.amount ?? row?.total_amount)
+    }))
+    .filter((row) => row.date && row.session && row.liters !== null && row.liters > 0 && row.rate_per_liter !== null && row.rate_per_liter > 0)
+    .filter((row) => {
+      const key = `${row.date}|${row.session}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
+function hasUnsafeSettlementRows(data = {}) {
+  const rows = settlementSessionRows(data);
+  if (rows.some((row) => Number(row.liters) > 500)) {
+    return true;
+  }
+
+  const signatures = new Map();
+  rows.forEach((row) => {
+    const signature = [
+      Number(row.liters).toFixed(2),
+      row.fat_percentage === null ? "-" : Number(row.fat_percentage).toFixed(2),
+      row.snf_percentage === null ? "-" : Number(row.snf_percentage).toFixed(2),
+      Number(row.rate_per_liter).toFixed(2),
+      row.amount === null ? "-" : Number(row.amount).toFixed(2)
+    ].join("|");
+    signatures.set(signature, (signatures.get(signature) || 0) + 1);
+  });
+
+  return Array.from(signatures.values()).some((count) => count >= 5);
+}
+
+function shouldSkipSettlementRowSync(data = {}) {
+  const validation = data.settlement_validation || {};
+  return Boolean(
+    data.ocr_requires_manual_review ||
+      validation.requires_manual_review ||
+      validation.errors?.length ||
+      validation.warnings?.length ||
+      hasUnsafeSettlementRows(data)
+  );
+}
+
+async function upsertSettlementRowsAsDairySlips({
+  supabase,
+  farmId,
+  data,
+  upload,
+  confidence,
+  modelUsed,
+  timestamp
+}) {
+  if (shouldSkipSettlementRowSync(data)) {
+    return [];
+  }
+
+  const rows = settlementSessionRows(data);
+
+  if (!rows.length) {
+    return [];
+  }
+
+  const memberCode = cleanText(data.farmer_code || data.member_number || data.dairy_member_number || data.dairy_member_code);
+  const milkType = normalizeMilkType(data.animal_type || data.milk_type);
+  const payloads = rows.map((row) => ({
+    farm_id: farmId,
+    slip_date: row.date,
+    session: row.session,
+    milk_type: milkType,
+    dairy_name: cleanText(data.dairy_name),
+    dairy_member_number: memberCode,
+    dairy_member_code: memberCode,
+    liters: money(row.liters),
+    fat_percentage: row.fat_percentage,
+    snf_percentage: row.snf_percentage,
+    rate_per_liter: money(row.rate_per_liter),
+    notes: "१५ दिवसांच्या सेटलमेंट स्लिपवरून आपोआप नोंद",
+    slip_image_url: upload.compressed_image_url,
+    ai_extracted: true,
+    ai_confidence: confidence,
+    ai_model_used: modelUsed,
+    ai_raw_data: {
+      source: "settlement_slip",
+      settlement_period_start: data.period_start,
+      settlement_period_end: data.period_end,
+      row
+    },
+    ocr_timestamp: timestamp,
+    updated_at: timestamp
+  }));
+
+  const { data: slips, error } = await supabase
+    .from("dairy_slips")
+    .upsert(payloads, { onConflict: "farm_id,slip_date,session" })
+    .select();
+
+  if (error) {
+    throw error;
+  }
+
+  const uniqueDates = Array.from(new Set(rows.map((row) => row.date)));
+  for (const date of uniqueDates) {
+    await recomputeMilkRecordFromDairySlips(supabase, farmId, date);
+  }
+
+  return slips || [];
 }
 
 async function getUpload(supabase, farmId, uploadId) {
@@ -200,8 +349,8 @@ export async function POST(request) {
     }
 
     const slipType = requestedSlipType || userEdits?.slip_type || extractedData?.slip_type || upload.slip_type;
-    const data = mergeData(upload.ai_raw_response || extractedData, userEdits);
-    const confidence = numberOrNull(upload.ai_confidence ?? data.confidence_score);
+    const data = mergeData(upload.ai_raw_response, extractedData, userEdits);
+    const confidence = numberOrNull(data.confidence_after_filling ?? data.confidence_score ?? upload.ai_confidence);
     const modelUsed = upload.ai_model_used || data.ai_model_used || null;
     const timestamp = new Date().toISOString();
 
@@ -320,17 +469,38 @@ export async function POST(request) {
         return NextResponse.json({ error: validationError }, { status: 400 });
       }
 
+      const deductions = getSettlementDeductions(data);
+      const settlementNetPayable = calculateSettlementNetPayable(data);
+      const normalizedSettlementRawData = {
+        ...data,
+        total_liters: getSettlementTotalLiters(data),
+        total_milk_income: money(data.total_milk_income),
+        cattle_feed_deduction: deductions.feedDeduction,
+        anamat_cut: deductions.anamatCut,
+        other_deductions: deductions.otherDeductions,
+        total_deductions: deductions.totalDeductions,
+        total_deductions_before_anamat: roundMoney(deductions.feedDeduction + deductions.otherDeductions),
+        net_payable: settlementNetPayable,
+        deductions: {
+          feed_deduction: deductions.feedDeduction,
+          anamat_cut: deductions.anamatCut,
+          other_deductions: deductions.otherDeductions,
+          total_deductions: deductions.totalDeductions
+        }
+      };
       const settlementPayload = {
         farm_id: farmId,
         settlement_date: data.settlement_date || getTodayISODate(),
         period_start: data.period_start,
         period_end: data.period_end,
         dairy_name: cleanText(data.dairy_name),
-        dairy_member_number: cleanText(data.member_number || data.dairy_member_number || data.dairy_member_code),
-        total_liters: numberOrNull(data.total_liters),
+        dairy_member_number: cleanText(data.farmer_code || data.member_number || data.dairy_member_number || data.dairy_member_code),
+        total_liters: getSettlementTotalLiters(data),
         total_milk_income: money(data.total_milk_income),
-        cattle_feed_deduction: money(data.cattle_feed_deduction),
-        other_deductions: money(data.other_deductions),
+        cattle_feed_deduction: deductions.feedDeduction,
+        other_deductions: deductions.otherDeductions,
+        anamat_cut: deductions.anamatCut,
+        total_deductions_before_anamat: roundMoney(deductions.feedDeduction + deductions.otherDeductions),
         payment_received: Boolean(data.payment_received),
         payment_received_date: data.payment_received ? data.payment_received_date || data.settlement_date || getTodayISODate() : null,
         payment_received_amount: data.payment_received ? numberOrNull(data.payment_received_amount) : null,
@@ -339,7 +509,7 @@ export async function POST(request) {
         ai_extracted: true,
         ai_confidence: confidence,
         ai_model_used: modelUsed,
-        ai_raw_data: data,
+        ai_raw_data: normalizedSettlementRawData,
         ocr_timestamp: timestamp,
         updated_at: timestamp
       };
@@ -354,8 +524,21 @@ export async function POST(request) {
         throw error;
       }
 
+      const rowSyncSkipped = shouldSkipSettlementRowSync(data);
+      const savedSessionSlips = await upsertSettlementRowsAsDairySlips({
+        supabase,
+        farmId,
+        data,
+        upload,
+        confidence,
+        modelUsed,
+        timestamp
+      });
+      const anamatRecord = await syncAnamatTrackingForSettlement(supabase, farmId, settlement);
+
       const matched = await matchSettlementToSlips(supabase, farmId, settlement);
       const summary = await refreshSummaryForDate(supabase, farmId, settlement.settlement_date);
+      const anamatSummary = await refreshMonthlyAnamatSummary(supabase, farmId, settlement.settlement_date);
       await supabase
         .from("slip_uploads")
         .update({
@@ -373,9 +556,23 @@ export async function POST(request) {
           recordType: "settlement",
           recordId: matched.settlement.id,
           settlement: matched.settlement,
+          savedSessionSlipsCount: savedSessionSlips.length,
+          rowSyncSkipped,
           reconciliation: matched.reconciliation,
           summary,
-          message: "सेटलमेंट स्लिप जतन झाली."
+          anamat: {
+            record: anamatRecord,
+            cut_this_settlement: deductions.anamatCut,
+            monthly: anamatSummary,
+            message:
+              deductions.anamatCut > 0
+                ? `₹${deductions.anamatCut} अनामत कपात जमा झाली.`
+                : "या सेटलमेंटमध्ये अनामत कपात नाही."
+          },
+          message: "सेटलमेंट स्लिप जतन झाली.",
+          rowSyncMessage: rowSyncSkipped
+            ? "AI rows संशयास्पद असल्यामुळे सकाळ/संध्याकाळ दूध नोंदी auto-save केल्या नाहीत."
+            : "सकाळ/संध्याकाळ दूध नोंदी settlement मधून sync झाल्या."
         }
       });
     }

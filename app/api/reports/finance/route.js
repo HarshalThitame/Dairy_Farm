@@ -218,9 +218,8 @@ function summarizeSettlementDeductionTransactions(transactions) {
     cattleFeedDeduction: Number(summary.cattleFeedDeduction.toFixed(2)),
     otherDeductions: Number(summary.otherDeductions.toFixed(2)),
     totalDeductions: Number(summary.totalDeductions.toFixed(2)),
-    // खाद्य कपात is already captured through खाद्य खर्च records.
-    // Only non-feed deductions should reduce profit separately.
-    deductionsCountedInProfit: Number(summary.otherDeductions.toFixed(2))
+    // खाद्य आणि इतर कपात प्रत्यक्ष खर्च आहेत. अनामत या list मध्ये नाही.
+    deductionsCountedInProfit: Number(summary.totalDeductions.toFixed(2))
   };
 }
 

@@ -318,7 +318,7 @@ function buildFinanceSummary(records, monthlyExpenses, healthRecords, aiRecords,
     month.dairyFeedDeduction = roundMoney(month.dairyFeedDeduction);
     month.otherDeductions = roundMoney(month.otherDeductions);
     month.netProfit = roundMoney(
-      month.totalIncome - month.monthlyExpense - month.annualExpense - month.otherDeductions
+      month.totalIncome - month.monthlyExpense - month.annualExpense - month.dairyFeedDeduction - month.otherDeductions
     );
   });
 
@@ -328,7 +328,7 @@ function buildFinanceSummary(records, monthlyExpenses, healthRecords, aiRecords,
     annualExpense: roundMoney(annualExpense),
     dairyFeedDeduction: roundMoney(dairyFeedDeduction),
     otherDeductions: roundMoney(otherDeductions),
-    netProfit: roundMoney(totalIncome - monthlyExpense - annualExpense - otherDeductions),
+    netProfit: roundMoney(totalIncome - monthlyExpense - annualExpense - dairyFeedDeduction - otherDeductions),
     incomeByCategory: groupsToArray(incomeByCategory),
     monthlyExpenseByCategory: groupsToArray(monthlyExpenseByCategory),
     annualExpenseByCategory: groupsToArray(annualExpenseByCategory)
