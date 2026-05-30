@@ -8,8 +8,9 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import SummaryCard from "@/components/SummaryCard";
+import { summarizeDairySlips } from "@/lib/accountingUtils";
 import { fetchDairySlips, fetchJson } from "@/lib/offlineActions";
-import { formatLitres, formatMarathiDate, toMarathiCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
+import { formatLitres, formatMarathiDate, getTodayISODate, toMarathiCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 import { getMarathiDayName } from "@/lib/reminderUtils";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 
@@ -24,8 +25,18 @@ function groupByDate(slips) {
   }, {});
 }
 
+function getMonthPartsFromDate(dateString) {
+  const [year, month] = String(dateString || "").split("-").map(Number);
+
+  return {
+    month: Number.isFinite(month) ? month : getInitialMonth().month,
+    year: Number.isFinite(year) ? year : getInitialMonth().year
+  };
+}
+
 export default function DairySlipsPage() {
   const [monthValue, setMonthValue] = useState(getInitialMonth);
+  const [selectedDate, setSelectedDate] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,10 +74,31 @@ export default function DairySlipsPage() {
     }
   }
 
-  const monthly = data?.monthlyTotal || {};
+  function changeMonth(nextMonth) {
+    setSelectedDate("");
+    setMonthValue(nextMonth);
+  }
+
+  function applyDateFilter(date) {
+    setSelectedDate(date);
+
+    if (date) {
+      setMonthValue(getMonthPartsFromDate(date));
+    }
+  }
+
+  const allSlips = useMemo(() => data?.slips || [], [data?.slips]);
+  const visibleSlips = useMemo(
+    () => (selectedDate ? allSlips.filter((slip) => slip.slip_date === selectedDate) : allSlips),
+    [allSlips, selectedDate]
+  );
+  const filteredSummary = useMemo(() => summarizeDairySlips(visibleSlips).monthlyTotal, [visibleSlips]);
+  const monthly = selectedDate ? filteredSummary : data?.monthlyTotal || {};
   const averageRate = Number(monthly.averageRate || 0);
-  const byDate = useMemo(() => groupByDate(data?.slips || []), [data?.slips]);
+  const byDate = useMemo(() => groupByDate(visibleSlips), [visibleSlips]);
   const dates = Object.keys(byDate).sort((first, second) => second.localeCompare(first));
+  const today = getTodayISODate();
+  const addMilkHref = `/nondi/dudh?date=${selectedDate || "today"}`;
 
   return (
     <div className="space-y-6">
@@ -75,14 +107,48 @@ export default function DairySlipsPage() {
         subtitle="डेअरी स्लिपप्रमाणे सकाळ-संध्याकाळ नोंद"
         action={
           <Link
-            href="/nondi/dudh?date=today"
+            href={addMilkHref}
             className="flex min-h-[52px] items-center rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white active:bg-green-700"
           >
             + नवीन
           </Link>
         }
       />
-      <MonthSelector value={monthValue} onChange={setMonthValue} />
+      <MonthSelector value={monthValue} onChange={changeMonth} />
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <label className="text-[18px] font-extrabold text-slate-800" htmlFor="dairy-slip-date-filter">
+          तारीख फिल्टर
+        </label>
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
+          <input
+            id="dairy-slip-date-filter"
+            type="date"
+            value={selectedDate}
+            onChange={(event) => applyDateFilter(event.target.value)}
+            className="min-h-[56px] rounded-lg border-2 border-slate-200 bg-white px-3 text-[20px] font-bold text-slate-900 outline-none focus:border-sheti"
+          />
+          <button
+            type="button"
+            onClick={() => applyDateFilter(today)}
+            className="min-h-[56px] rounded-lg border-2 border-green-200 bg-green-50 px-5 text-[19px] font-extrabold text-sheti active:bg-green-100"
+          >
+            आज
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDate("")}
+            className="min-h-[56px] rounded-lg border-2 border-slate-200 bg-white px-5 text-[19px] font-extrabold text-slate-700 active:bg-slate-100"
+          >
+            सर्व दाखवा
+          </button>
+        </div>
+        {selectedDate ? (
+          <p className="mt-3 rounded-lg bg-green-50 p-3 text-[20px] font-extrabold text-sheti">
+            {formatMarathiDate(selectedDate)}
+          </p>
+        ) : null}
+      </section>
 
       {loading ? <LoadingState text="दूध नोंदी लोड होत आहेत..." /> : null}
       {error ? <ErrorState message={error} onRetry={loadSlips} /> : null}
@@ -90,10 +156,38 @@ export default function DairySlipsPage() {
       {!loading && !error ? (
         <>
           <section className="grid grid-cols-2 gap-3">
-            <SummaryCard emoji="📊" title="या महिन्याचे एकूण दूध" value={`${formatLitres(monthly.totalLiters || 0)} लिटर`} subtext={`${toMarathiNumerals(monthly.daysWithData || 0)} दिवसांचा डेटा`} color="blue" />
-            <SummaryCard emoji="💰" title="या महिन्याचा उत्पन्न" value={toMarathiCurrency(monthly.totalAmount || 0)} subtext="दूध विक्रीतून" color="green" />
-            <SummaryCard emoji="📈" title="सरासरी दर" value={`${toMarathiCurrency(averageRate)}/लि.`} subtext="या महिन्याचा" color="yellow" />
-            <SummaryCard emoji="✅" title="नोंदवलेले दिवस" value={`${toMarathiNumerals(monthly.daysWithData || 0)} दिवस`} subtext="सकाळ + संध्याकाळ" color="purple" />
+            <SummaryCard
+              emoji="📊"
+              title={selectedDate ? "या तारखेचे दूध" : "या महिन्याचे एकूण दूध"}
+              value={`${formatLitres(monthly.totalLiters || 0)} लिटर`}
+              subtext={selectedDate ? "निवडलेली तारीख" : `${toMarathiNumerals(monthly.daysWithData || 0)} दिवसांचा डेटा`}
+              color="blue"
+            />
+            <SummaryCard
+              emoji="💰"
+              title={selectedDate ? "या तारखेचे उत्पन्न" : "या महिन्याचा उत्पन्न"}
+              value={toMarathiCurrency(monthly.totalAmount || 0)}
+              subtext="दूध विक्रीतून"
+              color="green"
+            />
+            <SummaryCard
+              emoji="📈"
+              title="सरासरी दर"
+              value={`${toMarathiCurrency(averageRate)}/लि.`}
+              subtext={selectedDate ? "या तारखेचा" : "या महिन्याचा"}
+              color="yellow"
+            />
+            <SummaryCard
+              emoji="✅"
+              title={selectedDate ? "नोंदी" : "नोंदवलेले दिवस"}
+              value={
+                selectedDate
+                  ? `${toMarathiNumerals(monthly.sessionCount || 0)} नोंदी`
+                  : `${toMarathiNumerals(monthly.daysWithData || 0)} दिवस`
+              }
+              subtext="सकाळ + संध्याकाळ"
+              color="purple"
+            />
           </section>
 
           {dates.length > 0 ? (
@@ -113,9 +207,11 @@ export default function DairySlipsPage() {
             </section>
           ) : (
             <section className="rounded-lg border-2 border-dashed border-slate-200 bg-white p-8 text-center shadow-soft">
-              <p className="text-[22px] font-extrabold text-slate-700">📭 या महिन्यात दूध नोंद नाही</p>
+              <p className="text-[22px] font-extrabold text-slate-700">
+                {selectedDate ? "📭 या तारखेला दूध नोंद नाही" : "📭 या महिन्यात दूध नोंद नाही"}
+              </p>
               <Link
-                href="/nondi/dudh?date=today"
+                href={addMilkHref}
                 className="mt-4 inline-flex min-h-[56px] items-center rounded-lg bg-sheti px-5 text-[20px] font-extrabold text-white active:bg-green-700"
               >
                 + दूध नोंद जोडा
@@ -126,7 +222,7 @@ export default function DairySlipsPage() {
       ) : null}
 
       <Link
-        href="/nondi/dudh?date=today"
+        href={addMilkHref}
         className="fixed bottom-24 right-4 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-sheti text-[34px] font-extrabold text-white shadow-lg active:bg-green-700"
         aria-label="नवीन दूध नोंद"
       >

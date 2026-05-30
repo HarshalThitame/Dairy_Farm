@@ -3,7 +3,7 @@ export default function ErrorState({
   onRetry
 }) {
   return (
-    <div className="rounded-lg border-2 border-red-200 bg-red-50 p-5 text-center shadow-soft">
+    <div className="dashboard-card rounded-lg border border-red-200 bg-red-50 p-5 text-center shadow-soft">
       <p className="text-[20px] font-bold leading-relaxed text-red-800">
         {message}
       </p>

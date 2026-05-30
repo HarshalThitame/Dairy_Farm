@@ -4,21 +4,28 @@ import { useEffect, useMemo, useState } from "react";
 import FormField from "@/components/FormField";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import ConfidenceIndicator from "@/components/slip-scan/ConfidenceIndicator";
+import { getMilkTypeLabel, SLIP_LABELS_MARATHI } from "@/lib/marathiLabels";
 import { getTodayISODate, toMarathiCurrency } from "@/lib/marathiUtils";
+import { estimateThermalPaperAge, getClrQuality, validateDairySlipData } from "@/lib/thermalPrinterQuality";
 
 const inputClass =
   "min-h-[56px] w-full rounded-lg border-2 bg-white px-4 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100";
 
 const missingMap = {
   dairy_name: ["dairy_name", "डेअरीचे नाव"],
-  member_number: ["member_number", "dairy_member_number", "सदस्य नंबर"],
+  member_number: ["member_number", "dairy_member_number", "dairy_member_code", "code_no", "सदस्य नंबर"],
+  dairy_member_code: ["dairy_member_code", "code_no", "CODE_NO", "डेअरी कोड"],
   slip_date: ["slip_date", "date", "तारीख"],
+  slip_time: ["slip_time", "time", "वेळ"],
   session: ["session", "सत्र"],
+  milk_type: ["milk_type", "MILK_TYPE", "दुधाचा प्रकार"],
   liters: ["liters", "litres", "दूध", "milk"],
   fat_percentage: ["fat_percentage", "fat", "फॅट"],
   snf_percentage: ["snf_percentage", "snf", "SNF"],
-  clr_degree: ["clr_degree", "clr", "degree", "डिग्री"],
+  clr_degree: ["clr_degree", "clr_score", "clr", "degree", "डिग्री"],
+  clr_score: ["clr_score", "clr_degree", "clr", "CLR"],
   rate_per_liter: ["rate_per_liter", "rate", "दर"],
+  slip_printed_amount: ["slip_printed_amount", "printed_total_amount", "total_amount", "amount", "AMOUNT", "एकूण"],
   period_start: ["period_start", "पीरियड सुरू"],
   period_end: ["period_end", "पीरियड शेवट"],
   total_liters: ["total_liters", "total milk", "एकूण दूध"],
@@ -38,6 +45,38 @@ function numberValue(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function roundMoney(value) {
+  return Number(Number(value || 0).toFixed(2));
+}
+
+function normalizeMilkType(value) {
+  const textValue = String(value || "").trim().toLowerCase();
+
+  if (textValue === "buffalo" || textValue.includes("म्हैस")) {
+    return "buffalo";
+  }
+
+  return "cow";
+}
+
+function displaySlipDate(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
+    return date || "नाही";
+  }
+
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function isMissingField(missingFields, field) {
   const aliases = missingMap[field] || [field];
   const normalized = (missingFields || []).map((item) => String(item).toLowerCase());
@@ -46,17 +85,31 @@ function isMissingField(missingFields, field) {
 
 function buildInitialForm(data = {}) {
   const slipType = data.slip_type === "settlement" ? "settlement" : "daily";
+  const dairyMemberCode = data.dairy_member_code || data.code_no || data.member_number || data.dairy_member_number;
+  const clrScore = data.clr_score ?? data.clr_degree;
+  const printedAmount =
+    data.slip_printed_amount ??
+    data.printed_total_amount ??
+    data.ocr_total_amount ??
+    data.amount_verification?.printed_amount ??
+    data.total_amount;
+
   return {
     slip_type: slipType,
     dairy_name: text(data.dairy_name),
-    member_number: text(data.member_number || data.dairy_member_number),
+    member_number: text(data.member_number || dairyMemberCode),
+    dairy_member_code: text(dairyMemberCode),
     slip_date: text(data.slip_date),
+    slip_time: text(data.slip_time),
     session: text(data.session || "सकाळ"),
+    milk_type: normalizeMilkType(data.milk_type),
     liters: text(data.liters),
     fat_percentage: text(data.fat_percentage),
     snf_percentage: text(data.snf_percentage),
-    clr_degree: text(data.clr_degree),
+    clr_degree: text(clrScore),
+    clr_score: text(clrScore),
     rate_per_liter: text(data.rate_per_liter),
+    slip_printed_amount: text(printedAmount),
     settlement_date: text(data.settlement_date || getTodayISODate()),
     period_start: text(data.period_start),
     period_end: text(data.period_end),
@@ -80,9 +133,31 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   const missingFields = extractedData?.missing_fields || [];
   const confidence = Number(extractedData?.confidence_score ?? upload?.ai_confidence ?? 0);
   const totalAmount = useMemo(
-    () => numberValue(form.liters) * numberValue(form.rate_per_liter),
+    () => roundMoney(numberValue(form.liters) * numberValue(form.rate_per_liter)),
     [form.liters, form.rate_per_liter]
   );
+  const printedAmount = useMemo(() => optionalNumber(form.slip_printed_amount), [form.slip_printed_amount]);
+  const amountDifference = useMemo(
+    () => (printedAmount === null ? null : roundMoney(printedAmount - totalAmount)),
+    [printedAmount, totalAmount]
+  );
+  const amountStatus = useMemo(() => {
+    if (printedAmount === null) return "missing";
+    if (Math.abs(amountDifference || 0) <= 0.01) return "matched";
+    return "mismatch";
+  }, [amountDifference, printedAmount]);
+  const clrQuality = useMemo(() => getClrQuality(form.clr_score || form.clr_degree), [form.clr_degree, form.clr_score]);
+  const paperQuality = useMemo(() => estimateThermalPaperAge(confidence), [confidence]);
+  const slipValidation = useMemo(() => {
+    if (form.slip_type !== "daily") {
+      return { valid: true, errors: [] };
+    }
+
+    return validateDairySlipData({
+      ...form,
+      total_amount: totalAmount
+    });
+  }, [form, totalAmount]);
   const netPayable = useMemo(
     () =>
       numberValue(form.total_milk_income) -
@@ -107,8 +182,12 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
     if (form.slip_type === "daily") {
       if (!form.slip_date) return "तारीख भरा.";
       if (!form.session) return "सत्र निवडा.";
+      if (!["cow", "buffalo"].includes(form.milk_type)) return "दुधाचा प्रकार निवडा.";
       if (numberValue(form.liters) <= 0) return "दूध लिटर नीट भरा.";
       if (numberValue(form.rate_per_liter) <= 0) return "दर नीट भरा.";
+      if (form.clr_score && (numberValue(form.clr_score) < 0 || numberValue(form.clr_score) > 100)) {
+        return "CLR स्कोर 0-100 मध्ये असावा.";
+      }
       return "";
     }
 
@@ -127,10 +206,29 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
       return;
     }
 
+    const amountVerification = {
+      printed_amount: printedAmount,
+      calculated_amount: totalAmount,
+      difference: amountDifference,
+      status: amountStatus
+    };
+    const userEdits =
+      form.slip_type === "daily"
+        ? {
+            ...form,
+            total_amount: totalAmount,
+            calculated_total_amount: totalAmount,
+            slip_printed_amount: printedAmount,
+            amount_difference: amountDifference,
+            amount_matches: amountStatus === "matched",
+            amount_verification: amountVerification
+          }
+        : form;
+
     await onSave?.({
       slip_type: form.slip_type,
       extractedData,
-      userEdits: form
+      userEdits
     });
   }
 
@@ -141,6 +239,11 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
           <div>
             <h2 className="text-[24px] font-extrabold text-slate-950">AI ने वाचलेली माहिती</h2>
             <p className="mt-1 text-[17px] font-bold text-slate-600">प्रत्येक आकडा तपासूनच जतन करा.</p>
+            {paperQuality.warning ? (
+              <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-[15px] font-extrabold text-yellow-900">
+                {paperQuality.warning}
+              </p>
+            ) : null}
             {upload?.retried ? (
               <p className="mt-2 inline-flex rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[14px] font-extrabold text-blue-800">
                 GPT fallback वापरला
@@ -169,23 +272,67 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
         </div>
       </section>
 
+      {form.slip_type === "daily" ? (
+        <section className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-950 shadow-soft">
+          <h2 className="text-[22px] font-extrabold">थर्मल स्लिप सारांश</h2>
+          <div className="mt-3 space-y-2 text-[18px] font-bold">
+            <div className="flex justify-between gap-3"><span>तारीख</span><span>{displaySlipDate(form.slip_date)}</span></div>
+            <div className="flex justify-between gap-3"><span>वेळ</span><span>{form.slip_time || "नोंद नाही"}</span></div>
+            <div className="flex justify-between gap-3"><span>सत्र</span><span>{form.session}</span></div>
+            <div className="flex justify-between gap-3"><span>दूध</span><span>{numberValue(form.liters).toFixed(2)} लि. x ₹{numberValue(form.rate_per_liter).toFixed(2)}</span></div>
+            <div className="flex justify-between gap-3"><span>हिशोबाने एकूण</span><span>{toMarathiCurrency(totalAmount)}</span></div>
+            <div className="flex justify-between gap-3"><span>स्लिपवर दिसलेली</span><span>{printedAmount === null ? "वाचता आली नाही" : toMarathiCurrency(printedAmount)}</span></div>
+            <div className="flex justify-between gap-3"><span>गुणवत्ता</span><span>फॅट {form.fat_percentage || "-"}% | SNF {form.snf_percentage || "-"}% | CLR {form.clr_score || form.clr_degree || "-"}</span></div>
+            <div className="flex justify-between gap-3"><span>प्रकार</span><span>{getMilkTypeLabel(form.milk_type)}</span></div>
+            <div className="flex justify-between gap-3"><span>कोड</span><span>{form.dairy_member_code || form.member_number || "नोंद नाही"}</span></div>
+          </div>
+          {amountStatus === "matched" ? (
+            <p className="mt-3 rounded-lg border border-green-200 bg-white px-3 py-2 text-[17px] font-extrabold text-green-800">
+              ✅ रक्कम जुळली: लिटर x दर = स्लिपवरील रक्कम
+            </p>
+          ) : null}
+          {amountStatus === "missing" ? (
+            <p className="mt-3 rounded-lg border border-yellow-200 bg-white px-3 py-2 text-[17px] font-extrabold text-yellow-900">
+              ⚠️ स्लिपवरील रक्कम स्पष्ट वाचता आली नाही. हिशोबाने आलेली रक्कम वापरली जाईल.
+            </p>
+          ) : null}
+          {amountStatus === "mismatch" ? (
+            <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-[17px] font-extrabold text-red-900">
+              <p>⚠️ रक्कम जुळत नाही. आकडे तपासा.</p>
+              <p className="mt-1">स्लिपवर: {toMarathiCurrency(printedAmount)} | हिशोबाने: {toMarathiCurrency(totalAmount)}</p>
+              <p className="mt-1">फरक: {toMarathiCurrency(Math.abs(amountDifference || 0))}</p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-4">
           <FormField label="डेअरीचे नाव">
             <MarathiTextInput value={form.dairy_name} onValueChange={(value) => updateField("dairy_name", value)} className={fieldClass("dairy_name")} />
           </FormField>
-          <FormField label="सदस्य नंबर">
-            <input value={form.member_number} onChange={(event) => updateField("member_number", event.target.value)} className={fieldClass("member_number")} />
-          </FormField>
+          {form.slip_type === "daily" ? (
+            <FormField label={SLIP_LABELS_MARATHI.code_no}>
+              <input value={form.dairy_member_code} onChange={(event) => updateField("dairy_member_code", event.target.value)} className={fieldClass("dairy_member_code")} />
+            </FormField>
+          ) : (
+            <FormField label="सदस्य नंबर">
+              <input value={form.member_number} onChange={(event) => updateField("member_number", event.target.value)} className={fieldClass("member_number")} />
+            </FormField>
+          )}
         </div>
       </section>
 
       {form.slip_type === "daily" ? (
         <>
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-3 text-[21px] font-extrabold text-slate-950">तारीख आणि वेळ</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="तारीख" required>
                 <input type="date" value={form.slip_date} onChange={(event) => updateField("slip_date", event.target.value)} className={fieldClass("slip_date", true)} />
+              </FormField>
+              <FormField label="वेळ">
+                <input type="time" step="1" value={form.slip_time} onChange={(event) => updateField("slip_time", event.target.value)} className={fieldClass("slip_time")} />
               </FormField>
               <div>
                 <p className="mb-2 text-[20px] font-extrabold text-slate-900">सत्र</p>
@@ -208,7 +355,28 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-3 text-[21px] font-extrabold text-slate-950">दुधाची माहिती</h2>
             <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <p className="mb-2 text-[20px] font-extrabold text-slate-900">दुधाचा प्रकार</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["cow", "🐄 गाय"],
+                    ["buffalo", "🐃 म्हैस"]
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => updateField("milk_type", value)}
+                      className={`min-h-[56px] rounded-lg border-2 px-2 text-[18px] font-extrabold ${
+                        form.milk_type === value ? "border-green-300 bg-green-100 text-sheti" : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <FormField label="दूध लिटर" required>
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.liters} onChange={(event) => updateField("liters", event.target.value)} className={`${fieldClass("liters", true)} text-[26px]`} />
               </FormField>
@@ -221,15 +389,58 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               <FormField label="SNF %">
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.snf_percentage} onChange={(event) => updateField("snf_percentage", event.target.value)} className={fieldClass("snf_percentage")} />
               </FormField>
-              <FormField label="CLR">
-                <input value={form.clr_degree} onChange={(event) => updateField("clr_degree", event.target.value)} className={fieldClass("clr_degree")} />
+              <FormField label="CLR स्कोर">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={form.clr_score}
+                  onChange={(event) => {
+                    updateField("clr_score", event.target.value);
+                    updateField("clr_degree", event.target.value);
+                  }}
+                  className={fieldClass("clr_score")}
+                />
               </FormField>
-              <FormField label="एकूण रक्कम">
+              <FormField label="स्लिपवर दिसलेली रक्कम">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={form.slip_printed_amount}
+                  onChange={(event) => updateField("slip_printed_amount", event.target.value)}
+                  className={fieldClass("slip_printed_amount")}
+                />
+              </FormField>
+              <FormField label="हिशोबाने रक्कम">
                 <div className="flex min-h-[56px] items-center rounded-lg border-2 border-slate-200 bg-slate-50 px-4 text-[22px] font-extrabold text-green-800">
                   {toMarathiCurrency(totalAmount)}
                 </div>
               </FormField>
             </div>
+            {amountStatus === "matched" ? (
+              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[17px] font-extrabold text-green-800">
+                ✅ रक्कम बरोबर आहे.
+              </div>
+            ) : null}
+            {amountStatus === "mismatch" ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[17px] font-extrabold text-red-900">
+                ⚠️ स्लिपवरील रक्कम आणि हिशोबाने रक्कम जुळत नाही. लिटर, दर किंवा स्लिपवरील रक्कम तपासा.
+              </div>
+            ) : null}
+            <div className={`mt-3 rounded-lg border p-3 text-[17px] font-extrabold ${clrQuality.className}`}>
+              CLR: {form.clr_score || form.clr_degree || "नोंद नाही"} - {clrQuality.label}
+            </div>
+            {!slipValidation.valid ? (
+              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-[16px] font-bold text-yellow-900">
+                {slipValidation.errors.map((item) => (
+                  <p key={item}>{item}</p>
+                ))}
+              </div>
+            ) : null}
           </section>
         </>
       ) : (

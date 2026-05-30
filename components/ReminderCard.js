@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { getCalvingRecordHref, isCalvingReminder } from "@/lib/calvingReminder";
 import {
   getReminderDayDistance,
   getReminderEmoji,
@@ -50,13 +51,14 @@ export default function ReminderCard({
   const emoji = getReminderEmoji(reminder.type);
   const cowName = reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
   const canComplete = urgency === "overdue" || urgency === "today";
+  const calvingReminder = isCalvingReminder(reminder);
 
   const colorClass =
     compact && urgency === "today" ? "border-l-athavan bg-yellow-50" : cardStyles[urgency];
 
   return (
     <article
-      className={`rounded-lg border border-l-4 border-slate-200 p-4 shadow-soft ${
+      className={`dashboard-card rounded-lg border border-l-4 border-slate-200 p-4 shadow-soft ${
         colorClass
       }`}
     >
@@ -103,7 +105,16 @@ export default function ReminderCard({
       </p>
 
       <div className={`mt-4 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
-        {canComplete && onDone ? (
+        {canComplete && calvingReminder ? (
+          <Link
+            href={getCalvingRecordHref(reminder)}
+            className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white active:bg-green-700"
+          >
+            🐄 व्यायण नोंद
+          </Link>
+        ) : null}
+
+        {canComplete && !calvingReminder && onDone ? (
           <button
             type="button"
             onClick={() => onDone(reminder)}

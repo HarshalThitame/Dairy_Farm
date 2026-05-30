@@ -29,7 +29,7 @@ export default function ProfitWaterfall({ income = 0, expenses = 0, deductions =
       <div className="mt-4 grid gap-3">
         <Step label="दूध उत्पन्न" amount={income} tone="income" />
         <div className="text-center text-[24px] font-extrabold text-slate-400">↓</div>
-        <Step label="(-) डेअरी कपात" amount={deductions} tone="expense" />
+        <Step label="(-) इतर देयक कपात" amount={deductions} tone="expense" />
         <div className="text-center text-[24px] font-extrabold text-slate-400">↓</div>
         <Step label="(-) फार्म खर्च" amount={expenses} tone="expense" />
         <div className="text-center text-[24px] font-extrabold text-slate-400">=</div>

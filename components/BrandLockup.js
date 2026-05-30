@@ -24,7 +24,7 @@ export default function BrandLockup({ size = "md", center = false, invert = fals
   return (
     <div className={`flex min-w-0 items-center gap-3 ${center ? "justify-center text-center" : ""} ${className}`}>
       <div
-        className={`${styles.icon} flex shrink-0 items-center justify-center leading-none`}
+        className={`${styles.icon} flex shrink-0 items-center justify-center rounded-lg bg-green-50 leading-none shadow-sm ring-1 ring-green-100`}
         aria-hidden="true"
       >
         🐄

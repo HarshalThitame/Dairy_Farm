@@ -1,7 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AmountBarChart from "@/components/AmountBarChart";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import MonthSelector from "@/components/MonthSelector";
@@ -15,6 +15,15 @@ import {
 } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
 import { displayFinanceCategory, getIndiaMonthParts } from "@/lib/reportUtils";
+
+const AmountBarChart = dynamic(() => import("@/components/AmountBarChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[220px] items-center justify-center rounded-lg bg-slate-50 text-[18px] font-extrabold text-slate-600">
+      चार्ट लोड होत आहे...
+    </div>
+  )
+});
 
 function getInitialMonth() {
   const current = getIndiaMonthParts();

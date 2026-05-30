@@ -44,7 +44,7 @@ export default function ExpenseCard({ expense, onDelete }) {
   );
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+    <article className="dashboard-card rounded-lg border border-slate-200 bg-white/90 p-4 shadow-soft backdrop-blur">
       {canEdit ? (
         <Link href={`/accounting/expenses/${expense.id}/edit`} className="block active:bg-red-50">
           {content}

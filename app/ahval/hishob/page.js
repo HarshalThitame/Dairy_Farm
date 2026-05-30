@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CowSelector from "@/components/CowSelector";
 import ErrorState from "@/components/ErrorState";
-import FinancePieChart from "@/components/FinancePieChart";
 import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
 import MonthSelector from "@/components/MonthSelector";
@@ -22,6 +22,15 @@ import {
   incomeCategories
 } from "@/lib/reportUtils";
 import { fetchJson, saveFinanceRecord } from "@/lib/offlineActions";
+
+const FinancePieChart = dynamic(() => import("@/components/FinancePieChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[220px] items-center justify-center rounded-lg bg-slate-50 text-[18px] font-extrabold text-slate-600">
+      चार्ट लोड होत आहे...
+    </div>
+  )
+});
 
 function getInitialMonth() {
   const current = getIndiaMonthParts();
@@ -115,7 +124,7 @@ function getDerivedTransactionLabel(transaction) {
   }
 
   if (transaction.source === "dairy_settlements") {
-    return "डेअरी देयक कपात म्हणून आपोआप दाखवले आहे";
+    return "डेअरी देयक कपात माहिती म्हणून दाखवले आहे";
   }
 
   return "आपोआप दाखवले आहे";
@@ -431,7 +440,7 @@ export default function FinanceReportPage() {
                 {formatCurrency(report.totalExpense || 0)}
               </p>
               <p className="mt-2 text-[16px] font-bold leading-snug text-red-800">
-                खाद्य + औषध + कपात + इतर
+                खाद्य + औषध + इतर
               </p>
             </article>
             <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">

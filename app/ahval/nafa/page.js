@@ -1,9 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AmountBarChart from "@/components/AmountBarChart";
 import ErrorState from "@/components/ErrorState";
-import FinancePieChart from "@/components/FinancePieChart";
 import LoadingState from "@/components/LoadingState";
 import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
@@ -11,6 +10,23 @@ import SummaryCard from "@/components/SummaryCard";
 import { formatCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
+
+const AmountBarChart = dynamic(() => import("@/components/AmountBarChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[220px] items-center justify-center rounded-lg bg-slate-50 text-[18px] font-extrabold text-slate-600">
+      चार्ट लोड होत आहे...
+    </div>
+  )
+});
+const FinancePieChart = dynamic(() => import("@/components/FinancePieChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[220px] items-center justify-center rounded-lg bg-slate-50 text-[18px] font-extrabold text-slate-600">
+      चार्ट लोड होत आहे...
+    </div>
+  )
+});
 
 function getInitialMonth() {
   const current = getIndiaMonthParts();
@@ -121,14 +137,14 @@ export default function ProfitAnalyticsPage() {
               emoji="💸"
               title="मासिक खर्च"
               value={formatCurrency(report.totalExpense || 0)}
-              subtext="खाद्य + औषध + कपात + इतर"
+              subtext="खाद्य + औषध + इतर"
               color="red"
             />
             <SummaryCard
               emoji={Number(report.netProfit || 0) >= 0 ? "📈" : "📉"}
               title={Number(report.netProfit || 0) >= 0 ? "नफा" : "तोटा"}
               value={formatCurrency(Math.abs(report.netProfit || 0))}
-              subtext="कपात धरून"
+              subtext="इतर कपात धरून"
               color={Number(report.netProfit || 0) >= 0 ? "green" : "red"}
             />
             <SummaryCard

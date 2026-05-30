@@ -12,13 +12,17 @@ export const dynamic = "force-dynamic";
 
 const slipFields = [
   "slip_date",
+  "slip_time",
   "session",
+  "milk_type",
   "dairy_name",
   "dairy_member_number",
+  "dairy_member_code",
   "liters",
   "fat_percentage",
   "snf_percentage",
   "clr_degree",
+  "clr_score",
   "rate_per_liter",
   "notes",
   "slip_image_url"
@@ -38,6 +42,25 @@ function optionalNumber(value) {
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
+function normalizeMilkType(value) {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (text === "buffalo" || text.includes("म्हैस")) {
+    return "buffalo";
+  }
+
+  return "cow";
+}
+
+function normalizeTime(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const match = text.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!match) return text;
+  const [, hour, minute, second = "00"] = match;
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:${second.padStart(2, "0")}`;
+}
+
 function pickSlipFields(body) {
   return slipFields.reduce((payload, field) => {
     if (body[field] !== undefined) {
@@ -52,6 +75,10 @@ function validateSlip(payload) {
     return "सत्र निवडा.";
   }
 
+  if (payload.milk_type && !["cow", "buffalo"].includes(normalizeMilkType(payload.milk_type))) {
+    return "दुधाचा प्रकार गाय किंवा म्हैस असावा.";
+  }
+
   if (payload.liters !== undefined && (!Number.isFinite(Number(payload.liters)) || Number(payload.liters) <= 0)) {
     return "दूधाचे लिटर शून्यापेक्षा जास्त असावे.";
   }
@@ -61,6 +88,11 @@ function validateSlip(payload) {
     (!Number.isFinite(Number(payload.rate_per_liter)) || Number(payload.rate_per_liter) <= 0)
   ) {
     return "दर शून्यापेक्षा जास्त असावा.";
+  }
+
+  const clr = optionalNumber(payload.clr_score ?? payload.clr_degree);
+  if (clr !== null && (clr < 0 || clr > 100)) {
+    return "CLR स्कोर 0 ते 100 मध्ये असावा.";
   }
 
   return "";
@@ -124,13 +156,28 @@ export async function PUT(request, { params }) {
     if (payload.dairy_member_number !== undefined) {
       payload.dairy_member_number = cleanOptional(payload.dairy_member_number);
     }
+    if (payload.dairy_member_code !== undefined) {
+      payload.dairy_member_code = cleanOptional(payload.dairy_member_code);
+    }
+    if (payload.slip_time !== undefined) {
+      payload.slip_time = normalizeTime(payload.slip_time);
+    }
+    if (payload.milk_type !== undefined) {
+      payload.milk_type = normalizeMilkType(payload.milk_type);
+    }
     if (payload.notes !== undefined) {
       payload.notes = cleanOptional(payload.notes);
     }
     if (payload.slip_image_url !== undefined) {
       payload.slip_image_url = cleanOptional(payload.slip_image_url);
     }
-    ["fat_percentage", "snf_percentage", "clr_degree"].forEach((field) => {
+    if (payload.clr_score !== undefined && payload.clr_degree === undefined) {
+      payload.clr_degree = payload.clr_score;
+    }
+    if (payload.clr_degree !== undefined && payload.clr_score === undefined) {
+      payload.clr_score = payload.clr_degree;
+    }
+    ["fat_percentage", "snf_percentage", "clr_degree", "clr_score"].forEach((field) => {
       if (payload[field] !== undefined) {
         payload[field] = optionalNumber(payload[field]);
       }

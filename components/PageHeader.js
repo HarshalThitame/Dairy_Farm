@@ -1,6 +1,6 @@
 export default function PageHeader({ title, subtitle, action }) {
   return (
-    <header className="flex items-start justify-between gap-3">
+    <header className="page-header-card flex items-start justify-between gap-3 rounded-lg border border-white/80 bg-white/90 p-4 shadow-soft backdrop-blur">
       <div className="min-w-0">
         <h1 className="text-[28px] font-extrabold leading-tight text-slate-950 sm:text-[32px]">
           {title}

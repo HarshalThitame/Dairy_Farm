@@ -7,6 +7,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 const motherStatusAfterCalving = "व्याललेली";
+const calvingReminderType = "व्यायण";
 
 const calvingFields = [
   "cow_id",
@@ -16,7 +17,6 @@ const calvingFields = [
   "calf_count",
   "calf_gender",
   "calf_name",
-  "calf_weight",
   "calving_notes"
 ];
 
@@ -68,6 +68,46 @@ async function ensureDryOffReminder(supabase, farmId, calvingRecord, cowName) {
   }
 
   return data;
+}
+
+async function markCalvingRemindersDone(supabase, farmId, reminderId, cowId) {
+  const donePayload = {
+    is_done: true,
+    skipped: false,
+    done_at: new Date().toISOString()
+  };
+  const fallbackPayload = {
+    is_done: true,
+    skipped: false
+  };
+
+  const runUpdate = (payload) => {
+    let query = supabase
+      .from("reminders")
+      .update(payload)
+      .eq("farm_id", farmId)
+      .eq("cow_id", cowId)
+      .eq("type", calvingReminderType)
+      .eq("is_done", false);
+
+    if (reminderId) {
+      query = query.eq("id", reminderId);
+    }
+
+    return query.select();
+  };
+
+  let result = await runUpdate(donePayload);
+
+  if (result.error && String(result.error.message || "").includes("done_at")) {
+    result = await runUpdate(fallbackPayload);
+  }
+
+  if (result.error) {
+    return [];
+  }
+
+  return result.data || [];
 }
 
 export async function GET(request) {
@@ -143,9 +183,21 @@ export async function POST(request) {
       throw cowError;
     }
 
-    const reminder = await ensureDryOffReminder(supabase, farmId, data, cow?.name);
+    const [reminder, completedReminders] = await Promise.all([
+      ensureDryOffReminder(supabase, farmId, data, cow?.name),
+      markCalvingRemindersDone(supabase, farmId, body.reminder_id, body.cow_id)
+    ]);
 
-    return NextResponse.json({ data: { ...data, calves, cow, reminder } }, { status: 201 });
+    return NextResponse.json({
+      data: {
+        ...data,
+        calves,
+        cow,
+        reminder,
+        completedReminder: completedReminders[0] || null,
+        completedReminders
+      }
+    }, { status: 201 });
   } catch (error) {
     return farmErrorResponse(error);
   }

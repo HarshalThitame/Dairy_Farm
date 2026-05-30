@@ -1,14 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import AppFooter from "@/components/AppFooter";
 import AuthRequired from "@/components/AuthRequired";
 import BottomNav from "@/components/BottomNav";
-import InstallBanner from "@/components/InstallBanner";
 import NetworkStatusBar from "@/components/NetworkStatusBar";
-import NotificationBoot from "@/components/NotificationBoot";
 import ToastContainer from "@/components/Toast";
 import TopHeader from "@/components/TopHeader";
+
+const InstallBanner = dynamic(() => import("@/components/InstallBanner"), { ssr: false });
+const NotificationBoot = dynamic(() => import("@/components/NotificationBoot"), { ssr: false });
 
 function isAdminRoute(pathname) {
   return pathname === "/admin-login" || pathname.startsWith("/admin");
@@ -30,7 +32,7 @@ export default function AppChrome({ children }) {
     <>
       <NetworkStatusBar />
       <TopHeader />
-      <main className="safe-bottom mx-auto min-h-screen w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6">
+      <main className="app-shell safe-bottom relative mx-auto min-h-screen w-full max-w-3xl px-4 pb-28 pt-5 sm:px-6">
         <AuthRequired>{children}</AuthRequired>
       </main>
       <AppFooter />

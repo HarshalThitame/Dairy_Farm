@@ -139,7 +139,7 @@ export default function AccountingHubPage() {
             <div className="mt-4 space-y-3 text-[20px] font-bold">
               <div className="flex justify-between gap-3"><span>दूध</span><span>{formatLitres(summary.total_liters || 0)} लि. | {toMarathiCurrency(summary.total_milk_income || 0)}</span></div>
               <div className="flex justify-between gap-3"><span>खर्च</span><span className="text-red-700">{toMarathiCurrency(summary.total_all_expenses || 0)}</span></div>
-              <div className="flex justify-between gap-3"><span>कपात</span><span className="text-red-700">{toMarathiCurrency(summary.total_dairy_deductions || 0)}</span></div>
+              <div className="flex justify-between gap-3"><span>इतर कपात</span><span className="text-red-700">{toMarathiCurrency(summary.total_dairy_deductions || 0)}</span></div>
               <div className="flex justify-between gap-3 border-t border-slate-200 pt-3 text-[22px] font-extrabold">
                 <span>नफा</span>
                 <span className={netProfit >= 0 ? "text-green-700" : "text-red-700"}>{toMarathiCurrency(netProfit)}</span>

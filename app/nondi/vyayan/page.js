@@ -75,6 +75,73 @@ function reminderDistanceText(date) {
   return `${toMarathiNumerals(distance)} दिवस बाकी`;
 }
 
+function getPendingCalvingReminder(cow) {
+  return (cow?.pending_reminders || []).find((reminder) => reminder.type === "व्यायण") || null;
+}
+
+function isBeforeExpectedCalving(cow, today) {
+  return Boolean(cow?.expected_calving_date && cow.expected_calving_date > today);
+}
+
+function CalvingCowPrompt({ cow, today, onConfirm, onChangeCow }) {
+  if (!cow) {
+    return null;
+  }
+
+  const early = isBeforeExpectedCalving(cow, today);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
+      <section className="w-full max-w-md rounded-lg border border-green-200 bg-white p-4 shadow-xl">
+        <p className="inline-flex rounded-full bg-green-100 px-3 py-1 text-[17px] font-extrabold text-green-900">
+          {early ? "आधी व्यायण झाले" : "व्यायण नोंद सुरू"}
+        </p>
+        <h2 className="mt-3 text-[28px] font-extrabold leading-tight text-slate-950">
+          हीच गाय आहे का?
+        </h2>
+        <div className="mt-4 rounded-lg border-2 border-green-200 bg-green-50 p-4">
+          <p className="text-[30px] font-extrabold leading-tight text-sheti">
+            🐄 {cow.name}
+          </p>
+          <p className="mt-2 text-[19px] font-bold text-green-900">
+            अपेक्षित व्यायण: {formatMarathiDate(cow.expected_calving_date)}
+          </p>
+          <p className="mt-1 text-[18px] font-bold text-green-800">
+            जात: {cow.breed || "माहिती नाही"}
+          </p>
+        </div>
+        {early ? (
+          <p className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-[18px] font-extrabold leading-relaxed text-yellow-900">
+            अपेक्षित तारीख अजून आलेली नाही. तरीही प्रत्यक्षात व्यायण झाले असेल तर
+            इथेच नोंद करा.
+          </p>
+        ) : null}
+        <p className="mt-4 text-[19px] font-bold leading-relaxed text-slate-700">
+          पुढच्या फॉर्ममध्ये याच गायीचे वासरू/वासरी जोडले जाईल. जतन केल्यावर
+          या गायीचा status <span className="text-sheti">व्याललेली</span> होईल.
+        </p>
+
+        <div className="mt-5 grid gap-3">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="min-h-[58px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white active:bg-green-700"
+          >
+            ✅ हो, याच गायीचे वासरू नोंद करा
+          </button>
+          <button
+            type="button"
+            onClick={onChangeCow}
+            className="min-h-[54px] rounded-lg border-2 border-slate-200 bg-white px-4 text-[19px] font-extrabold text-slate-700 active:bg-slate-50"
+          >
+            गाय बदला
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function VyayanNondPage() {
   const router = useRouter();
   const today = getTodayISODate();
@@ -82,6 +149,9 @@ export default function VyayanNondPage() {
   const [reminderId, setReminderId] = useState("");
   const [cows, setCows] = useState([]);
   const [selectedCow, setSelectedCow] = useState(null);
+  const [promptCow, setPromptCow] = useState(null);
+  const [formReady, setFormReady] = useState(false);
+  const [initialSelectionDone, setInitialSelectionDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -92,8 +162,6 @@ export default function VyayanNondPage() {
     calf_name: "",
     calf_color: "",
     calf_breed: "",
-    calf_identification_mark: "",
-    calf_weight: "",
     calving_notes: "",
     milk_start_date: today
   });
@@ -107,8 +175,12 @@ export default function VyayanNondPage() {
 
     try {
       const result = await fetchCowsOffline();
+      const params = new URLSearchParams(window.location.search);
+      const requestedCowId = params.get("cow_id") || "";
 
-      const pregnantCows = (result.data || []).filter((cow) => cow.status === "गाभण");
+      const pregnantCows = (result.data || []).filter(
+        (cow) => cow.status === "गाभण" || cow.id === requestedCowId
+      );
       const cowsWithAI = await Promise.all(
         pregnantCows.map(async (cow) => {
           const lastAI = await fetchLastAI(cow.id);
@@ -145,7 +217,7 @@ export default function VyayanNondPage() {
   }, [fetchPregnantCows]);
 
   useEffect(() => {
-    if (!initialCowId || selectedCow || cows.length === 0) {
+    if (!initialCowId || initialSelectionDone || selectedCow || cows.length === 0) {
       return;
     }
 
@@ -153,8 +225,41 @@ export default function VyayanNondPage() {
 
     if (cow) {
       setSelectedCow(cow);
+      setPromptCow(cow);
+      setFormReady(false);
+      setInitialSelectionDone(true);
+      setReminderId((current) => current || getPendingCalvingReminder(cow)?.id || "");
     }
-  }, [cows, initialCowId, selectedCow]);
+  }, [cows, initialCowId, initialSelectionDone, selectedCow]);
+
+  function scrollToElement(id) {
+    window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  function selectCowForCalving(cow) {
+    setSelectedCow(cow);
+    setPromptCow(cow);
+    setFormReady(false);
+    setReminderId(getPendingCalvingReminder(cow)?.id || "");
+    setSaveError("");
+    setSuccess("");
+  }
+
+  function confirmCowForCalving() {
+    setPromptCow(null);
+    setFormReady(true);
+    scrollToElement("vyayan-form");
+  }
+
+  function changeCowSelection() {
+    setPromptCow(null);
+    setSelectedCow(null);
+    setFormReady(false);
+    setReminderId("");
+    scrollToElement("pregnant-cows-list");
+  }
 
   function updateField(field, value) {
     setForm((currentForm) => ({
@@ -192,7 +297,6 @@ export default function VyayanNondPage() {
         calf_count: Number(form.calf_count || 1),
         calf_gender: form.calf_gender,
         calf_name: form.calf_name.trim() || null,
-        calf_weight: form.calf_weight === "" ? null : Number(form.calf_weight),
         calving_notes: form.calving_notes.trim() || null,
         raise_calf: form.calf_gender === "मादी" && form.raise_female_calf === "हो",
         calf_color:
@@ -202,10 +306,6 @@ export default function VyayanNondPage() {
         calf_breed:
           form.calf_gender === "मादी" && form.raise_female_calf === "हो"
             ? form.calf_breed.trim() || selectedCow.breed || null
-            : null,
-        calf_identification_mark:
-          form.calf_gender === "मादी" && form.raise_female_calf === "हो"
-            ? form.calf_identification_mark.trim() || null
             : null,
         dryOffDate,
         reminderId
@@ -237,9 +337,38 @@ export default function VyayanNondPage() {
 
   return (
     <div className="space-y-5">
+      <CalvingCowPrompt
+        cow={promptCow}
+        today={today}
+        onConfirm={confirmCowForCalving}
+        onChangeCow={changeCowSelection}
+      />
+
       <PageHeader title="🤰 गाभण गायी" subtitle="तारखा, आठवणी आणि व्यायण नोंद" />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      {reminderId ? (
+        <section className="rounded-lg border border-green-200 bg-green-50 p-4 shadow-soft">
+          <h2 className="text-[23px] font-extrabold text-green-900">
+            व्यायण आठवण जोडलेली आहे
+          </h2>
+          <p className="mt-2 text-[18px] font-bold leading-relaxed text-green-800">
+            ही नोंद जतन झाल्यावर वासरू तयार होईल, गायीची स्थिती व्याललेली होईल
+            आणि त्या गायीची व्यायण आठवण आपोआप पूर्ण होईल.
+          </p>
+        </section>
+      ) : null}
+
+      <section className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 shadow-soft">
+        <h2 className="text-[23px] font-extrabold text-yellow-950">
+          तारीख आधी व्यायण झाले तर?
+        </h2>
+        <p className="mt-2 text-[18px] font-bold leading-relaxed text-yellow-900">
+          गायीची expected date अजून आली नसेल तरी `आधी व्यायण झाले` दाबून नोंद करा.
+          जतन केल्यावर future व्यायण आठवण आपोआप बंद होईल.
+        </p>
+      </section>
+
+      <section id="pregnant-cows-list" className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <h2 className="mb-3 text-[24px] font-extrabold text-slate-950">गाभण गायींची यादी</h2>
         <div className="space-y-3">
           {cows.map((cow) => {
@@ -332,10 +461,14 @@ export default function VyayanNondPage() {
                   </Link>
                   <button
                     type="button"
-                    onClick={() => setSelectedCow(cow)}
+                    onClick={() => selectCowForCalving(cow)}
                     className="min-h-[52px] rounded-lg bg-sheti px-3 text-[18px] font-extrabold text-white active:bg-green-700"
                   >
-                    व्यायण नोंद
+                    {active
+                      ? "✅ निवडलेली गाय"
+                      : isBeforeExpectedCalving(cow, today)
+                        ? "आधी व्यायण झाले"
+                        : "व्यायण नोंद"}
                   </button>
                 </div>
               </article>
@@ -350,9 +483,43 @@ export default function VyayanNondPage() {
         </div>
       </section>
 
-      {selectedCow ? (
-        <form onSubmit={saveCalving} className="space-y-5">
+      {selectedCow && formReady ? (
+        <form id="vyayan-form" onSubmit={saveCalving} className="space-y-5 scroll-mt-4">
+          <section className="rounded-lg border-2 border-green-300 bg-green-50 p-4 shadow-soft">
+            <p className="text-[18px] font-extrabold text-green-800">आता नोंद करत आहात</p>
+            <h2 className="mt-2 text-[30px] font-extrabold leading-tight text-sheti">
+              🐄 {selectedCow.name}
+            </h2>
+            <p className="mt-2 text-[19px] font-bold text-green-900">
+              या फॉर्ममधील वासरू/वासरी या गायीशी जोडली जाईल.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-white/80 p-3">
+                <p className="text-[15px] font-extrabold text-green-700">अपेक्षित व्यायण</p>
+                <p className="mt-1 text-[18px] font-extrabold text-slate-950">
+                  {formatMarathiDate(selectedCow.expected_calving_date)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-white/80 p-3">
+                <p className="text-[15px] font-extrabold text-green-700">जात</p>
+                <p className="mt-1 text-[18px] font-extrabold text-slate-950">
+                  {selectedCow.breed || "माहिती नाही"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={changeCowSelection}
+              className="mt-3 min-h-[48px] w-full rounded-lg border-2 border-green-200 bg-white px-3 text-[18px] font-extrabold text-sheti active:bg-green-100"
+            >
+              गाय बदलायची असल्यास इथे दाबा
+            </button>
+          </section>
+
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-4 text-[24px] font-extrabold text-slate-950">
+              वासरू / वासरी माहिती
+            </h2>
             <div className="space-y-5">
               <FormField label="व्यायण तारीख" required>
                 <input
@@ -462,27 +629,8 @@ export default function VyayanNondPage() {
                     />
                   </FormField>
 
-                  <FormField label="ओळख खूण">
-                    <MarathiTextInput
-                      value={form.calf_identification_mark}
-                      onValueChange={(value) => updateField("calf_identification_mark", value)}
-                      className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
-                    />
-                  </FormField>
                 </>
               ) : null}
-
-              <FormField label="वासराचे वजन" hint="किलोमध्ये लिहा">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.5"
-                  value={form.calf_weight}
-                  onChange={(event) => updateField("calf_weight", event.target.value)}
-                  className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
-                />
-              </FormField>
 
               <FormField label="व्यायणाची नोंद">
                 <MarathiTextInput

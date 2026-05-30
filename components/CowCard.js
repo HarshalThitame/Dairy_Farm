@@ -11,10 +11,10 @@ export default function CowCard({ cow }) {
 
   return (
     <article
-      className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-soft ${borderClass}`}
+      className={`dashboard-card rounded-lg border border-l-4 border-slate-200 bg-white/90 p-4 shadow-soft backdrop-blur ${borderClass}`}
     >
       <div className="flex items-start gap-3">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-white bg-gradient-to-br from-green-50 to-slate-100 shadow-sm">
           {cow.photo_url ? (
             <img src={cow.photo_url} alt={cow.name} className="h-full w-full object-cover" />
           ) : (

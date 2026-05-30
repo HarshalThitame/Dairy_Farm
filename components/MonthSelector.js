@@ -23,7 +23,7 @@ export default function MonthSelector({ value, onChange }) {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-soft">
+    <div className="dashboard-card rounded-lg border border-white/80 bg-white/90 p-3 shadow-soft backdrop-blur">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
         <button
           type="button"

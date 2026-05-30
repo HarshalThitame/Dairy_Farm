@@ -1,15 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
-import {
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
 import MonthSelector from "@/components/accounting/MonthSelector";
 import ProfitWaterfall from "@/components/accounting/ProfitWaterfall";
 import ErrorState from "@/components/ErrorState";
@@ -21,23 +13,17 @@ import { fetchAccountingSummary } from "@/lib/offlineActions";
 import { formatLitres, toMarathiCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
 
+const ProfitTrendChart = dynamic(() => import("@/components/accounting/ProfitTrendChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center rounded-lg bg-slate-50 text-[18px] font-extrabold text-slate-600">
+      चार्ट लोड होत आहे...
+    </div>
+  )
+});
+
 function getInitialMonth() {
   return getIndiaMonthParts();
-}
-
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 text-[18px] font-bold shadow-soft">
-      <p>{label}</p>
-      <p className={Number(payload[0].value || 0) >= 0 ? "text-green-700" : "text-red-700"}>
-        {toMarathiCurrency(payload[0].value)}
-      </p>
-    </div>
-  );
 }
 
 export default function ProfitPage() {
@@ -71,6 +57,7 @@ export default function ProfitPage() {
   const income = Number(summary.total_milk_income || 0);
   const expenses = Number(summary.total_all_expenses || 0);
   const deductions = Number(summary.total_dairy_deductions || 0);
+  const settlementFeedDeduction = Number(report.settlementsSummary?.cattleFeedDeduction || 0);
   const netProfit = Number(summary.net_profit || income - expenses - deductions);
   const trend = (data?.trend || []).map((item) => ({
     ...item,
@@ -92,7 +79,7 @@ export default function ProfitPage() {
           <section className="grid grid-cols-2 gap-3">
             <SummaryCard emoji="💰" title="एकूण दूध उत्पन्न" value={toMarathiCurrency(income)} subtext={`${formatLitres(summary.total_liters || 0)} लिटर`} color="green" />
             <SummaryCard emoji="💸" title="एकूण खर्च" value={toMarathiCurrency(expenses)} subtext="फार्म खर्च" color="red" />
-            <SummaryCard emoji="📉" title="देयक कपात" value={toMarathiCurrency(deductions)} subtext="खाद्य + इतर" color="red" />
+            <SummaryCard emoji="📉" title="नफ्यात धरलेली कपात" value={toMarathiCurrency(deductions)} subtext="इतर देयक कपात" color="red" />
             <SummaryCard emoji="📊" title="शुद्ध नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "नफा" : "तोटा"} color={netProfit >= 0 ? "green" : "red"} />
           </section>
 
@@ -114,8 +101,13 @@ export default function ProfitPage() {
               <div>
                 <h3 className="text-[21px] font-extrabold text-red-800">डेअरी कपात</h3>
                 <p className="mt-2 text-[19px] font-bold text-slate-700">
-                  खाद्य कपात: {toMarathiCurrency(report.settlementsSummary?.cattleFeedDeduction || 0)}
+                  खाद्य कपात: {toMarathiCurrency(settlementFeedDeduction)}
                 </p>
+                {settlementFeedDeduction > 0 ? (
+                  <p className="mt-1 text-[17px] font-bold text-slate-500">
+                    खाद्य कपात खर्चात पुन्हा जोडलेली नाही. खाद्य खर्च खर्च नोंदीतून धरला जातो.
+                  </p>
+                ) : null}
                 <p className="mt-1 text-[19px] font-bold text-slate-700">
                   इतर कपात: {toMarathiCurrency(report.settlementsSummary?.otherDeductions || 0)}
                 </p>
@@ -139,15 +131,7 @@ export default function ProfitPage() {
             <h2 className="text-[24px] font-extrabold text-slate-950">६ महिन्यांचा नफा ट्रेंड</h2>
             {trend.length > 0 ? (
               <div className="mt-4 h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trend} margin={{ top: 12, right: 12, left: 4, bottom: 8 }}>
-                    <XAxis dataKey="label" tick={{ fontSize: 13, fontWeight: 700 }} interval={0} />
-                    <YAxis tickFormatter={(value) => toMarathiNumerals(value)} width={62} tick={{ fontSize: 13, fontWeight: 700 }} />
-                    <ReferenceLine y={0} stroke="#94a3b8" />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Line type="monotone" dataKey="profit" stroke={netProfit >= 0 ? "#16a34a" : "#dc2626"} strokeWidth={4} dot={{ r: 5 }} isAnimationActive={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <ProfitTrendChart trend={trend} netProfit={netProfit} />
               </div>
             ) : (
               <p className="mt-4 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[20px] font-extrabold text-slate-600">

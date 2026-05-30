@@ -171,6 +171,7 @@ export function AuthProvider({ children }) {
       if (storedUser && storedFarm) {
         setUser(storedUser);
         setFarm(storedFarm);
+        setIsLoading(false);
       }
 
       if (typeof navigator !== "undefined" && !navigator.onLine) {

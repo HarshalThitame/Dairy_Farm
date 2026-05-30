@@ -1,10 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import MiniSparkline from "@/components/MiniSparkline";
 import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
@@ -17,6 +17,11 @@ import {
 } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
 import { getIndiaMonthParts } from "@/lib/reportUtils";
+
+const MiniSparkline = dynamic(() => import("@/components/MiniSparkline"), {
+  ssr: false,
+  loading: () => <div className="h-16 rounded-lg bg-slate-50" />
+});
 
 const filters = ["सर्व गायी", "फक्त दुधाळ गायी", "गाभण गायी", "कमी उत्पादन गायी"];
 

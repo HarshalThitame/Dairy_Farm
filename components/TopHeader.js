@@ -34,9 +34,9 @@ export default function TopHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-white/70 bg-white/90 px-3 py-2 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <Link href="/" className="min-w-0 rounded-lg active:opacity-80" aria-label="माझी डेअरी मुख्यपृष्ठ">
+        <Link href="/" className="dashboard-card min-w-0 rounded-lg px-2 py-1 active:opacity-80" aria-label="माझी डेअरी मुख्यपृष्ठ">
           <BrandLockup size="sm" />
           {farmName ? (
             <p className="mt-1 truncate pl-10 text-[15px] font-bold leading-tight text-slate-500">
@@ -49,14 +49,14 @@ export default function TopHeader() {
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="flex min-h-[52px] min-w-[52px] items-center justify-center rounded-full bg-slate-100 text-[24px] active:bg-slate-200"
+            className="dashboard-card flex min-h-[52px] min-w-[52px] items-center justify-center rounded-full border border-green-100 bg-gradient-to-br from-green-50 to-white text-[24px] shadow-sm active:bg-green-100"
             aria-label="खाते"
           >
             👤
           </button>
 
           {open ? (
-            <div className="absolute right-0 top-[60px] w-[260px] rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="absolute right-0 top-[60px] w-[270px] rounded-lg border border-white/80 bg-white/95 p-3 shadow-2xl backdrop-blur-xl">
               <p className="text-[19px] font-extrabold text-slate-950">
                 नमस्कार, {user?.name || "वापरकर्ता"}
               </p>

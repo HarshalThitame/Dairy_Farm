@@ -85,8 +85,8 @@ function LoginContent() {
   }
 
   return (
-    <div className="-mx-4 -my-4 flex min-h-screen items-center justify-center bg-gradient-to-br from-green-700 via-sheti to-green-500 px-4 py-8">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl">
+    <div className="auth-screen -mx-4 -my-5 flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="auth-card w-full max-w-md rounded-lg border border-white/80 bg-white/90 p-5 shadow-2xl backdrop-blur-xl">
         <div className="text-center">
           <BrandLockup size="lg" center />
           <p className="mt-2 text-[20px] font-bold text-slate-600">
@@ -180,8 +180,8 @@ function LoginContent() {
       </div>
 
       {forgotOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-white/80 bg-white p-5 shadow-2xl">
             <h2 className="text-[24px] font-extrabold text-slate-950">
               PIN विसरलात?
             </h2>
@@ -224,8 +224,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="-mx-4 -my-4 flex min-h-screen items-center justify-center bg-gradient-to-br from-green-700 via-sheti to-green-500 px-4 py-8">
-          <div className="rounded-lg bg-white p-5 text-center shadow-2xl">
+        <div className="auth-screen -mx-4 -my-5 flex min-h-screen items-center justify-center px-4 py-8">
+          <div className="auth-card rounded-lg border border-white/80 bg-white/90 p-5 text-center shadow-2xl backdrop-blur-xl">
             <BrandLockup size="sm" center />
             <p className="mt-4 text-[20px] font-extrabold text-slate-800">खाते पान लोड होत आहे...</p>
           </div>

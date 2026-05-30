@@ -9,7 +9,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 const allowedStatuses = new Set(["active", "historical", "sold", "dead", "converted_to_cow"]);
-const editableTextFields = ["name", "color", "breed", "identification_mark", "notes"];
+const editableTextFields = ["name", "color", "breed", "notes"];
 const editablePhotoFields = ["photo_url", "photo_storage_path"];
 
 function cleanText(value) {
@@ -187,7 +187,7 @@ async function createCowFromConversion(supabase, farmId, calf, conversion) {
       name: cowName,
       breed: cleanText(conversion.breed || calf.breed || calf.mother?.breed) || "जर्सी",
       date_of_birth: calf.birth_date,
-      tag_number: cleanText(conversion.tag_number || calf.identification_mark),
+      tag_number: cleanText(conversion.tag_number),
       color: cleanText(conversion.color || calf.color),
       status: "गाभण",
       photo_url: cleanText(conversion.photo_url || calf.photo_url),

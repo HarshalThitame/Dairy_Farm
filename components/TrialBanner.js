@@ -26,7 +26,7 @@ export default function TrialBanner() {
 
   if (daysLeft > 7) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-[18px] font-extrabold text-green-800">
+      <div className="dashboard-card rounded-lg border border-green-200 bg-green-50 p-4 text-[18px] font-extrabold text-green-800 shadow-soft">
         🎉 आपल्याकडे {toMarathiNumerals(daysLeft)} दिवसांचा चाचणी कालावधी आहे.
       </div>
     );
@@ -34,14 +34,14 @@ export default function TrialBanner() {
 
   if (daysLeft >= 0) {
     return (
-      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-[18px] font-extrabold text-yellow-900">
+      <div className="dashboard-card rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-[18px] font-extrabold text-yellow-900 shadow-soft">
         ⚠️ आपला चाचणी कालावधी {toMarathiNumerals(daysLeft || 1)} दिवसांत संपणार आहे.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-[18px] font-extrabold text-red-800">
+    <div className="dashboard-card rounded-lg border border-red-200 bg-red-50 p-4 text-[18px] font-extrabold text-red-800 shadow-soft">
       🔒 आपला चाचणी कालावधी संपला आहे.
     </div>
   );

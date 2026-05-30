@@ -7,6 +7,7 @@ import MarathiTextInput from "@/components/MarathiTextInput";
 import { useAuth } from "@/context/AuthContext";
 import { saveDairySlip } from "@/lib/offlineActions";
 import { getTodayISODate, toMarathiCurrency } from "@/lib/marathiUtils";
+import { getMilkTypeLabel } from "@/lib/marathiLabels";
 
 const inputClass = "min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100";
 
@@ -15,13 +16,17 @@ export default function DairySlipForm({ initialData = null }) {
   const { farm } = useAuth();
   const [form, setForm] = useState({
     slip_date: initialData?.slip_date || getTodayISODate(),
+    slip_time: initialData?.slip_time || "",
     session: initialData?.session || "सकाळ",
+    milk_type: initialData?.milk_type || "cow",
     dairy_name: initialData?.dairy_name || farm?.dairyName || "",
     dairy_member_number: initialData?.dairy_member_number || farm?.dairyMemberNumber || "",
+    dairy_member_code: initialData?.dairy_member_code || initialData?.dairy_member_number || farm?.dairyMemberNumber || "",
     liters: initialData?.liters || "",
     fat_percentage: initialData?.fat_percentage || "",
     snf_percentage: initialData?.snf_percentage || "",
     clr_degree: initialData?.clr_degree || "",
+    clr_score: initialData?.clr_score || initialData?.clr_degree || "",
     rate_per_liter: initialData?.rate_per_liter || farm?.milkRateDefault || "",
     notes: initialData?.notes || "",
     slip_image_url: initialData?.slip_image_url || ""
@@ -80,6 +85,9 @@ export default function DairySlipForm({ initialData = null }) {
           <FormField label="तारीख" required>
             <input type="date" value={form.slip_date} onChange={(event) => updateField("slip_date", event.target.value)} className={inputClass} required />
           </FormField>
+          <FormField label="वेळ">
+            <input type="time" step="1" value={form.slip_time} onChange={(event) => updateField("slip_time", event.target.value)} className={inputClass} />
+          </FormField>
 
           <div>
             <p className="mb-2 text-[20px] font-extrabold text-slate-900">सत्र <span className="text-tatkal">*</span></p>
@@ -109,6 +117,26 @@ export default function DairySlipForm({ initialData = null }) {
           <FormField label="सदस्य नंबर">
             <input value={form.dairy_member_number} onChange={(event) => updateField("dairy_member_number", event.target.value)} placeholder="ND-1042" className={inputClass} />
           </FormField>
+          <FormField label="डेअरी कोड">
+            <input value={form.dairy_member_code} onChange={(event) => updateField("dairy_member_code", event.target.value)} placeholder="52" className={inputClass} />
+          </FormField>
+          <div>
+            <p className="mb-2 text-[20px] font-extrabold text-slate-900">दुधाचा प्रकार</p>
+            <div className="grid grid-cols-2 gap-3">
+              {["cow", "buffalo"].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => updateField("milk_type", type)}
+                  className={`min-h-[56px] rounded-lg border-2 px-3 text-[19px] font-extrabold ${
+                    form.milk_type === type ? "border-green-300 bg-green-100 text-sheti" : "border-slate-200 bg-white text-slate-700 active:bg-slate-100"
+                  }`}
+                >
+                  {getMilkTypeLabel(type)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -125,7 +153,20 @@ export default function DairySlipForm({ initialData = null }) {
               <input type="number" inputMode="decimal" min="0" step="0.1" value={form.snf_percentage} onChange={(event) => updateField("snf_percentage", event.target.value)} placeholder="८.२" className={inputClass} />
             </FormField>
             <FormField label="CLR">
-              <input type="number" inputMode="decimal" min="0" step="0.1" value={form.clr_degree} onChange={(event) => updateField("clr_degree", event.target.value)} placeholder="२७" className={inputClass} />
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="100"
+                step="0.1"
+                value={form.clr_score || form.clr_degree}
+                onChange={(event) => {
+                  updateField("clr_score", event.target.value);
+                  updateField("clr_degree", event.target.value);
+                }}
+                placeholder="३०.०"
+                className={inputClass}
+              />
             </FormField>
           </div>
         </div>

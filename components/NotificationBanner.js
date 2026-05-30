@@ -42,7 +42,7 @@ export default function NotificationBanner() {
   }
 
   return (
-    <section className="rounded-lg border border-green-200 bg-green-50 p-4 shadow-soft">
+    <section className="dashboard-card rounded-lg border border-green-200 bg-green-50 p-4 shadow-soft">
       <p className="text-[20px] font-extrabold leading-snug text-green-900">
         🔔 आठवणींसाठी सूचना चालू करा
       </p>

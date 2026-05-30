@@ -1,18 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AmountBarChart from "@/components/AmountBarChart";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
-import SummaryCard from "@/components/SummaryCard";
-import { getAccountingPeriodLabel } from "@/lib/accountingPeriods";
-import {
-  displayFeedExpenseText,
-  displayFeedSectionName,
-  FEED_SECTION_CATTLE_FEED
-} from "@/lib/feedExpenseSections";
+import { displayFeedExpenseText } from "@/lib/feedExpenseSections";
 import {
   formatCurrency,
   formatMarathiDate,
@@ -21,9 +15,16 @@ import {
 import { fetchJson } from "@/lib/offlineActions";
 import { displayFinanceCategory, getIndiaMonthParts } from "@/lib/reportUtils";
 
+const AmountBarChart = dynamic(() => import("@/components/AmountBarChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[220px] items-center justify-center rounded-lg bg-slate-50 text-[18px] font-extrabold text-slate-600">
+      चार्ट लोड होत आहे...
+    </div>
+  )
+});
+
 const expenseSectionOrder = ["खाद्य", "चारा", "औषध", "रेतन खर्च", "पशुवैद्यक", "मजुरी", "इतर"];
-const filterOptions = ["सर्व", ...expenseSectionOrder];
-const feedSectionOrder = [FEED_SECTION_CATTLE_FEED, "मुरघास", "भुसा", "इतर"];
 
 function getInitialMonth() {
   const current = getIndiaMonthParts();
@@ -43,15 +44,73 @@ function transactionCategory(transaction) {
   return displayFinanceCategory(transaction.category);
 }
 
-function buildExpenseChart(items) {
-  return (items || []).map((item) => ({
-    label: item.category,
-    amount: Number(item.amount || 0)
-  }));
+function topAmountItem(items) {
+  return (items || []).reduce(
+    (top, item) => (Number(item.amount || 0) > Number(top.amount || 0) ? item : top),
+    { category: "", amount: 0 }
+  );
 }
 
 function sumAmounts(items, amountField = "amount") {
   return (items || []).reduce((sum, item) => sum + Number(item[amountField] || 0), 0);
+}
+
+function CompactStat({ label, value, hint, tone = "slate" }) {
+  const toneClass = {
+    red: "border-red-100 bg-red-50 text-red-950",
+    yellow: "border-yellow-100 bg-yellow-50 text-yellow-950",
+    green: "border-green-100 bg-green-50 text-green-950",
+    blue: "border-blue-100 bg-blue-50 text-blue-950",
+    slate: "border-slate-200 bg-slate-50 text-slate-950"
+  };
+
+  return (
+    <article className={`rounded-lg border p-4 ${toneClass[tone] || toneClass.slate}`}>
+      <p className="text-[17px] font-extrabold opacity-80">{label}</p>
+      <p className="mt-2 text-[25px] font-extrabold leading-none">{value}</p>
+      {hint ? <p className="mt-2 text-[16px] font-bold leading-snug opacity-75">{hint}</p> : null}
+    </article>
+  );
+}
+
+function BreakdownList({ title, items, total, emptyText }) {
+  const maxAmount = Math.max(...(items || []).map((item) => Number(item.amount || 0)), 1);
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-[24px] font-extrabold text-slate-950">{title}</h2>
+          <p className="mt-1 text-[17px] font-bold text-slate-600">
+            एकूण {formatCurrency(total || 0)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {(items || []).length > 0 ? (
+          items.map((item) => (
+            <div key={item.category} className="rounded-lg bg-slate-50 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[19px] font-extrabold text-slate-900">{item.category}</p>
+                <p className="text-[19px] font-extrabold text-red-700">{formatCurrency(item.amount)}</p>
+              </div>
+              <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{ width: `${Math.max(8, (Number(item.amount || 0) / maxAmount) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[18px] font-bold text-slate-600">
+            {emptyText}
+          </p>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function buildExpenseSections(expenses) {
@@ -120,29 +179,6 @@ function ExpenseTransaction({ transaction, annual = false }) {
   );
 }
 
-function FeedRecord({ record }) {
-  return (
-    <article className="rounded-lg border border-yellow-100 bg-yellow-50 p-3 text-yellow-950">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[19px] font-extrabold">
-            {displayFeedSectionName(record.section)} - {record.item_name}
-          </p>
-          <p className="mt-1 text-[17px] font-bold">
-            {formatMarathiDate(record.date)} | {getAccountingPeriodLabel(record.accounting_period)}
-          </p>
-          {record.supplier_name ? (
-            <p className="mt-1 text-[17px] font-bold text-yellow-800">{record.supplier_name}</p>
-          ) : null}
-        </div>
-        <p className="shrink-0 text-[20px] font-extrabold text-red-700">
-          {formatCurrency(record.total_cost)}
-        </p>
-      </div>
-    </article>
-  );
-}
-
 function ExpenseCategorySection({ category, transactions, total }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
@@ -172,28 +208,100 @@ function ExpenseCategorySection({ category, transactions, total }) {
   );
 }
 
-function FeedSectionDetails({ section, records }) {
-  const total = sumAmounts(records, "total_cost");
+function LedgerSection({
+  number,
+  title,
+  total,
+  entries,
+  topItem,
+  summaryText,
+  includeText,
+  excludeText,
+  breakdownTitle,
+  breakdownItems,
+  breakdownEmptyText,
+  sections,
+  emptyText,
+  tone = "red",
+  children
+}) {
+  const toneClass = {
+    red: "border-red-200 bg-red-50 text-red-950",
+    yellow: "border-yellow-200 bg-yellow-50 text-yellow-950"
+  };
+  const amountClass = tone === "yellow" ? "text-yellow-900" : "text-red-800";
+  const badgeClass = tone === "yellow" ? "bg-yellow-200 text-yellow-950" : "bg-red-200 text-red-950";
 
   return (
-    <section className="rounded-lg border border-yellow-100 bg-white p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-[23px] font-extrabold text-slate-950">
-            {displayFeedSectionName(section)}
-          </h2>
-          <p className="mt-1 text-[17px] font-bold text-slate-600">
-            {toMarathiNumerals(records.length)} चारा नोंदी
-          </p>
+    <section className="space-y-4">
+      <div className={`rounded-lg border p-4 ${toneClass[tone] || toneClass.red}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className={`inline-flex rounded-full px-3 py-1 text-[16px] font-extrabold ${badgeClass}`}>
+              भाग {toMarathiNumerals(number)}
+            </p>
+            <h2 className="mt-3 text-[28px] font-extrabold leading-tight">{title}</h2>
+            <p className="mt-2 text-[18px] font-bold leading-relaxed opacity-80">
+              {summaryText}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-[16px] font-extrabold opacity-75">एकूण</p>
+            <p className={`mt-1 text-[27px] font-extrabold leading-none ${amountClass}`}>
+              {formatCurrency(total || 0)}
+            </p>
+            <p className="mt-2 text-[16px] font-bold opacity-75">
+              {toMarathiNumerals(entries)} नोंदी
+            </p>
+          </div>
         </div>
-        <p className="shrink-0 text-[22px] font-extrabold text-red-700">
-          {formatCurrency(total)}
-        </p>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg bg-white/70 p-3">
+            <p className="text-[17px] font-extrabold">या भागात येते</p>
+            <p className="mt-1 text-[17px] font-bold leading-relaxed opacity-80">{includeText}</p>
+          </div>
+          <div className="rounded-lg bg-white/70 p-3">
+            <p className="text-[17px] font-extrabold">या भागात येत नाही</p>
+            <p className="mt-1 text-[17px] font-bold leading-relaxed opacity-80">{excludeText}</p>
+          </div>
+        </div>
+
+        {topItem?.amount > 0 ? (
+          <p className="mt-4 rounded-lg bg-white/70 p-3 text-[18px] font-bold">
+            सर्वात जास्त खर्च:{" "}
+            <span className={amountClass}>
+              {topItem.category} - {formatCurrency(topItem.amount)}
+            </span>
+          </p>
+        ) : null}
       </div>
-      <div className="mt-4 space-y-3">
-        {records.map((record) => (
-          <FeedRecord key={record.id} record={record} />
-        ))}
+
+      <BreakdownList
+        title={breakdownTitle}
+        items={breakdownItems}
+        total={total}
+        emptyText={breakdownEmptyText}
+      />
+
+      {children}
+
+      <div className="space-y-3">
+        <h3 className="text-[24px] font-extrabold text-slate-950">सविस्तर नोंदी</h3>
+        {sections.length > 0 ? (
+          sections.map((section) => (
+            <ExpenseCategorySection
+              key={section.category}
+              category={section.category}
+              transactions={section.transactions}
+              total={section.total}
+            />
+          ))
+        ) : (
+          <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-[19px] font-bold text-slate-600">
+            {emptyText}
+          </p>
+        )}
       </div>
     </section>
   );
@@ -202,8 +310,6 @@ function FeedSectionDetails({ section, records }) {
 export default function ExpenseAnalyticsPage() {
   const [monthValue, setMonthValue] = useState(getInitialMonth);
   const [financeReport, setFinanceReport] = useState(null);
-  const [feedReport, setFeedReport] = useState(null);
-  const [activeFilter, setActiveFilter] = useState("सर्व");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -213,13 +319,9 @@ export default function ExpenseAnalyticsPage() {
 
     try {
       const query = `month=${monthValue.month}&year=${monthValue.year}`;
-      const [finance, feed] = await Promise.all([
-        fetchJson(`/api/reports/finance?${query}`),
-        fetchJson(`/api/feed-expenses?${query}`, { unwrapData: false })
-      ]);
+      const finance = await fetchJson(`/api/reports/finance?${query}`);
 
       setFinanceReport(finance);
-      setFeedReport(feed);
     } catch (fetchError) {
       setError(fetchError.message || "खर्च अहवाल मिळवताना चूक झाली.");
     } finally {
@@ -236,198 +338,115 @@ export default function ExpenseAnalyticsPage() {
     [financeReport?.transactions]
   );
   const annualExpenses = financeReport?.annualTransactions || [];
-  const allExpenses = [...monthlyExpenses, ...annualExpenses];
-  const filteredExpenses = allExpenses.filter(
-    (transaction) => activeFilter === "सर्व" || transactionCategory(transaction) === activeFilter
-  );
-  const feedSections = new Map((feedReport?.summary?.bySection || []).map((item) => [item.section, item.amount]));
-  const expenseSections = buildExpenseSections(allExpenses);
-  const feedSectionDetails = feedSectionOrder
-    .map((section) => ({
-      section,
-      records: (feedReport?.data || []).filter((record) => record.section === section)
-    }))
-    .filter((section) => section.records.length > 0);
+  const monthlyExpenseSections = buildExpenseSections(monthlyExpenses);
+  const annualExpenseSections = buildExpenseSections(annualExpenses);
   const monthlyTrend = (financeReport?.monthlyTrend || []).map((item) => ({
     label: item.label,
     amount: item.expense
   }));
+  const topMonthlyExpense = topAmountItem(financeReport?.expenseByCategory || []);
+  const topAnnualExpense = topAmountItem(financeReport?.annualExpenseByCategory || []);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="💸 खर्च सविस्तर" subtitle="चारा, औषध, मजुरी आणि इतर खर्च" />
+      <PageHeader title="💸 खर्च सविस्तर" subtitle="खाद्य, औषध, मजुरी आणि इतर खर्च" />
       <MonthSelector value={monthValue} onChange={setMonthValue} />
 
       {loading ? <LoadingState text="खर्च अहवाल लोड होत आहे..." /> : null}
       {error ? <ErrorState message={error} onRetry={fetchReports} /> : null}
 
-      {!loading && !error && financeReport && feedReport ? (
+      {!loading && !error && financeReport ? (
         <>
-          <section className="grid grid-cols-2 gap-3">
-            <SummaryCard
-              emoji="💸"
-              title="मासिक खर्च"
-              value={formatCurrency(financeReport.totalExpense || 0)}
-              subtext="खाद्य + औषध + कपात + इतर"
-              color="red"
-            />
-            <SummaryCard
-              emoji="🌾"
-              title="वार्षिक चारा"
-              value={formatCurrency(financeReport.annualExpense || 0)}
-              subtext="मुरघास + भुसा"
-              color="yellow"
-            />
-            <SummaryCard
-              emoji="🧾"
-              title="एकूण व्यवहार"
-              value={toMarathiNumerals(allExpenses.length)}
-              subtext="मासिक + वार्षिक"
-              color="slate"
-            />
-            <SummaryCard
-              emoji="📊"
-              title="चारा खर्च"
-              value={formatCurrency((feedReport.summary?.allTotal || 0))}
-              subtext="खाद्य + मुरघास + भुसा"
-              color="purple"
-            />
-          </section>
-
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">खर्च प्रकार</h2>
-            <div className="mt-4">
-              <AmountBarChart
-                data={buildExpenseChart([
-                  ...(financeReport.expenseByCategory || []),
-                  ...(financeReport.annualExpenseByCategory || []).map((item) => ({
-                    ...item,
-                    category: `${item.category} वार्षिक`
-                  }))
-                ])}
-                positiveColor="#dc2626"
+            <h2 className="text-[25px] font-extrabold text-slate-950">
+              खर्च दोन वेगळ्या भागात दाखवला आहे
+            </h2>
+            <p className="mt-2 text-[18px] font-bold leading-relaxed text-slate-600">
+              मासिक खर्च आणि वार्षिक खर्च एकत्र केलेले नाहीत. त्यामुळे खाद्य, औषध,
+              मजुरी हे महिन्यात दिसते आणि मुरघास/भुसा वर्षात वेगळे दिसते.
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <CompactStat
+                label="मासिक खर्च"
+                value={formatCurrency(financeReport.totalExpense || 0)}
+                hint="खाद्य + औषध + मजुरी + इतर"
+                tone="red"
+              />
+              <CompactStat
+                label="वार्षिक खर्च"
+                value={formatCurrency(financeReport.annualExpense || 0)}
+                hint="मुरघास + भुसा"
+                tone="yellow"
+              />
+              <CompactStat
+                label="मासिक नोंदी"
+                value={toMarathiNumerals(monthlyExpenses.length)}
+                hint="या महिन्यातील नोंदी"
+                tone="slate"
+              />
+              <CompactStat
+                label="वार्षिक नोंदी"
+                value={toMarathiNumerals(annualExpenses.length)}
+                hint={`${toMarathiNumerals(monthValue.year)} मधील नोंदी`}
+                tone="slate"
               />
             </div>
-          </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">चारा विभाग</h2>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {feedSectionOrder.map((section) => (
-                <div key={section} className="rounded-lg bg-yellow-50 p-3 text-yellow-950">
-                  <p className="text-[18px] font-extrabold">{displayFeedSectionName(section)}</p>
-                  <p className="mt-1 text-[22px] font-extrabold">
-                    {formatCurrency(feedSections.get(section) || 0)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">मासिक तुलना</h2>
-            <div className="mt-4">
-              <AmountBarChart data={monthlyTrend} positiveColor="#dc2626" height={260} />
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">फिल्टर</h2>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {filterOptions.map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setActiveFilter(filter)}
-                  className={`min-h-[52px] shrink-0 rounded-lg border-2 px-4 text-[18px] font-extrabold ${
-                    activeFilter === filter
-                      ? "border-red-300 bg-red-100 text-red-800"
-                      : "border-slate-200 bg-white text-slate-700"
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-[24px] font-extrabold text-slate-950">खर्च विभागवार नोंदी</h2>
-              <p className="mt-1 text-[18px] font-bold text-slate-600">
-                औषध, खाद्य, मजुरी आणि इतर प्रत्येक खर्च आपापल्या विभागात
+            <div className="mt-4 rounded-lg bg-slate-50 p-3 text-[18px] font-bold leading-relaxed text-slate-700">
+              <p>
+                लक्षात ठेवा: <span className="text-red-700">मासिक खर्च</span> नफा मोजताना
+                महिन्यात धरला जातो. <span className="text-yellow-800">वार्षिक खर्च</span>{" "}
+                वेगळा दाखवला जातो, म्हणजे महिन्याचा खर्च चुकीने जास्त दिसत नाही.
               </p>
             </div>
-            {expenseSections.length > 0 ? (
-              expenseSections.map((section) => (
-                <ExpenseCategorySection
-                  key={section.category}
-                  category={section.category}
-                  transactions={section.transactions}
-                  total={section.total}
-                />
-              ))
-            ) : (
-              <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-[19px] font-bold text-slate-600">
-                या महिन्यात खर्च नोंदी नाहीत.
-              </p>
-            )}
           </section>
 
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-[24px] font-extrabold text-slate-950">चारा विभागवार नोंदी</h2>
-              <p className="mt-1 text-[18px] font-bold text-slate-600">
-                खाद्य, मुरघास, भुसा आणि इतर चारा खर्च
+          <LedgerSection
+            number={1}
+            title="मासिक खर्च"
+            total={financeReport.totalExpense || 0}
+            entries={monthlyExpenses.length}
+            topItem={topMonthlyExpense}
+            summaryText="हा भाग फक्त निवडलेल्या महिन्याचा रोजचा/मासिक खर्च दाखवतो."
+            includeText="खाद्य, औषध, मजुरी, वीज, वाहतूक, पशुवैद्यक आणि इतर रोजचे खर्च."
+            excludeText="मुरघास आणि भुसा इथे धरलेले नाहीत."
+            breakdownTitle="मासिक खर्च विभागवार"
+            breakdownItems={financeReport.expenseByCategory || []}
+            breakdownEmptyText="या महिन्यात मासिक खर्च नाही."
+            sections={monthlyExpenseSections}
+            emptyText="या महिन्यात मासिक खर्च नोंदी नाहीत."
+            tone="red"
+          >
+            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+              <h3 className="text-[24px] font-extrabold text-slate-950">
+                मागील ६ महिन्यांचा मासिक खर्च
+              </h3>
+              <p className="mt-1 text-[17px] font-bold text-slate-600">
+                खर्च वाढतोय की कमी होतोय हे पाहण्यासाठी.
               </p>
-            </div>
-            {feedSectionDetails.length > 0 ? (
-              feedSectionDetails.map((section) => (
-                <FeedSectionDetails
-                  key={section.section}
-                  section={section.section}
-                  records={section.records}
-                />
-              ))
-            ) : (
-              <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-[19px] font-bold text-slate-600">
-                चारा खर्च नोंदी नाहीत.
-              </p>
-            )}
-          </section>
+              <div className="mt-4">
+                <AmountBarChart data={monthlyTrend} positiveColor="#dc2626" height={240} />
+              </div>
+            </section>
+          </LedgerSection>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">चारा खर्च इतिहास</h2>
-            <div className="mt-4 space-y-3">
-              {(feedReport.data || []).map((record) => (
-                <FeedRecord key={record.id} record={record} />
-              ))}
-              {(feedReport.data || []).length === 0 ? (
-                <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-[19px] font-bold text-slate-600">
-                  चारा खर्च नोंदी नाहीत.
-                </p>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">सर्व खर्च व्यवहार</h2>
-            <div className="mt-4 space-y-3">
-              {filteredExpenses.length > 0 ? (
-                filteredExpenses.map((transaction) => (
-                  <ExpenseTransaction
-                    key={transaction.id}
-                    transaction={transaction}
-                    annual={transaction.accounting_period === "annual"}
-                  />
-                ))
-              ) : (
-                <p className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-[19px] font-bold text-slate-600">
-                  या फिल्टरमध्ये खर्च नाही.
-                </p>
-              )}
-            </div>
-          </section>
+          <LedgerSection
+            number={2}
+            title="वार्षिक खर्च"
+            total={financeReport.annualExpense || 0}
+            entries={annualExpenses.length}
+            topItem={topAnnualExpense}
+            summaryText={`${toMarathiNumerals(monthValue.year)} या वर्षातील मोठे आणि अनियमित चारा खर्च.`}
+            includeText="मुरघास आणि भुसा यांसारखे मोठे पण अनियमित चारा खर्च."
+            excludeText="खाद्य, औषध, मजुरी आणि इतर महिन्याचे खर्च इथे धरलेले नाहीत."
+            breakdownTitle="वार्षिक खर्च विभागवार"
+            breakdownItems={financeReport.annualExpenseByCategory || []}
+            breakdownEmptyText="या वर्षात वार्षिक खर्च नाही."
+            sections={annualExpenseSections}
+            emptyText="या वर्षात वार्षिक खर्च नोंदी नाहीत."
+            tone="yellow"
+          />
         </>
       ) : null}
     </div>

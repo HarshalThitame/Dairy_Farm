@@ -43,6 +43,12 @@ const reportLinks = [
     color: "border-green-200 bg-green-50 text-green-900"
   },
   {
+    href: "/ahval/varshik",
+    title: "वार्षिक अहवाल",
+    emoji: "📘",
+    color: "border-blue-200 bg-blue-50 text-blue-900"
+  },
+  {
     href: "/ahval/gaykamgiri",
     title: "गाय कामगिरी",
     emoji: "🐄",
@@ -130,7 +136,7 @@ export default function AhvalPage() {
                 emoji="💸"
                 title="मासिक खर्च"
                 value={formatCurrency(financeReport?.totalExpense || 0)}
-                subtext="खाद्य + औषध + कपात + इतर"
+                subtext="खाद्य + औषध + इतर"
                 color="red"
               />
             </Link>
@@ -139,7 +145,7 @@ export default function AhvalPage() {
                 emoji="📈"
                 title="मासिक नफा"
                 value={formatCurrency(netProfit)}
-                subtext="कपात धरून"
+                subtext="इतर कपात धरून"
                 color={netProfit >= 0 ? "green" : "red"}
               />
             </Link>

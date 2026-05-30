@@ -20,11 +20,22 @@ function EmptyRow({ columns }) {
   );
 }
 
+function printableValue(value, convertDigits = false) {
+  const text = String(value || "").trim();
+
+  if (!text) {
+    return "माहिती नाही";
+  }
+
+  return convertDigits ? toMarathiNumerals(text) : text;
+}
+
 export default function PrintableReport({ reportData, selectedSections }) {
   const milk = reportData?.milk || {};
   const finance = reportData?.finance || {};
   const performance = reportData?.performance || [];
   const vaccination = reportData?.vaccination || {};
+  const farm = reportData?.farm || {};
 
   function include(section) {
     return selectedSections.includes(section);
@@ -38,6 +49,30 @@ export default function PrintableReport({ reportData, selectedSections }) {
         <p className="mt-1 text-[21px] font-bold">
           {getMonthLabel(reportData.month, reportData.year)}
         </p>
+        <table className="mt-4 w-full border-collapse text-left text-[17px]">
+          <tbody>
+            <tr>
+              <th className="w-1/4 border border-slate-900 p-2">नाव</th>
+              <td className="w-1/4 border border-slate-900 p-2 font-bold">
+                {printableValue(farm.ownerName)}
+              </td>
+              <th className="w-1/4 border border-slate-900 p-2">मोबाइल नंबर</th>
+              <td className="w-1/4 border border-slate-900 p-2 font-bold">
+                {printableValue(farm.ownerMobile, true)}
+              </td>
+            </tr>
+            <tr>
+              <th className="border border-slate-900 p-2">दूध संकलन केंद्राचे नाव</th>
+              <td className="border border-slate-900 p-2 font-bold">
+                {printableValue(farm.dairyName)}
+              </td>
+              <th className="border border-slate-900 p-2">डेअरी सदस्य नंबर</th>
+              <td className="border border-slate-900 p-2 font-bold">
+                {printableValue(farm.dairyMemberNumber, true)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </header>
 
       {include("milk") ? (

@@ -77,14 +77,15 @@ export default function PrintReportPage() {
 
     try {
       const query = `month=${monthValue.month}&year=${monthValue.year}`;
-      const [milk, finance, vaccination, cows, ai, calving] =
+      const [milk, finance, vaccination, cows, ai, calving, farm] =
         await Promise.all([
           fetchJson(`/api/reports/milk?${query}`),
           fetchJson(`/api/reports/finance?${query}`),
           fetchJson("/api/reports/vaccination"),
           fetchJson("/api/cows"),
           fetchJson("/api/ai"),
-          fetchJson("/api/calving")
+          fetchJson("/api/calving"),
+          fetchJson("/api/farms/current")
         ]);
 
       const performance = buildPerformance(
@@ -100,7 +101,8 @@ export default function PrintReportPage() {
         milk,
         finance,
         vaccination,
-        performance
+        performance,
+        farm
       };
 
       setReportData(nextReportData);

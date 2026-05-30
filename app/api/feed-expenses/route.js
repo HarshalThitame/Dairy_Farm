@@ -143,6 +143,10 @@ function calculateTotal(body) {
     return cattleFeedBagTotal;
   }
 
+  if (body.section === "इतर") {
+    return itemAmount;
+  }
+
   if (quantityTotal > 0) {
     return quantityTotal + extraCosts;
   }
@@ -187,7 +191,15 @@ function buildDescription(payload) {
 }
 
 function getFinanceCategory(section) {
-  return section === FEED_SECTION_CATTLE_FEED ? "खाद्य" : "चारा";
+  if (section === FEED_SECTION_CATTLE_FEED) {
+    return "खाद्य";
+  }
+
+  if (section === "इतर") {
+    return "इतर";
+  }
+
+  return "चारा";
 }
 
 function getYearRange(year) {
@@ -312,30 +324,37 @@ export async function POST(request) {
       date: body.date,
       section,
       item_name: normalizeText(body.item_name) || section,
-      quantity: section === FEED_SECTION_CATTLE_FEED || section === "मुरघास" ? null : toOptionalNumber(body.quantity),
+      quantity:
+        section === FEED_SECTION_CATTLE_FEED || section === "मुरघास" || section === "इतर"
+          ? null
+          : toOptionalNumber(body.quantity),
       unit:
         section === FEED_SECTION_CATTLE_FEED
           ? "बॅग"
           : section === "मुरघास"
             ? "बॅग"
-            : normalizeText(body.unit) || null,
-      rate: section === "मुरघास" ? null : toOptionalNumber(body.rate),
+            : section === "इतर"
+              ? null
+              : normalizeText(body.unit) || null,
+      rate: section === "मुरघास" || section === "इतर" ? null : toOptionalNumber(body.rate),
       bags_count:
         section === FEED_SECTION_CATTLE_FEED
           ? getCattleFeedBags(body)
           : section === "मुरघास"
             ? murghasDetails.filledBagsCount
-            : toOptionalInteger(body.bags_count),
+            : section === "इतर"
+              ? null
+              : toOptionalInteger(body.bags_count),
       inner_material_cost:
-        section === FEED_SECTION_CATTLE_FEED ? 0 : section === "मुरघास" ? murghasDetails.innerMaterialCost : toNumber(body.inner_material_cost),
+        section === FEED_SECTION_CATTLE_FEED || section === "इतर" ? 0 : section === "मुरघास" ? murghasDetails.innerMaterialCost : toNumber(body.inner_material_cost),
       labor_cost:
-        section === FEED_SECTION_CATTLE_FEED ? 0 : section === "मुरघास" ? murghasDetails.fillingLaborCost : toNumber(body.labor_cost),
-      transport_cost: section === FEED_SECTION_CATTLE_FEED || section === "मुरघास" ? 0 : toNumber(body.transport_cost),
-      other_cost: section === FEED_SECTION_CATTLE_FEED ? 0 : toNumber(body.other_cost),
+        section === FEED_SECTION_CATTLE_FEED || section === "इतर" ? 0 : section === "मुरघास" ? murghasDetails.fillingLaborCost : toNumber(body.labor_cost),
+      transport_cost: section === FEED_SECTION_CATTLE_FEED || section === "मुरघास" || section === "इतर" ? 0 : toNumber(body.transport_cost),
+      other_cost: section === FEED_SECTION_CATTLE_FEED || section === "इतर" ? 0 : toNumber(body.other_cost),
       total_cost: totalCost,
       accounting_period: accountingPeriod,
-      supplier_name: normalizeText(body.supplier_name) || null,
-      notes: normalizeText(body.notes) || null
+      supplier_name: section === "इतर" ? null : normalizeText(body.supplier_name) || null,
+      notes: section === "इतर" ? null : normalizeText(body.notes) || null
     };
 
     if (section === "मुरघास") {

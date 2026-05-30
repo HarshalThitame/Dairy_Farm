@@ -192,6 +192,38 @@ function buildSettlementDeductionTransactions(settlements) {
   });
 }
 
+function summarizeSettlementDeductionTransactions(transactions) {
+  const summary = (transactions || []).reduce(
+    (totals, transaction) => {
+      const amount = Number(transaction.amount || 0);
+      const category = displayFinanceCategory(transaction.category);
+
+      if (category === "खाद्य") {
+        totals.cattleFeedDeduction += amount;
+      } else {
+        totals.otherDeductions += amount;
+      }
+
+      totals.totalDeductions += amount;
+      return totals;
+    },
+    {
+      cattleFeedDeduction: 0,
+      otherDeductions: 0,
+      totalDeductions: 0
+    }
+  );
+
+  return {
+    cattleFeedDeduction: Number(summary.cattleFeedDeduction.toFixed(2)),
+    otherDeductions: Number(summary.otherDeductions.toFixed(2)),
+    totalDeductions: Number(summary.totalDeductions.toFixed(2)),
+    // खाद्य कपात is already captured through खाद्य खर्च records.
+    // Only non-feed deductions should reduce profit separately.
+    deductionsCountedInProfit: Number(summary.otherDeductions.toFixed(2))
+  };
+}
+
 function buildAccountingExpenseTransactions(expenses) {
   return (expenses || [])
     .filter((record) => Number(record.amount || 0) > 0)
@@ -257,10 +289,12 @@ function buildMonthlyTrend(
       ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
       ...monthlyFinance,
       ...monthlyHealthExpenses,
-      ...monthlyAccountingExpenses,
-      ...monthlySettlementDeductions
+      ...monthlyAccountingExpenses
     ];
     const stats = calculateFinanceStats(transactions);
+    const deductionSummary = summarizeSettlementDeductionTransactions(monthlySettlementDeductions);
+    const netProfit =
+      stats.totalIncome - stats.totalExpense - deductionSummary.deductionsCountedInProfit;
 
     return {
       month,
@@ -268,7 +302,9 @@ function buildMonthlyTrend(
       label: getMonthLabel(month, year),
       income: Number(stats.totalIncome.toFixed(2)),
       expense: Number(stats.totalExpense.toFixed(2)),
-      profit: Number(stats.netProfit.toFixed(2)),
+      deductions: deductionSummary.totalDeductions,
+      deductionsCountedInProfit: deductionSummary.deductionsCountedInProfit,
+      profit: Number(netProfit.toFixed(2)),
       milkIncome: Number(
         monthlyMilk.reduce((sum, record) => sum + getRecordMilkAmount(record), 0).toFixed(2)
       ),
@@ -455,15 +491,13 @@ export async function GET(request) {
       ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
       ...monthlyFinance,
       ...monthlyHealthExpenses,
-      ...monthlyAccountingExpenses,
-      ...monthlySettlementDeductions
+      ...monthlyAccountingExpenses
     ];
     const stats = calculateFinanceStats(transactions);
     const annualStats = calculateFinanceStats(annualFinance);
-    const totalDeductions = monthlySettlementDeductions.reduce(
-      (sum, transaction) => sum + Number(transaction.amount || 0),
-      0
-    );
+    const deductionSummary = summarizeSettlementDeductionTransactions(monthlySettlementDeductions);
+    const netProfit =
+      stats.totalIncome - stats.totalExpense - deductionSummary.deductionsCountedInProfit;
 
     return NextResponse.json({
       data: {
@@ -471,8 +505,10 @@ export async function GET(request) {
         year: monthInput.year,
         totalIncome: Number(stats.totalIncome.toFixed(2)),
         totalExpense: Number(stats.totalExpense.toFixed(2)),
-        netProfit: Number(stats.netProfit.toFixed(2)),
-        totalDeductions: Number(totalDeductions.toFixed(2)),
+        netProfit: Number(netProfit.toFixed(2)),
+        totalDeductions: deductionSummary.totalDeductions,
+        deductionsCountedInProfit: deductionSummary.deductionsCountedInProfit,
+        settlementDeductions: deductionSummary,
         milkIncome: Number(
           (milkRecords.data || [])
             .reduce((sum, record) => sum + getRecordMilkAmount(record), 0)
@@ -484,6 +520,7 @@ export async function GET(request) {
         annualTransactions: annualFinance,
         incomeByCategory: categoriesToArray(incomeCategories, stats.byCategory.income),
         expenseByCategory: categoriesToArray(expenseCategories, stats.byCategory.expense),
+        deductionTransactions: monthlySettlementDeductions,
         monthlyTrend: buildMonthlyTrend(
           trendFinanceRecords.data || [],
           trendMilkRecords.data || [],

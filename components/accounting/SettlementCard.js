@@ -8,7 +8,7 @@ export default function SettlementCard({ settlement, onMarkPaid, onDelete }) {
   const netPayable = Number(settlement.net_payable ?? Number(settlement.total_milk_income || 0) - deductions);
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+    <article className="dashboard-card rounded-lg border border-slate-200 bg-white/90 p-4 shadow-soft backdrop-blur">
       <Link href={`/accounting/settlements/${settlement.id}/edit`} className="block active:bg-green-50">
         <div className="flex items-start justify-between gap-3">
           <div>

@@ -57,8 +57,7 @@ const sections = [
     label: "इतर खर्च",
     emoji: "🧾",
     tone: "border-slate-200 bg-slate-50 text-slate-900",
-    defaultItem: "इतर",
-    items: ["वाहतूक", "मजुरी", "वीज", "औषध", "इतर"]
+    defaultItem: ""
   }
 ];
 
@@ -141,6 +140,10 @@ function calculateTotal(form) {
     return bagTotal;
   }
 
+  if (form.section === "इतर") {
+    return directAmount;
+  }
+
   if (quantityTotal > 0) {
     return quantityTotal + extras;
   }
@@ -151,15 +154,16 @@ function calculateTotal(form) {
 function buildPayload(form) {
   const itemName = normalizeFeedText(form.custom_item) || form.item_name || form.section;
   const isMurghas = form.section === "मुरघास";
+  const isOther = form.section === "इतर";
 
   return {
     section: form.section,
     date: form.date,
     item_name: itemName,
-    quantity: isMurghas ? "" : form.quantity,
-    unit: isMurghas ? "बॅग" : form.unit,
-    rate: isMurghas ? "" : form.rate,
-    bags_count: isMurghas ? form.murghas_filled_bags_count : form.bags_count,
+    quantity: isMurghas || isOther ? "" : form.quantity,
+    unit: isOther ? "" : isMurghas ? "बॅग" : form.unit,
+    rate: isMurghas || isOther ? "" : form.rate,
+    bags_count: isOther ? "" : isMurghas ? form.murghas_filled_bags_count : form.bags_count,
     murghas_new_bags_count: form.murghas_new_bags_count,
     murghas_new_bag_rate: form.murghas_new_bag_rate,
     murghas_inner_count: form.murghas_inner_count,
@@ -168,15 +172,19 @@ function buildPayload(form) {
     murghas_filling_labor_rate: form.murghas_filling_labor_rate,
     inner_material_cost: isMurghas
       ? toNumber(form.murghas_inner_count) * toNumber(form.murghas_inner_rate)
-      : form.inner_material_cost,
+      : isOther
+        ? 0
+        : form.inner_material_cost,
     labor_cost: isMurghas
       ? toNumber(form.murghas_filled_bags_count) * toNumber(form.murghas_filling_labor_rate)
-      : form.labor_cost,
-    transport_cost: isMurghas ? 0 : form.transport_cost,
-    other_cost: form.other_cost,
+      : isOther
+        ? 0
+        : form.labor_cost,
+    transport_cost: isMurghas || isOther ? 0 : form.transport_cost,
+    other_cost: isOther ? 0 : form.other_cost,
     amount: form.amount,
-    supplier_name: form.supplier_name,
-    notes: form.notes
+    supplier_name: isOther ? "" : form.supplier_name,
+    notes: isOther ? "" : form.notes
   };
 }
 
@@ -338,6 +346,12 @@ export default function CharaCostPage() {
   async function saveExpense(event) {
     event.preventDefault();
     const total = calculateTotal(form);
+    const itemName = normalizeFeedText(form.custom_item) || form.item_name || "";
+
+    if (form.section === "इतर" && !itemName.trim()) {
+      setError("खर्च कशासाठी आहे ते लिहा.");
+      return;
+    }
 
     if (total <= 0) {
       setError("खर्चाची रक्कम भरा.");
@@ -451,7 +465,18 @@ export default function CharaCostPage() {
           />
         </FormField>
 
-        {activeConfig.items ? (
+        {activeSection === "इतर" ? (
+          <FormField label="खर्च कशासाठी?" required>
+            <TextWithVoice
+              field="custom_item"
+              value={form.custom_item}
+              onChange={(value) => updateField("custom_item", value)}
+              placeholder="उदा. वीज बिल, दुरुस्ती, दोरी"
+              voiceField={voiceField}
+              startVoice={startVoice}
+            />
+          </FormField>
+        ) : activeConfig.items ? (
           <div>
             <p className="mb-2 text-[20px] font-extrabold text-slate-900">नाव</p>
             <div className="grid grid-cols-2 gap-2">
@@ -614,6 +639,20 @@ export default function CharaCostPage() {
               <input type="text" value="गाडी" readOnly className={inputClass} />
             </FormField>
           </div>
+        ) : activeSection === "इतर" ? (
+          <FormField label="रक्कम" required>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={form.amount}
+              onChange={(event) => updateField("amount", event.target.value)}
+              className={inputClass}
+              placeholder="₹"
+              required
+            />
+          </FormField>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <FormField label="प्रमाण">
@@ -665,32 +704,7 @@ export default function CharaCostPage() {
           </div>
         )}
 
-        {activeSection === "इतर" ? (
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="मजुरी">
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                value={form.labor_cost}
-                onChange={(event) => updateField("labor_cost", event.target.value)}
-                className={inputClass}
-              />
-            </FormField>
-            <FormField label="वाहतूक">
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                value={form.transport_cost}
-                onChange={(event) => updateField("transport_cost", event.target.value)}
-                className={inputClass}
-              />
-            </FormField>
-          </div>
-        ) : null}
-
-        {activeSection === "मुरघास" ? (
+        {activeSection === "इतर" ? null : activeSection === "मुरघास" ? (
           <FormField label="इतर खर्च">
             <input
               type="number"
@@ -703,27 +717,31 @@ export default function CharaCostPage() {
           </FormField>
         ) : null}
 
-        <FormField label="पुरवठादार">
-          <TextWithVoice
-            field="supplier_name"
-            value={form.supplier_name}
-            onChange={(value) => updateField("supplier_name", value)}
-            placeholder="नाव"
-            voiceField={voiceField}
-            startVoice={startVoice}
-          />
-        </FormField>
+        {activeSection === "इतर" ? null : (
+          <>
+            <FormField label="पुरवठादार">
+              <TextWithVoice
+                field="supplier_name"
+                value={form.supplier_name}
+                onChange={(value) => updateField("supplier_name", value)}
+                placeholder="नाव"
+                voiceField={voiceField}
+                startVoice={startVoice}
+              />
+            </FormField>
 
-        <FormField label="नोंद">
-          <MarathiTextInput
-            multiline
-            value={form.notes}
-            onValueChange={(value) => updateField("notes", value)}
-            rows={3}
-            className="min-h-[96px] w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-3 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
-            rightAdornment={<VoiceButton active={voiceField === "notes"} onClick={() => startVoice("notes")} />}
-          />
-        </FormField>
+            <FormField label="नोंद">
+              <MarathiTextInput
+                multiline
+                value={form.notes}
+                onValueChange={(value) => updateField("notes", value)}
+                rows={3}
+                className="min-h-[96px] w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-3 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+                rightAdornment={<VoiceButton active={voiceField === "notes"} onClick={() => startVoice("notes")} />}
+              />
+            </FormField>
+          </>
+        )}
 
         <button
           type="submit"

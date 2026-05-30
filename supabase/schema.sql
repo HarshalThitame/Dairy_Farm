@@ -41,7 +41,6 @@ CREATE TABLE IF NOT EXISTS calving_records (
   calf_count INTEGER NOT NULL DEFAULT 1 CHECK (calf_count >= 1 AND calf_count <= 2),
   calf_gender TEXT CHECK (calf_gender IS NULL OR calf_gender IN ('नर', 'मादी')),
   calf_name TEXT,
-  calf_weight NUMERIC(5,2) CHECK (calf_weight IS NULL OR calf_weight >= 0),
   calving_notes TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -69,6 +68,10 @@ CREATE TABLE IF NOT EXISTS milk_records (
   degree_reading NUMERIC(5,2) CHECK (degree_reading IS NULL OR degree_reading >= 0),
   morning_degree_reading NUMERIC(5,2) CHECK (morning_degree_reading IS NULL OR morning_degree_reading >= 0),
   evening_degree_reading NUMERIC(5,2) CHECK (evening_degree_reading IS NULL OR evening_degree_reading >= 0),
+  slip_time TIME,
+  milk_type TEXT DEFAULT 'cow' CHECK (milk_type IS NULL OR milk_type IN ('cow', 'buffalo')),
+  dairy_member_code TEXT,
+  clr_score NUMERIC(5,1) CHECK (clr_score IS NULL OR clr_score >= 0 AND clr_score <= 100),
   notes TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -177,7 +180,6 @@ CREATE TABLE IF NOT EXISTS calves (
   gender TEXT NOT NULL CHECK (gender IN ('नर', 'मादी')),
   breed TEXT,
   color TEXT,
-  identification_mark TEXT,
   photo_url TEXT,
   photo_storage_path TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'historical', 'sold', 'dead', 'converted_to_cow')),

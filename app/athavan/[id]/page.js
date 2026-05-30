@@ -7,6 +7,7 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
+import { getCalvingRecordHref, isCalvingReminder } from "@/lib/calvingReminder";
 import {
   getReminderEmoji,
   getReminderDayDistance
@@ -109,6 +110,7 @@ export default function AthavanDetailPage() {
 
   const cow = cowProfile?.cow || reminder.cows;
   const overdueDays = Math.abs(Math.min(getReminderDayDistance(reminder.reminder_date), 0));
+  const calvingReminder = isCalvingReminder(reminder);
 
   return (
     <div className="space-y-5">
@@ -159,19 +161,30 @@ export default function AthavanDetailPage() {
       ) : null}
 
       <section className="grid gap-3">
-        <button
-          type="button"
-          onClick={() => patchReminder("done")}
-          className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
-        >
-          ✅ हे काम झाले
-        </button>
-        <Link
-          href={routeForReminder(reminder)}
-          className="flex min-h-[56px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-4 text-[20px] font-extrabold text-sheti active:bg-green-100"
-        >
-          📝 नोंद करा
-        </Link>
+        {calvingReminder ? (
+          <Link
+            href={getCalvingRecordHref(reminder)}
+            className="flex min-h-[56px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
+          >
+            🐄 व्यायण नोंद करा
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => patchReminder("done")}
+            className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
+          >
+            ✅ हे काम झाले
+          </button>
+        )}
+        {!calvingReminder ? (
+          <Link
+            href={routeForReminder(reminder)}
+            className="flex min-h-[56px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-4 text-[20px] font-extrabold text-sheti active:bg-green-100"
+          >
+            📝 नोंद करा
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={() => patchReminder("snooze", 1)}

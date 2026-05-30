@@ -132,11 +132,6 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
           {calf.color ? (
             <p className="mt-1 text-[18px] font-bold text-slate-700">रंग: {calf.color}</p>
           ) : null}
-          {calf.identification_mark ? (
-            <p className="mt-1 text-[18px] font-bold text-slate-700">
-              ओळख खूण: {calf.identification_mark}
-            </p>
-          ) : null}
           {calf.notes ? (
             <p className="mt-2 text-[18px] font-semibold leading-snug text-slate-600">
               {calf.notes}
@@ -222,7 +217,6 @@ function emptyForm() {
     name: "",
     color: "",
     breed: "",
-    identification_mark: "",
     notes: "",
     status: "active",
     sold_date: getTodayISODate(),
@@ -238,7 +232,7 @@ function emptyConversionForm(calf) {
     cow_name: calf ? getCalfTitle(calf) : "",
     breed: calf?.breed || defaultBreed,
     color: calf?.color || "",
-    tag_number: calf?.identification_mark || "",
+    tag_number: "",
     ai_date: getTodayISODate(),
     bull_code: "",
     bull_breed: defaultBreed,
@@ -342,7 +336,6 @@ export default function CalvesPage() {
       name: calf.name || "",
       color: calf.color || "",
       breed: calf.breed || "",
-      identification_mark: calf.identification_mark || "",
       notes: calf.notes || "",
       status: calf.status || "active",
       sold_date: calf.sold_date || getTodayISODate(),
@@ -404,7 +397,6 @@ export default function CalvesPage() {
         name: form.name.trim() || null,
         color: form.color.trim() || null,
         breed: form.breed.trim() || selectedCow?.breed || null,
-        identification_mark: form.identification_mark.trim() || null,
         photo_url: form.photo_url || null,
         photo_storage_path: form.photo_storage_path || null,
         notes: form.notes.trim() || null
@@ -687,19 +679,6 @@ export default function CalvesPage() {
                   value={form.breed}
                   onValueChange={(value) => updateField("breed", value)}
                   placeholder={selectedCow?.breed || "जर्सी"}
-                  className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
-                />
-              </FormField>
-              <FormField label="ओळख खूण">
-                <MarathiTextInput
-                  value={form.identification_mark}
-                  onValueChange={(value) => updateField("identification_mark", value)}
-                  rightAdornment={
-                    <VoiceButton
-                      active={voiceField === "identification_mark"}
-                      onClick={() => startVoice("identification_mark")}
-                    />
-                  }
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
                 />
               </FormField>

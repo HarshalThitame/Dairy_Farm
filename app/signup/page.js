@@ -265,8 +265,8 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="-mx-4 -my-4 flex min-h-screen items-center justify-center bg-green-50 px-4 py-8">
-        <div className="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-2xl">
+      <div className="auth-screen -mx-4 -my-5 flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="auth-card w-full max-w-md rounded-lg border border-white/80 bg-white/90 p-6 text-center shadow-2xl backdrop-blur-xl">
           <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-[54px]">
             ✅
           </div>
@@ -292,8 +292,8 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="-mx-4 -my-4 min-h-screen bg-gradient-to-br from-green-700 via-sheti to-green-500 px-4 py-8">
-      <div className="mx-auto w-full max-w-md rounded-lg bg-white p-5 shadow-2xl">
+    <div className="auth-screen -mx-4 -my-5 min-h-screen px-4 py-8">
+      <div className="auth-card mx-auto w-full max-w-md rounded-lg border border-white/80 bg-white/90 p-5 shadow-2xl backdrop-blur-xl">
         <div className="text-center">
           <BrandLockup size="lg" center />
           <h1 className="mt-4 text-[27px] font-extrabold leading-tight text-slate-950">

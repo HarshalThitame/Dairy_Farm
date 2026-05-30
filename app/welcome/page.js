@@ -47,8 +47,8 @@ export default function WelcomePage() {
   const current = steps[step];
 
   return (
-    <div className="-mx-4 -my-4 flex min-h-screen items-center justify-center bg-green-50 px-4 py-8">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-2xl">
+    <div className="auth-screen -mx-4 -my-5 flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="auth-card w-full max-w-md rounded-lg border border-white/80 bg-white/90 p-6 text-center shadow-2xl backdrop-blur-xl">
         <div className="flex justify-center gap-2">
           {steps.map((item, index) => (
             <div
