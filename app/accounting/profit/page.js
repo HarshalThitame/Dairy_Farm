@@ -57,7 +57,6 @@ export default function ProfitPage() {
   const income = Number(summary.total_milk_income || 0);
   const expenses = Number(summary.total_all_expenses || 0);
   const deductions = Number(summary.total_dairy_deductions || 0);
-  const anamat = Number(summary.total_anamat_accumulated || report.settlementsSummary?.anamatDeduction || 0);
   const settlementFeedDeduction = Number(report.settlementsSummary?.cattleFeedDeduction || 0);
   const otherDeductions = Number(report.settlementsSummary?.otherDeductions || Math.max(0, deductions - settlementFeedDeduction));
   const netProfit = Number(summary.net_profit || income - expenses - deductions);
@@ -76,12 +75,12 @@ export default function ProfitPage() {
 
       {!loading && !error ? (
         <>
-          <ProfitWaterfall income={income} expenses={expenses} deductions={deductions} anamat={anamat} />
+          <ProfitWaterfall income={income} expenses={expenses} deductions={deductions} />
 
           <section className="grid grid-cols-2 gap-3">
             <SummaryCard emoji="💰" title="एकूण दूध उत्पन्न" value={toMarathiCurrency(income)} subtext={`${formatLitres(summary.total_liters || 0)} लिटर`} color="green" />
             <SummaryCard emoji="💸" title="एकूण खर्च" value={toMarathiCurrency(expenses)} subtext="फार्म खर्च" color="red" />
-            <SummaryCard emoji="🏦" title="अनामत कपात" value={toMarathiCurrency(anamat)} subtext="परत मिळणारी बचत" color="yellow" />
+            <SummaryCard emoji="📉" title="डेअरी कपात" value={toMarathiCurrency(deductions)} subtext="खाद्य + इतर" color="red" />
             <SummaryCard emoji="📊" title="शुद्ध नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "नफा" : "तोटा"} color={netProfit >= 0 ? "green" : "red"} />
           </section>
 
@@ -113,14 +112,6 @@ export default function ProfitPage() {
                 <p className="mt-1 text-[19px] font-bold text-slate-700">
                   इतर कपात: {toMarathiCurrency(otherDeductions)}
                 </p>
-                <p className="mt-1 text-[19px] font-bold text-yellow-900">
-                  अनामत कपात: {toMarathiCurrency(anamat)}
-                </p>
-                {anamat > 0 ? (
-                  <p className="mt-1 text-[17px] font-bold text-yellow-800">
-                    अनामत वेगळ्या खात्यात जमा राहते. ही खर्च नसून परत मिळणारी बचत आहे.
-                  </p>
-                ) : null}
               </div>
 
               <div>

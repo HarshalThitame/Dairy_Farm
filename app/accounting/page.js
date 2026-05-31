@@ -48,12 +48,6 @@ const actions = [
     title: "नफा/तोटा बघा",
     text: "महिन्याचा analysis"
   },
-  {
-    href: "/accounting/anamat",
-    emoji: "🏦",
-    title: "अनामत खाते",
-    text: "साठवलेली रक्कम आणि क्लेम"
-  }
 ];
 
 function getInitialMonth() {
@@ -93,7 +87,6 @@ export default function AccountingHubPage() {
 
   const summary = data?.summary || {};
   const netProfit = Number(summary.net_profit || 0);
-  const anamat = Number(summary.total_anamat_accumulated || 0);
 
   return (
     <div className="space-y-6">
@@ -122,7 +115,7 @@ export default function AccountingHubPage() {
             <SummaryCard emoji="🥛" title="आजचे दूध" value={`${formatLitres(todayMilk)} लिटर`} subtext="आज" color="blue" />
             <SummaryCard emoji="📊" title="या महिन्याचे दूध" value={`${formatLitres(summary.total_liters || 0)} लिटर`} subtext="एकूण" color="blue" />
             <SummaryCard emoji="💰" title="या महिन्याचा उत्पन्न" value={toMarathiCurrency(summary.total_milk_income || 0)} subtext="दूध विक्री" color="green" />
-            <SummaryCard emoji="🏦" title="या महिन्याची अनामत" value={toMarathiCurrency(anamat)} subtext="साठवलेली बचत" color="yellow" />
+            <SummaryCard emoji="📊" title="या महिन्याचा नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "नफा" : "तोटा"} color={netProfit >= 0 ? "green" : "red"} />
           </section>
 
           <section className="grid gap-3">
@@ -147,7 +140,6 @@ export default function AccountingHubPage() {
               <div className="flex justify-between gap-3"><span>दूध</span><span>{formatLitres(summary.total_liters || 0)} लि. | {toMarathiCurrency(summary.total_milk_income || 0)}</span></div>
               <div className="flex justify-between gap-3"><span>खर्च</span><span className="text-red-700">{toMarathiCurrency(summary.total_all_expenses || 0)}</span></div>
               <div className="flex justify-between gap-3"><span>खाद्य + इतर कपात</span><span className="text-red-700">{toMarathiCurrency(summary.total_dairy_deductions || 0)}</span></div>
-              <div className="flex justify-between gap-3"><span>अनामत</span><span className="text-yellow-800">{toMarathiCurrency(anamat)}</span></div>
               <div className="flex justify-between gap-3 border-t border-slate-200 pt-3 text-[22px] font-extrabold">
                 <span>नफा</span>
                 <span className={netProfit >= 0 ? "text-green-700" : "text-red-700"}>{toMarathiCurrency(netProfit)}</span>

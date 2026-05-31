@@ -124,6 +124,12 @@ export default function DashboardPage() {
       0
     );
   }, [milkRecords]);
+  const todayMorningMilkTotal = useMemo(() => {
+    return milkRecords.reduce((total, record) => total + Number(record.morning_litres || 0), 0);
+  }, [milkRecords]);
+  const todayEveningMilkTotal = useMemo(() => {
+    return milkRecords.reduce((total, record) => total + Number(record.evening_litres || 0), 0);
+  }, [milkRecords]);
 
   const pregnantCount = useMemo(() => {
     return cowsSummary.pregnant || cows.filter((cow) => cow.status === "गाभण").length;
@@ -171,16 +177,16 @@ export default function DashboardPage() {
 
   const heroStats = [
     {
-      label: "आज दूध",
-      value: `${formatLitres(todayMilkTotal)} लि.`
+      label: "सकाळचे दूध",
+      value: `${formatLitres(todayMorningMilkTotal)} लि.`
     },
     {
       label: "आठवणी",
       value: toMarathiNumerals(pendingReminderCount)
     },
     {
-      label: "नफा",
-      value: formatCurrency(monthlyNetProfit)
+      label: "संध्याकाळचे दूध",
+      value: `${formatLitres(todayEveningMilkTotal)} लि.`
     }
   ];
 

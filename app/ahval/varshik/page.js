@@ -227,11 +227,6 @@ function FarmerResult({ summary }) {
         {result >= 0 ? " नफा " : " तोटा "}
         <span className="font-extrabold">{formatCurrency(Math.abs(result))}</span> आहे.
       </p>
-      {summary.dairyFeedDeduction > 0 ? (
-        <p className="mt-2 text-[18px] font-bold text-slate-700">
-          डेअरी देयकातील खाद्य कपात खर्च म्हणून धरली आहे. अनामत कपात मात्र खर्चात धरलेली नाही.
-        </p>
-      ) : null}
     </section>
   );
 }

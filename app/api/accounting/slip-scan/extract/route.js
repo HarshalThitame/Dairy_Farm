@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { extractTextWithGoogleVision } from "@/lib/googleVisionOCR";
+import { createOcrAuditLog } from "@/lib/ocrAudit";
 import { fillSlipGaps } from "@/lib/slipGapFilling";
-import {
-  DEFAULT_SLIP_OCR_MODEL,
-  FALLBACK_SLIP_OCR_MODEL,
-  extractWithGPTHybrid
-} from "@/lib/slipOCR";
+import { structureSlipTextWithGPT } from "@/lib/slipTextExtraction";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -132,7 +130,31 @@ export async function POST(request) {
     }
 
     const imageBase64 = Buffer.from(await imageData.arrayBuffer()).toString("base64");
-    const result = await extractWithGPTHybrid(imageBase64);
+    let ocr;
+    let result;
+
+    try {
+      ocr = await extractTextWithGoogleVision(imageBase64);
+      result = await structureSlipTextWithGPT({
+        rawText: ocr.rawText,
+        ocr
+      });
+    } catch (extractError) {
+      await supabase
+        .from("slip_uploads")
+        .update({
+          extraction_status: "failed",
+          extraction_error: extractError.message || "OCR प्रक्रिया विफल झाली.",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", uploadId)
+        .eq("farm_id", farmId);
+
+      return NextResponse.json(
+        { error: extractError.message || "OCR प्रक्रिया विफल झाली." },
+        { status: 400 }
+      );
+    }
 
     if (!result.success) {
       await supabase
@@ -141,10 +163,10 @@ export async function POST(request) {
           extraction_status: "failed",
           extraction_error: result.error || "स्लिप वाचता आली नाही.",
           ai_model_used: result.model_used,
-          ai_model_primary: DEFAULT_SLIP_OCR_MODEL,
-          ai_model_fallback: result.retried ? FALLBACK_SLIP_OCR_MODEL : null,
+          ai_model_primary: result.model || null,
+          ai_model_fallback: null,
           ai_tokens_used: result.tokensUsed || 0,
-          ai_cost_estimate: result.cost_estimate || 0,
+          ai_cost_estimate: 0,
           retried: Boolean(result.retried),
           updated_at: new Date().toISOString()
         })
@@ -159,20 +181,40 @@ export async function POST(request) {
       );
     }
 
+    const audit = await createOcrAuditLog(supabase, {
+      farm_id: farmId,
+      slip_upload_id: uploadId,
+      image_url: uploadRecord.compressed_image_url,
+      image_storage_path: uploadRecord.compressed_storage_path,
+      ocr_provider: ocr.provider,
+      ocr_text: ocr.rawText,
+      ocr_confidence: ocr.confidence,
+      ai_model: result.model,
+      ai_json: result.aiJson,
+      confidence: result.confidence_score,
+      warnings: result.data?.ai_warnings || result.data?.validation?.warnings || [],
+      validation: result.data?.validation || null
+    });
+
+    const extractedData = {
+      ...result.data,
+      ocr_audit_log_id: audit?.id || null
+    };
+
     const { data: updatedUpload, error: updateError } = await supabase
       .from("slip_uploads")
       .update({
         extraction_status: "success",
         extraction_error: null,
-        ai_model_used: result.model_used,
-        ai_model_primary: DEFAULT_SLIP_OCR_MODEL,
-        ai_model_fallback: result.retried ? FALLBACK_SLIP_OCR_MODEL : null,
+        ai_model_used: result.model,
+        ai_model_primary: result.model,
+        ai_model_fallback: null,
         ai_confidence: result.confidence_score,
-        ai_raw_response: result.data,
+        ai_raw_response: extractedData,
         ai_tokens_used: result.tokensUsed || 0,
-        ai_cost_estimate: result.cost_estimate || 0,
+        ai_cost_estimate: 0,
         retried: Boolean(result.retried),
-        slip_type: result.data.slip_type,
+        slip_type: extractedData.slip_type,
         updated_at: new Date().toISOString()
       })
       .eq("id", uploadId)
@@ -184,15 +226,18 @@ export async function POST(request) {
       throw updateError;
     }
 
-    const gapResponse = gapFillingResponse(result.data);
+    const gapResponse = gapFillingResponse(extractedData);
 
     return NextResponse.json({
       data: extractionResponse(updatedUpload, {
         ...gapResponse,
         retried: Boolean(result.retried),
         tokensUsed: result.tokensUsed || 0,
-        cost_estimate: result.cost_estimate || 0,
-        model_used: result.model_used,
+        cost_estimate: 0,
+        model_used: result.model,
+        ocrProvider: ocr.provider,
+        ocrConfidence: ocr.confidence,
+        ocrAuditLogId: audit?.id || null,
         message: gapResponse.gap_message || "डेटा वाचली गेले. कृपया तपासा आणि जतन करा."
       })
     });

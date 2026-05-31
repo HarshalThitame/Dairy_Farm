@@ -202,10 +202,10 @@ export async function GET(request) {
         .lt("expense_date", monthRange.end),
       supabase
         .from("dairy_settlements")
-        .select("id, settlement_date, cattle_feed_deduction, other_deductions")
+        .select("id, settlement_date, period_end, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
-        .gte("settlement_date", monthRange.start)
-        .lt("settlement_date", monthRange.end)
+        .gte("period_end", monthRange.start)
+        .lt("period_end", monthRange.end)
     ]);
 
     const cows = assertQuery(cowsResult);

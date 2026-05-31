@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   combineAccountingExpenses,
+  getSettlementAccountingDate,
   getMonthYearString,
   normalizeAccountingExpenseCategory,
   refreshSummaryForDate,
@@ -49,10 +50,11 @@ function validateExpense(body) {
 function buildSettlementDeductionExpenses(settlements = []) {
   return (settlements || []).flatMap((settlement) => {
     const period = `${settlement.period_start} ते ${settlement.period_end}`;
+    const accountingDate = getSettlementAccountingDate(settlement);
     const base = {
       farm_id: settlement.farm_id,
       cow_id: null,
-      expense_date: settlement.settlement_date,
+      expense_date: accountingDate,
       vendor_name: settlement.dairy_name || "डेअरी",
       source: "dairy_settlements",
       source_record_id: settlement.id,
@@ -129,9 +131,9 @@ export async function GET(request) {
         .from("dairy_settlements")
         .select("id, farm_id, settlement_date, period_start, period_end, dairy_name, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
-        .gte("settlement_date", range.start)
-        .lt("settlement_date", range.end)
-        .order("settlement_date", { ascending: false })
+        .gte("period_end", range.start)
+        .lt("period_end", range.end)
+        .order("period_end", { ascending: false })
         .order("created_at", { ascending: false })
     ]);
 

@@ -31,7 +31,6 @@ const missingMap = {
   total_liters: ["total_liters", "total milk", "एकूण दूध"],
   total_milk_income: ["total_milk_income", "income", "उत्पन्न"],
   cattle_feed_deduction: ["cattle_feed_deduction", "खाद्य"],
-  anamat_cut: ["anamat_cut", "anamat_deduction", "अनामत", "अनामत कपात"],
   other_deductions: ["other_deductions", "कपात"],
   total_deductions: ["total_deductions", "एकूण कपात"],
   net_payable: ["net_payable", "निर्बळ रक्कम", "निव्वळ रक्कम"],
@@ -89,17 +88,44 @@ function entryAmount(entry) {
 }
 
 function sessionLine(label, row) {
-  if (!row || (numberValue(row.liters) <= 0 && numberValue(row.amount) <= 0)) {
-    return null;
+  if (!row) {
+    return `${label}: वाचता आले नाही`;
   }
 
-  return `${label}: ${numberValue(row.liters).toFixed(2)} लि. | फॅट ${row.fat_percent ?? "-"} | SNF ${row.snf_percent ?? "-"} | दर ${row.rate_per_liter ?? "-"} | ${toMarathiCurrency(numberValue(row.amount))}`;
+  const hasAnyValue = [
+    row.liters,
+    row.fat_percent,
+    row.fat_percentage,
+    row.snf_percent,
+    row.snf_percentage,
+    row.rate_per_liter,
+    row.rate,
+    row.amount,
+    row.total_amount
+  ].some((value) => value !== null && value !== undefined && value !== "");
+
+  if (!hasAnyValue) {
+    return `${label}: वाचता आले नाही`;
+  }
+
+  const liters = optionalNumber(row.liters);
+  const amount = optionalNumber(row.amount ?? row.total_amount);
+
+  return `${label}: ${liters === null ? "वाचता आले नाही" : `${liters.toFixed(2)} लि.`} | फॅट ${row.fat_percent ?? row.fat_percentage ?? "वाचता आले नाही"} | SNF ${row.snf_percent ?? row.snf_percentage ?? "वाचता आले नाही"} | दर ${row.rate_per_liter ?? row.rate ?? "वाचता आले नाही"} | ${amount === null ? "रक्कम वाचता आली नाही" : toMarathiCurrency(amount)}`;
 }
 
 function isMissingField(missingFields, field) {
   const aliases = missingMap[field] || [field];
   const normalized = (missingFields || []).map((item) => String(item).toLowerCase());
   return aliases.some((alias) => normalized.some((item) => item.includes(String(alias).toLowerCase())));
+}
+
+function isEstimatedField(inferredFields, field) {
+  if (!inferredFields || typeof inferredFields !== "object") {
+    return false;
+  }
+
+  return Boolean(inferredFields[field]);
 }
 
 function buildInitialForm(data = {}) {
@@ -116,15 +142,14 @@ function buildInitialForm(data = {}) {
     data.ocr_total_amount ??
     data.amount_verification?.printed_amount ??
     (data.calculated_total_amount === undefined && !amountWasAutoFilled ? data.total_amount : "");
-  const feedDeduction = data.cattle_feed_deduction ?? data.feed_deduction ?? deductions.feed_deduction ?? 0;
-  const anamatCut = data.anamat_cut ?? data.anamat_deduction ?? deductions.anamat_cut ?? 0;
-  const explicitOtherDeduction = data.other_deductions ?? deductions.other_deductions ?? 0;
   const explicitTotalDeductions = data.total_deductions ?? deductions.total_deductions;
-  const inferredOtherDeduction =
-    numberValue(explicitTotalDeductions) > numberValue(feedDeduction) + numberValue(anamatCut) + numberValue(explicitOtherDeduction) &&
-    numberValue(explicitOtherDeduction) <= 0
-      ? roundMoney(numberValue(explicitTotalDeductions) - numberValue(feedDeduction) - numberValue(anamatCut))
-      : explicitOtherDeduction;
+  const feedDeduction =
+    data.cattle_feed_deduction ??
+    data.feed_deduction ??
+    deductions.feed_deduction ??
+    explicitTotalDeductions ??
+    0;
+  const explicitOtherDeduction = data.other_deductions ?? deductions.other_deductions ?? 0;
 
   return {
     slip_type: slipType,
@@ -144,7 +169,7 @@ function buildInitialForm(data = {}) {
     clr_score: text(clrScore),
     rate_per_liter: text(data.rate_per_liter),
     slip_printed_amount: text(printedAmount),
-    settlement_date: text(data.settlement_date || getTodayISODate()),
+    settlement_date: text(data.settlement_date || data.period_end || getTodayISODate()),
     period_start: text(data.period_start),
     period_end: text(data.period_end),
     daily_total_liters: text(data.daily_total_liters),
@@ -152,8 +177,7 @@ function buildInitialForm(data = {}) {
     total_liters: text(data.total_liters || data.daily_total_liters || data.total_liters_section2),
     total_milk_income: text(data.total_milk_income),
     cattle_feed_deduction: text(feedDeduction),
-    anamat_cut: text(anamatCut),
-    other_deductions: text(inferredOtherDeduction),
+    other_deductions: text(explicitOtherDeduction),
     total_deductions: text(explicitTotalDeductions),
     net_payable: text(data.net_payable),
     bank_name: text(data.bank_name),
@@ -213,23 +237,13 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
     });
   }, [form, totalAmount]);
   const effectiveOtherDeductions = useMemo(() => {
-    const feed = numberValue(form.cattle_feed_deduction);
-    const anamat = numberValue(form.anamat_cut);
-    const other = numberValue(form.other_deductions);
-    const explicitTotal = numberValue(form.total_deductions);
-
-    if (explicitTotal > feed + anamat + other && other <= 0) {
-      return roundMoney(explicitTotal - feed - anamat);
-    }
-
-    return other;
-  }, [form.total_deductions, form.cattle_feed_deduction, form.anamat_cut, form.other_deductions]);
+    return numberValue(form.other_deductions);
+  }, [form.other_deductions]);
   const totalDeductions = useMemo(
     () =>
       numberValue(form.cattle_feed_deduction) +
-        numberValue(form.anamat_cut) +
         effectiveOtherDeductions,
-    [form.cattle_feed_deduction, form.anamat_cut, effectiveOtherDeductions]
+    [form.cattle_feed_deduction, effectiveOtherDeductions]
   );
   const netPayable = useMemo(
     () => numberValue(form.total_milk_income) - totalDeductions,
@@ -244,6 +258,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   function fieldClass(field, required = false) {
     const missing = isMissingField(missingFields, field) || (required && !String(form[field] || "").trim());
     if (missing) return `${inputClass} border-red-300 bg-red-50`;
+    if (isEstimatedField(form.inferred_fields, field)) return `${inputClass} border-yellow-300 bg-yellow-50`;
     if (confidence > 0 && confidence < 0.8) return `${inputClass} border-yellow-300 bg-yellow-50`;
     return `${inputClass} border-slate-200`;
   }
@@ -312,7 +327,6 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             net_payable: netPayable,
             deductions: {
               feed_deduction: numberValue(form.cattle_feed_deduction),
-              anamat_cut: numberValue(form.anamat_cut),
               other_deductions: effectiveOtherDeductions,
               total_deductions: totalDeductions
             }
@@ -399,6 +413,15 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               </div>
             </div>
           ) : null}
+        </section>
+      ) : null}
+
+      {Array.isArray(extractedData?.ai_warnings) && extractedData.ai_warnings.length ? (
+        <section className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-950 shadow-soft">
+          <h2 className="text-[21px] font-extrabold">AI सूचना</h2>
+          {extractedData.ai_warnings.map((item) => (
+            <p key={item} className="mt-1 text-[16px] font-bold">• {item}</p>
+          ))}
         </section>
       ) : null}
 
@@ -604,7 +627,6 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
             <h2 className="text-[22px] font-extrabold text-slate-950">कपात तपशील</h2>
-            <p className="mt-1 text-[17px] font-bold text-slate-600">अनामत ही परत मिळणारी बचत कपात आहे.</p>
             <div className="mt-4 space-y-3">
               <FormField label="दूध उत्पन्न" required>
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${fieldClass("total_milk_income", true)} text-[26px]`} />
@@ -612,9 +634,6 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="खाद्य कपात">
                   <input type="number" inputMode="decimal" min="0" step="0.01" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={fieldClass("cattle_feed_deduction")} />
-                </FormField>
-                <FormField label="अनामत कपात">
-                  <input type="number" inputMode="decimal" min="0" step="0.01" value={form.anamat_cut} onChange={(event) => updateField("anamat_cut", event.target.value)} className={`${fieldClass("anamat_cut")} border-yellow-300 bg-yellow-50`} />
                 </FormField>
                 <FormField label="इतर कपात">
                   <input type="number" inputMode="decimal" min="0" step="0.01" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={fieldClass("other_deductions")} />
@@ -625,15 +644,9 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                   </div>
                 </FormField>
               </div>
-              <div className="rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4 text-yellow-950">
-                <p className="text-[18px] font-extrabold">🏦 अनामत माहिती</p>
-                <p className="mt-1 text-[25px] font-extrabold">{toMarathiCurrency(numberValue(form.anamat_cut))}</p>
-                <p className="mt-1 text-[16px] font-bold leading-snug">ही रक्कम वेगळी जमा राहील. साधारण १ वर्षानंतर किंवा डेअरीच्या नियमानुसार परत मिळू शकते.</p>
-              </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[17px] font-extrabold text-slate-800">
                 <div className="flex justify-between gap-3"><span>दूध उत्पन्न</span><span>{toMarathiCurrency(numberValue(form.total_milk_income))}</span></div>
                 <div className="mt-2 flex justify-between gap-3 text-red-800"><span>(-) खाद्य कपात</span><span>{toMarathiCurrency(numberValue(form.cattle_feed_deduction))}</span></div>
-                <div className="mt-2 flex justify-between gap-3 text-yellow-900"><span>(-) अनामत कपात</span><span>{toMarathiCurrency(numberValue(form.anamat_cut))}</span></div>
                 <div className="mt-2 flex justify-between gap-3 text-red-800"><span>(-) इतर कपात</span><span>{toMarathiCurrency(effectiveOtherDeductions)}</span></div>
               </div>
               <div className={`rounded-lg border-2 p-4 ${netPayable >= 0 ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-900"}`}>
@@ -674,11 +687,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                         </span>
                       </div>
                       <div className="mt-2 space-y-1 text-[15px] text-slate-600">
-                        {morning ? <p>{morning}</p> : null}
-                        {evening ? <p>{evening}</p> : null}
-                        {!morning && !evening ? (
-                          <p>दर {entry.rate_per_liter ?? "-"} | फॅट {entry.fat_percent ?? "-"} | SNF {entry.snf_percent ?? "-"}</p>
-                        ) : null}
+                        <p>{morning}</p>
+                        <p>{evening}</p>
                         {suspicious ? <p className="font-extrabold text-red-900">⚠️ हा row अवास्तव वाटतो. सेव्ह करण्यापूर्वी तपासा.</p> : null}
                       </div>
                     </div>

@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  deleteAnamatTrackingForSettlement,
-  refreshMonthlyAnamatSummary,
-  syncAnamatTrackingForSettlement
-} from "@/lib/anamatUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   calculateSettlementMatch,
   matchSettlementToSlips,
-  refreshSummaryForDate
+  refreshSettlementSummaries
 } from "@/lib/accountingUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -23,8 +18,6 @@ const settlementFields = [
   "total_liters",
   "total_milk_income",
   "cattle_feed_deduction",
-  "anamat_cut",
-  "total_deductions_before_anamat",
   "other_deductions",
   "payment_received",
   "payment_received_date",
@@ -61,7 +54,7 @@ function normalizePayload(payload) {
     }
   );
 
-  ["cattle_feed_deduction", "anamat_cut", "other_deductions", "total_deductions_before_anamat"].forEach((field) => {
+  ["cattle_feed_deduction", "other_deductions"].forEach((field) => {
     if (!hasField(payload, field)) {
       return;
     }
@@ -99,9 +92,7 @@ function validateNumericPayload(payload) {
     total_liters: "एकूण दूध",
     total_milk_income: "एकूण उत्पन्न",
     cattle_feed_deduction: "खाद्य कपात",
-    anamat_cut: "अनामत कपात",
     other_deductions: "इतर कपात",
-    total_deductions_before_anamat: "अनामत वगळून कपात",
     payment_received_amount: "प्राप्त रक्कम"
   };
 
@@ -195,15 +186,6 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा." }, { status: 400 });
     }
 
-    if (
-      hasField(payload, "cattle_feed_deduction") ||
-      hasField(payload, "other_deductions") ||
-      hasField(payload, "anamat_cut")
-    ) {
-      payload.total_deductions_before_anamat =
-        Number(payload.cattle_feed_deduction ?? oldSettlement.cattle_feed_deduction ?? 0) +
-        Number(payload.other_deductions ?? oldSettlement.other_deductions ?? 0);
-    }
 
     const { data: updated, error } = await supabase
       .from("dairy_settlements")
@@ -224,14 +206,9 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
     }
 
-    const anamatRecord = await syncAnamatTrackingForSettlement(supabase, farmId, updated);
     const matched = await matchSettlementToSlips(supabase, farmId, updated);
-    await refreshSummaryForDate(supabase, farmId, oldSettlement.settlement_date);
-    const summary = await refreshSummaryForDate(supabase, farmId, updated.settlement_date);
-    if (oldSettlement.settlement_date !== updated.settlement_date) {
-      await refreshMonthlyAnamatSummary(supabase, farmId, oldSettlement.settlement_date);
-    }
-    const anamatSummary = await refreshMonthlyAnamatSummary(supabase, farmId, updated.settlement_date);
+    await refreshSettlementSummaries(supabase, farmId, oldSettlement);
+    const summary = await refreshSettlementSummaries(supabase, farmId, updated);
 
     return NextResponse.json({
       data: {
@@ -239,10 +216,6 @@ export async function PUT(request, { params }) {
         settlement: matched.settlement,
         matchedSlips: matched.reconciliation.matchedSlips,
         reconciliation: matched.reconciliation,
-        anamat: {
-          record: anamatRecord,
-          monthly: anamatSummary
-        },
         summary
       }
     });
@@ -269,7 +242,6 @@ export async function PATCH(request, { params }) {
         body.payment_received_amount === undefined || body.payment_received_amount === ""
           ? Number(settlement.total_milk_income || 0) -
             Number(settlement.cattle_feed_deduction || 0) -
-            Number(settlement.anamat_cut || 0) -
             Number(settlement.other_deductions || 0)
           : Number(body.payment_received_amount),
       updated_at: new Date().toISOString()
@@ -315,7 +287,6 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
     }
 
-    await deleteAnamatTrackingForSettlement(supabase, farmId, params.id);
     const { data, error } = await supabase
       .from("dairy_settlements")
       .delete()
@@ -328,8 +299,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
     }
 
-    const summary = await refreshSummaryForDate(supabase, farmId, data.settlement_date);
-    await refreshMonthlyAnamatSummary(supabase, farmId, data.settlement_date);
+    const summary = await refreshSettlementSummaries(supabase, farmId, data);
 
     return NextResponse.json({ data: { success: true, settlement: data, summary } });
   } catch (error) {

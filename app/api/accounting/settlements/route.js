@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { refreshMonthlyAnamatSummary, syncAnamatTrackingForSettlement } from "@/lib/anamatUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   calculateSettlementMatch,
   matchSettlementToSlips,
-  refreshSummaryForDate,
+  refreshSettlementSummaries,
   summarizeSettlements
 } from "@/lib/accountingUtils";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
@@ -21,8 +20,6 @@ const settlementFields = [
   "total_liters",
   "total_milk_income",
   "cattle_feed_deduction",
-  "anamat_cut",
-  "total_deductions_before_anamat",
   "other_deductions",
   "payment_received",
   "payment_received_date",
@@ -84,9 +81,6 @@ function validateSettlement(body) {
     (body.cattle_feed_deduction !== undefined &&
       body.cattle_feed_deduction !== "" &&
       (!isFiniteNumber(body.cattle_feed_deduction) || Number(body.cattle_feed_deduction) < 0)) ||
-    (body.anamat_cut !== undefined &&
-      body.anamat_cut !== "" &&
-      (!isFiniteNumber(body.anamat_cut) || Number(body.anamat_cut) < 0)) ||
     (body.other_deductions !== undefined &&
       body.other_deductions !== "" &&
       (!isFiniteNumber(body.other_deductions) || Number(body.other_deductions) < 0))
@@ -132,9 +126,9 @@ export async function GET(request) {
       .from("dairy_settlements")
       .select("*")
       .eq("farm_id", farmId)
-      .gte("settlement_date", range.start)
-      .lt("settlement_date", range.end)
-      .order("settlement_date", { ascending: false })
+      .gte("period_end", range.start)
+      .lt("period_end", range.end)
+      .order("period_end", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -183,8 +177,6 @@ export async function POST(request) {
           : money(body.total_liters),
       total_milk_income: money(body.total_milk_income),
       cattle_feed_deduction: money(body.cattle_feed_deduction),
-      anamat_cut: money(body.anamat_cut),
-      total_deductions_before_anamat: money(body.cattle_feed_deduction) + money(body.other_deductions),
       other_deductions: money(body.other_deductions),
       payment_received: Boolean(body.payment_received),
       payment_received_date: body.payment_received ? body.payment_received_date || body.settlement_date : null,
@@ -214,10 +206,8 @@ export async function POST(request) {
       throw error;
     }
 
-    const anamatRecord = await syncAnamatTrackingForSettlement(supabase, farmId, inserted);
     const matched = await matchSettlementToSlips(supabase, farmId, inserted);
-    const summary = await refreshSummaryForDate(supabase, farmId, inserted.settlement_date);
-    const anamatSummary = await refreshMonthlyAnamatSummary(supabase, farmId, inserted.settlement_date);
+    const summary = await refreshSettlementSummaries(supabase, farmId, inserted);
 
     return NextResponse.json(
       {
@@ -227,10 +217,6 @@ export async function POST(request) {
           discrepancy: matched.reconciliation.discrepancy,
           matchedSlips: matched.reconciliation.matchedSlips,
           reconciliation: matched.reconciliation,
-          anamat: {
-            record: anamatRecord,
-            monthly: anamatSummary
-          },
           summary
         }
       },

@@ -98,6 +98,10 @@ function normalizeFinanceRecord(record) {
   };
 }
 
+function getSettlementAccountingDate(settlement = {}) {
+  return settlement.period_end || settlement.settlement_date;
+}
+
 function buildMilkIncomeTransaction(milkRecords, amount, monthRange) {
   if (amount <= 0) {
     return null;
@@ -155,10 +159,11 @@ function buildHealthExpenseTransactions(healthRecords) {
 function buildSettlementDeductionTransactions(settlements) {
   return (settlements || []).flatMap((settlement) => {
     const period = `${settlement.period_start} ते ${settlement.period_end}`;
+    const accountingDate = getSettlementAccountingDate(settlement);
     const base = {
       farm_id: settlement.farm_id,
       cow_id: null,
-      date: settlement.settlement_date,
+      date: accountingDate,
       type: "खर्च",
       accounting_period: ACCOUNTING_PERIOD_MONTHLY,
       cows: null,
@@ -218,7 +223,6 @@ function summarizeSettlementDeductionTransactions(transactions) {
     cattleFeedDeduction: Number(summary.cattleFeedDeduction.toFixed(2)),
     otherDeductions: Number(summary.otherDeductions.toFixed(2)),
     totalDeductions: Number(summary.totalDeductions.toFixed(2)),
-    // खाद्य आणि इतर कपात प्रत्यक्ष खर्च आहेत. अनामत या list मध्ये नाही.
     deductionsCountedInProfit: Number(summary.totalDeductions.toFixed(2))
   };
 }
@@ -279,7 +283,7 @@ function buildMonthlyTrend(
     );
     const monthlySettlementDeductions = buildSettlementDeductionTransactions(
       (settlements || []).filter(
-        (record) => record.settlement_date >= monthRange.start && record.settlement_date < monthRange.end
+        (record) => getSettlementAccountingDate(record) >= monthRange.start && getSettlementAccountingDate(record) < monthRange.end
       )
     );
     const milkIncomeToAdd = getMilkIncomeToAdd(monthlyFinance, monthlyMilk);
@@ -367,9 +371,9 @@ export async function GET(request) {
         .from("dairy_settlements")
         .select("id, farm_id, settlement_date, period_start, period_end, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
-        .gte("settlement_date", monthRange.start)
-        .lt("settlement_date", monthRange.end)
-        .order("settlement_date", { ascending: false })
+        .gte("period_end", monthRange.start)
+        .lt("period_end", monthRange.end)
+        .order("period_end", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("milk_records")
@@ -421,9 +425,9 @@ export async function GET(request) {
         .from("dairy_settlements")
         .select("id, farm_id, settlement_date, period_start, period_end, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
-        .gte("settlement_date", oldestRange.start)
-        .lt("settlement_date", monthRange.end)
-        .order("settlement_date", { ascending: false })
+        .gte("period_end", oldestRange.start)
+        .lt("period_end", monthRange.end)
+        .order("period_end", { ascending: false })
         .order("created_at", { ascending: false })
     ]);
 

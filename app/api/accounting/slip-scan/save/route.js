@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { refreshMonthlyAnamatSummary, syncAnamatTrackingForSettlement } from "@/lib/anamatUtils";
 import {
   DAIRY_SESSION_EVENING,
   DAIRY_SESSION_MORNING,
   matchSettlementToSlips,
+  refreshSettlementSummaries,
   refreshSummaryForDate
 } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
@@ -74,6 +74,35 @@ function money(value, fallback = 0) {
 
 function roundMoney(value) {
   return Number(Number(value || 0).toFixed(2));
+}
+
+function ocrAuditFields(data = {}) {
+  return {
+    ocr_text: cleanText(data.ocr_text),
+    ocr_provider: cleanText(data.ocr_provider),
+    ocr_audit_log_id: cleanText(data.ocr_audit_log_id)
+  };
+}
+
+function withoutOcrAuditFields(payload) {
+  const nextPayload = { ...payload };
+  delete nextPayload.ocr_text;
+  delete nextPayload.ocr_provider;
+  delete nextPayload.ocr_audit_log_id;
+  return nextPayload;
+}
+
+async function upsertSingleWithOcrFallback(supabase, table, payload, options) {
+  let result = await supabase.from(table).upsert(payload, options).select().single();
+
+  if (
+    result.error &&
+    (result.error.code === "42703" || /ocr_text|ocr_provider|ocr_audit_log_id/i.test(result.error.message || ""))
+  ) {
+    result = await supabase.from(table).upsert(withoutOcrAuditFields(payload), options).select().single();
+  }
+
+  return result;
 }
 
 function calculateAmountVerification(data) {
@@ -396,14 +425,16 @@ export async function POST(request) {
         ai_model_used: modelUsed,
         ai_raw_data: aiRawData,
         ocr_timestamp: timestamp,
+        ...ocrAuditFields(data),
         updated_at: timestamp
       };
 
-      const { data: slip, error } = await supabase
-        .from("dairy_slips")
-        .upsert(slipPayload, { onConflict: "farm_id,slip_date,session" })
-        .select()
-        .single();
+      const { data: slip, error } = await upsertSingleWithOcrFallback(
+        supabase,
+        "dairy_slips",
+        slipPayload,
+        { onConflict: "farm_id,slip_date,session" }
+      );
 
       if (error) {
         throw error;
@@ -476,21 +507,18 @@ export async function POST(request) {
         total_liters: getSettlementTotalLiters(data),
         total_milk_income: money(data.total_milk_income),
         cattle_feed_deduction: deductions.feedDeduction,
-        anamat_cut: deductions.anamatCut,
         other_deductions: deductions.otherDeductions,
         total_deductions: deductions.totalDeductions,
-        total_deductions_before_anamat: roundMoney(deductions.feedDeduction + deductions.otherDeductions),
         net_payable: settlementNetPayable,
         deductions: {
           feed_deduction: deductions.feedDeduction,
-          anamat_cut: deductions.anamatCut,
-          other_deductions: deductions.otherDeductions,
+            other_deductions: deductions.otherDeductions,
           total_deductions: deductions.totalDeductions
         }
       };
       const settlementPayload = {
         farm_id: farmId,
-        settlement_date: data.settlement_date || getTodayISODate(),
+        settlement_date: data.settlement_date || data.period_end || getTodayISODate(),
         period_start: data.period_start,
         period_end: data.period_end,
         dairy_name: cleanText(data.dairy_name),
@@ -499,10 +527,8 @@ export async function POST(request) {
         total_milk_income: money(data.total_milk_income),
         cattle_feed_deduction: deductions.feedDeduction,
         other_deductions: deductions.otherDeductions,
-        anamat_cut: deductions.anamatCut,
-        total_deductions_before_anamat: roundMoney(deductions.feedDeduction + deductions.otherDeductions),
         payment_received: Boolean(data.payment_received),
-        payment_received_date: data.payment_received ? data.payment_received_date || data.settlement_date || getTodayISODate() : null,
+        payment_received_date: data.payment_received ? data.payment_received_date || data.settlement_date || data.period_end || getTodayISODate() : null,
         payment_received_amount: data.payment_received ? numberOrNull(data.payment_received_amount) : null,
         settlement_notes: cleanText(data.settlement_notes || data.notes),
         settlement_image_url: upload.compressed_image_url,
@@ -511,14 +537,16 @@ export async function POST(request) {
         ai_model_used: modelUsed,
         ai_raw_data: normalizedSettlementRawData,
         ocr_timestamp: timestamp,
+        ...ocrAuditFields(data),
         updated_at: timestamp
       };
 
-      const { data: settlement, error } = await supabase
-        .from("dairy_settlements")
-        .upsert(settlementPayload, { onConflict: "farm_id,period_start,period_end" })
-        .select()
-        .single();
+      const { data: settlement, error } = await upsertSingleWithOcrFallback(
+        supabase,
+        "dairy_settlements",
+        settlementPayload,
+        { onConflict: "farm_id,period_start,period_end" }
+      );
 
       if (error) {
         throw error;
@@ -534,11 +562,8 @@ export async function POST(request) {
         modelUsed,
         timestamp
       });
-      const anamatRecord = await syncAnamatTrackingForSettlement(supabase, farmId, settlement);
-
       const matched = await matchSettlementToSlips(supabase, farmId, settlement);
-      const summary = await refreshSummaryForDate(supabase, farmId, settlement.settlement_date);
-      const anamatSummary = await refreshMonthlyAnamatSummary(supabase, farmId, settlement.settlement_date);
+      const summary = await refreshSettlementSummaries(supabase, farmId, settlement);
       await supabase
         .from("slip_uploads")
         .update({
@@ -560,15 +585,6 @@ export async function POST(request) {
           rowSyncSkipped,
           reconciliation: matched.reconciliation,
           summary,
-          anamat: {
-            record: anamatRecord,
-            cut_this_settlement: deductions.anamatCut,
-            monthly: anamatSummary,
-            message:
-              deductions.anamatCut > 0
-                ? `₹${deductions.anamatCut} अनामत कपात जमा झाली.`
-                : "या सेटलमेंटमध्ये अनामत कपात नाही."
-          },
           message: "सेटलमेंट स्लिप जतन झाली.",
           rowSyncMessage: rowSyncSkipped
             ? "AI rows संशयास्पद असल्यामुळे सकाळ/संध्याकाळ दूध नोंदी auto-save केल्या नाहीत."

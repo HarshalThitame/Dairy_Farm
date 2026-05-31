@@ -31,7 +31,6 @@ export default function SettlementForm({ initialData = null, initialReconciliati
     total_liters: initialData?.total_liters || "",
     total_milk_income: initialData?.total_milk_income || "",
     cattle_feed_deduction: initialData?.cattle_feed_deduction || "",
-    anamat_cut: initialData?.anamat_cut || "",
     other_deductions: initialData?.other_deductions || "",
     payment_received: Boolean(initialData?.payment_received),
     payment_received_date: initialData?.payment_received_date || today,
@@ -48,11 +47,10 @@ export default function SettlementForm({ initialData = null, initialReconciliati
   const totals = useMemo(() => {
     const deductions =
       Number(form.cattle_feed_deduction || 0) +
-      Number(form.anamat_cut || 0) +
       Number(form.other_deductions || 0);
     const netPayable = Number(form.total_milk_income || 0) - deductions;
     return { deductions, netPayable };
-  }, [form.cattle_feed_deduction, form.anamat_cut, form.other_deductions, form.total_milk_income]);
+  }, [form.cattle_feed_deduction, form.other_deductions, form.total_milk_income]);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -64,7 +62,7 @@ export default function SettlementForm({ initialData = null, initialReconciliati
     if (!form.settlement_date || !form.period_start || !form.period_end) return "सेटलमेंट तारीख आणि पीरियड आवश्यक आहे.";
     if (form.period_end < form.period_start) return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
     if (form.total_milk_income === "" || Number(form.total_milk_income || 0) <= 0) return "एकूण उत्पन्न लिहा.";
-    if (Number(form.cattle_feed_deduction || 0) < 0 || Number(form.anamat_cut || 0) < 0 || Number(form.other_deductions || 0) < 0) {
+    if (Number(form.cattle_feed_deduction || 0) < 0 || Number(form.other_deductions || 0) < 0) {
       return "कपात शून्य किंवा त्यापेक्षा जास्त असावी.";
     }
     return "";
@@ -152,20 +150,9 @@ export default function SettlementForm({ initialData = null, initialReconciliati
           <FormField label="खाद्य कपात" hint="डेअरी द्वारा खाद्यासाठी कपात">
             <input type="number" inputMode="decimal" min="0" step="1" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={inputClass} />
           </FormField>
-          <FormField label="अनामत कपात" hint="डेअरीकडे साठवलेली रक्कम, नंतर परत मिळू शकते">
-            <input type="number" inputMode="decimal" min="0" step="1" value={form.anamat_cut} onChange={(event) => updateField("anamat_cut", event.target.value)} className={`${inputClass} border-yellow-300 bg-yellow-50`} />
-          </FormField>
           <FormField label="इतर कपात" hint="परिवहन, सरासुवाई, अन्य खर्च">
             <input type="number" inputMode="decimal" min="0" step="1" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={inputClass} />
           </FormField>
-          {Number(form.anamat_cut || 0) > 0 ? (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-950">
-              <p className="text-[18px] font-extrabold">🏦 अनामत: {toMarathiCurrency(form.anamat_cut)}</p>
-              <p className="mt-1 text-[16px] font-bold leading-snug">
-                ही खर्च नाही. ही डेअरीकडे जमा राहणारी बचत आहे आणि नियमाप्रमाणे परत मिळते.
-              </p>
-            </div>
-          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-red-50 p-4 text-red-900">
               <p className="text-[17px] font-extrabold">एकूण कपात</p>

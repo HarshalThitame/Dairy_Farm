@@ -39,6 +39,10 @@ function getMonthKeyFromDate(date) {
   return String(date || "").slice(0, 7);
 }
 
+function getSettlementAccountingDate(settlement = {}) {
+  return settlement.period_end || settlement.settlement_date;
+}
+
 function getMonthKey(year, month) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
@@ -293,7 +297,7 @@ function buildFinanceSummary(records, monthlyExpenses, healthRecords, aiRecords,
     });
 
   (settlements || []).forEach((settlement) => {
-    const key = getMonthKeyFromDate(settlement.settlement_date);
+    const key = getMonthKeyFromDate(getSettlementAccountingDate(settlement));
     const month = monthRows.find((item) => item.key === key);
     const feedDeduction = Number(settlement.cattle_feed_deduction || 0);
     const otherDeduction = Number(settlement.other_deductions || 0);
@@ -438,8 +442,8 @@ export async function GET(request) {
         .from("dairy_settlements")
         .select("id, farm_id, settlement_date, period_start, period_end, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
-        .gte("settlement_date", range.start)
-        .lt("settlement_date", range.end),
+        .gte("period_end", range.start)
+        .lt("period_end", range.end),
       supabase
         .from("feed_expenses")
         .select("*")
