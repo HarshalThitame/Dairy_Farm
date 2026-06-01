@@ -9,6 +9,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 const allowedStatuses = new Set(["active", "historical", "sold", "dead", "converted_to_cow"]);
+const allowedGenders = new Set(["नर", "मादी"]);
 const editableTextFields = ["name", "color", "breed", "notes"];
 const editablePhotoFields = ["photo_url", "photo_storage_path"];
 
@@ -294,6 +295,10 @@ export async function POST(request) {
       return NextResponse.json({ error: "जन्म तारीख आणि लिंग आवश्यक आहे." }, { status: 400 });
     }
 
+    if (!allowedGenders.has(body.gender)) {
+      return NextResponse.json({ error: "वासराचे लिंग नर किंवा मादी असावे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request, body.mother_cow_id || null);
     const supabase = getSupabaseServerClient();
     const calf = await insertCalfWithReminders(supabase, buildCalfPayload(body, farmId));
@@ -381,6 +386,9 @@ export async function PATCH(request) {
     }
 
     if (body.gender !== undefined) {
+      if (!allowedGenders.has(body.gender)) {
+        return NextResponse.json({ error: "वासराचे लिंग नर किंवा मादी असावे." }, { status: 400 });
+      }
       updates.gender = normalizeGender(body.gender);
     }
 

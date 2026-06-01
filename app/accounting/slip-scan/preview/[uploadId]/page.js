@@ -27,6 +27,8 @@ function gapFieldLabel(field) {
   if (text.includes("daily_entries") && text.includes("snf")) return "दैनिक SNF";
   if (text === "total_milk_income") return "एकूण उत्पन्न";
   if (text === "total_liters") return "एकूण दूध";
+  if (text === "morning_total_liters") return "सकाळचे एकूण दूध";
+  if (text === "evening_total_liters") return "संध्याकाळचे एकूण दूध";
   if (text === "net_payable") return "शुद्ध देय";
   if (text === "period_end") return "पीरियड शेवट";
   if (text === "daily_entries") return "दैनिक तक्ता";

@@ -5,6 +5,18 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+const allowedReminderTypes = new Set([
+  "माज तपासणी",
+  "गर्भधारणा तपासणी",
+  "व्यायण",
+  "लसीकरण",
+  "जंतनाशक",
+  "तपासणी",
+  "दूध बंद",
+  "वासरी दूध कमी",
+  "वासरी दूध बंद"
+]);
+
 function monthRange(month, year) {
   const currentDate = new Date();
   const selectedMonth = Number(month || currentDate.getMonth() + 1);
@@ -254,6 +266,10 @@ export async function POST(request) {
 
     if (!body.reminder_date || !body.type || !body.message) {
       return NextResponse.json({ error: "तारीख, प्रकार आणि संदेश आवश्यक आहे." }, { status: 400 });
+    }
+
+    if (!allowedReminderTypes.has(body.type)) {
+      return NextResponse.json({ error: "आठवणीचा प्रकार चुकीचा आहे." }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmAccess(request, body.cow_id || null);

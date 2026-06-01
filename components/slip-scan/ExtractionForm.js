@@ -29,6 +29,8 @@ const missingMap = {
   period_start: ["period_start", "पीरियड सुरू"],
   period_end: ["period_end", "पीरियड शेवट"],
   total_liters: ["total_liters", "total milk", "एकूण दूध"],
+  morning_total_liters: ["morning_total_liters", "morning_liters", "सकाळचे एकूण दूध", "सकाळ एकूण"],
+  evening_total_liters: ["evening_total_liters", "evening_liters", "संध्याकाळचे एकूण दूध", "संध्याकाळ एकूण"],
   total_milk_income: ["total_milk_income", "income", "उत्पन्न"],
   cattle_feed_deduction: ["cattle_feed_deduction", "खाद्य"],
   other_deductions: ["other_deductions", "कपात"],
@@ -178,6 +180,16 @@ function buildInitialForm(data = {}) {
     data.amount_verification?.printed_amount ??
     (data.calculated_total_amount === undefined && !amountWasAutoFilled ? data.total_amount : "");
   const resolvedDeductions = resolveSettlementDeductions(data);
+  const morningTotalLiters = optionalNumber(
+    data.morning_total_liters ?? data.session_totals?.morning_liters ?? data.session_totals?.morning?.liters
+  );
+  const eveningTotalLiters = optionalNumber(
+    data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters
+  );
+  const sessionTotalLiters =
+    morningTotalLiters !== null || eveningTotalLiters !== null
+      ? roundMoney(Number(morningTotalLiters || 0) + Number(eveningTotalLiters || 0))
+      : "";
 
   return {
     slip_type: slipType,
@@ -202,7 +214,9 @@ function buildInitialForm(data = {}) {
     period_end: text(data.period_end),
     daily_total_liters: text(data.daily_total_liters),
     daily_total_amount: text(data.daily_total_amount),
-    total_liters: text(data.total_liters || data.daily_total_liters || data.total_liters_section2),
+    morning_total_liters: text(morningTotalLiters),
+    evening_total_liters: text(eveningTotalLiters),
+    total_liters: text(data.total_liters || data.daily_total_liters || data.total_liters_section2 || sessionTotalLiters),
     total_milk_income: text(data.total_milk_income),
     cattle_feed_deduction: text(resolvedDeductions.feedDeduction),
     other_deductions: text(resolvedDeductions.otherDeduction),
@@ -276,6 +290,15 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   const netPayable = useMemo(
     () => numberValue(form.total_milk_income) - totalDeductions,
     [form.total_milk_income, totalDeductions]
+  );
+  const morningSessionTotal = useMemo(() => optionalNumber(form.morning_total_liters), [form.morning_total_liters]);
+  const eveningSessionTotal = useMemo(() => optionalNumber(form.evening_total_liters), [form.evening_total_liters]);
+  const combinedSessionTotal = useMemo(
+    () =>
+      morningSessionTotal !== null || eveningSessionTotal !== null
+        ? roundMoney(Number(morningSessionTotal || 0) + Number(eveningSessionTotal || 0))
+        : null,
+    [eveningSessionTotal, morningSessionTotal]
   );
 
   function updateField(field, value) {
@@ -351,6 +374,16 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             ...form,
             farmer_code: form.farmer_code || form.member_number || form.dairy_member_code,
             dairy_member_code: form.farmer_code || form.member_number || form.dairy_member_code,
+            morning_total_liters: optionalNumber(form.morning_total_liters),
+            evening_total_liters: optionalNumber(form.evening_total_liters),
+            session_totals: {
+              morning_liters: optionalNumber(form.morning_total_liters),
+              evening_liters: optionalNumber(form.evening_total_liters),
+              total_liters:
+                optionalNumber(form.morning_total_liters) !== null || optionalNumber(form.evening_total_liters) !== null
+                  ? roundMoney(numberValue(form.morning_total_liters) + numberValue(form.evening_total_liters))
+                  : optionalNumber(form.total_liters)
+            },
             total_deductions: totalDeductions,
             net_payable: netPayable,
             deductions: {
@@ -641,6 +674,28 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               <FormField label="एकूण दूध">
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_liters} onChange={(event) => updateField("total_liters", event.target.value)} className={fieldClass("total_liters")} />
               </FormField>
+              <FormField label="सकाळचे एकूण दूध">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={form.morning_total_liters}
+                  onChange={(event) => updateField("morning_total_liters", event.target.value)}
+                  className={fieldClass("morning_total_liters")}
+                />
+              </FormField>
+              <FormField label="संध्याकाळचे एकूण दूध">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={form.evening_total_liters}
+                  onChange={(event) => updateField("evening_total_liters", event.target.value)}
+                  className={fieldClass("evening_total_liters")}
+                />
+              </FormField>
               <FormField label="शेतकरी कोड">
                 <input value={form.farmer_code || form.member_number} onChange={(event) => {
                   updateField("farmer_code", event.target.value);
@@ -690,6 +745,25 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               <p className="mt-1 text-[17px] font-bold text-slate-600">
                 AI ने {form.daily_entries.length} दिवसांच्या नोंदी वाचल्या. प्रत्येक तारीख तपासा.
               </p>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-[15px] font-extrabold text-amber-800">🌅 सकाळचे एकूण दूध</p>
+                  <p className="mt-1 text-[24px] font-black text-slate-950">
+                    {morningSessionTotal === null ? "वाचता आले नाही" : `${morningSessionTotal.toFixed(2)} लि.`}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                  <p className="text-[15px] font-extrabold text-indigo-800">🌆 संध्याकाळचे एकूण दूध</p>
+                  <p className="mt-1 text-[24px] font-black text-slate-950">
+                    {eveningSessionTotal === null ? "वाचता आले नाही" : `${eveningSessionTotal.toFixed(2)} लि.`}
+                  </p>
+                </div>
+              </div>
+              {combinedSessionTotal !== null ? (
+                <p className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[16px] font-extrabold text-green-900">
+                  सकाळ + संध्याकाळ = {combinedSessionTotal.toFixed(2)} लि.
+                </p>
+              ) : null}
               <div className="mt-3 max-h-[520px] overflow-auto rounded-lg border border-slate-200">
                 {form.daily_entries.map((entry, index) => {
                   const morning = sessionLine("सकाळ", entry.morning);

@@ -19,6 +19,7 @@ const cowFields = [
 ];
 
 const defaultBreed = "जर्सी";
+const allowedCowStatuses = new Set(["गाभण", "रिकामी", "व्याललेली", "उपचार सुरू", "वाळलेली"]);
 
 function pickFields(body) {
   return cowFields.reduce((payload, field) => {
@@ -91,11 +92,25 @@ export async function POST(request) {
       return NextResponse.json({ error: "गायीचे नाव आवश्यक आहे." }, { status: 400 });
     }
 
+    const requestedStatus = String(body.status || "").trim();
+
+    if (requestedStatus && !allowedCowStatuses.has(requestedStatus)) {
+      return NextResponse.json({ error: "गायीची स्थिती चुकीची आहे." }, { status: 400 });
+    }
+
     const payload = {
       ...pickFields(body),
       breed: body.breed && String(body.breed).trim() ? String(body.breed).trim() : defaultBreed,
       farm_id: farmId
     };
+
+    if (payload.status !== undefined) {
+      if (requestedStatus) {
+        payload.status = requestedStatus;
+      } else {
+        delete payload.status;
+      }
+    }
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("cows")

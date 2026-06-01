@@ -57,6 +57,8 @@ const STAGE_INDEX = {
   ready: 5
 };
 
+const STEP_PROGRESS = [12, 28, 45, 62, 72, 80];
+
 const TIPS = [
   "AI वाचलेली माहिती जतन करण्यापूर्वी तुम्ही तपासू आणि बदलू शकता.",
   "आर्थिक आकडे अस्पष्ट असतील तर app थेट save करत नाही.",
@@ -84,7 +86,7 @@ export default function AIReadingProgress({ stage = "reading", message = "", aut
 
   const activeIndex = autoAdvance ? Math.max(autoIndex, initialIndex) : initialIndex;
   const activeStep = STEPS[activeIndex] || STEPS[0];
-  const fillPercent = Math.max(16, Math.round(((activeIndex + 1) / STEPS.length) * 100));
+  const fillPercent = STEP_PROGRESS[activeIndex] ?? 80;
   const tip = useMemo(() => TIPS[activeIndex % TIPS.length], [activeIndex]);
 
   return (

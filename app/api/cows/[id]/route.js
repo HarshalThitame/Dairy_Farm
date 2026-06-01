@@ -18,6 +18,8 @@ const cowFields = [
   "is_active"
 ];
 
+const allowedCowStatuses = new Set(["गाभण", "रिकामी", "व्याललेली", "उपचार सुरू", "वाळलेली"]);
+
 function pickFields(body) {
   return cowFields.reduce((payload, field) => {
     if (body[field] !== undefined) {
@@ -142,6 +144,24 @@ export async function PUT(request, { params }) {
     const { farmId } = await verifyFarmOwner(request);
     const body = await request.json();
     const payload = pickFields(body);
+
+    if (Object.keys(payload).length === 0) {
+      return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
+    }
+
+    if (payload.status !== undefined) {
+      const requestedStatus = String(payload.status || "").trim();
+
+      if (requestedStatus && !allowedCowStatuses.has(requestedStatus)) {
+        return NextResponse.json({ error: "गायीची स्थिती चुकीची आहे." }, { status: 400 });
+      }
+
+      if (requestedStatus) {
+        payload.status = requestedStatus;
+      } else {
+        delete payload.status;
+      }
+    }
 
     if (Object.keys(payload).length === 0) {
       return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });

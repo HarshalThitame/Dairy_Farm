@@ -191,7 +191,20 @@ function validateSettlement(data) {
 }
 
 function getSettlementTotalLiters(data) {
-  return numberOrNull(data.total_liters ?? data.daily_total_liters ?? data.total_liters_section2);
+  const directTotal = numberOrNull(data.total_liters ?? data.daily_total_liters ?? data.total_liters_section2);
+
+  if (directTotal !== null) {
+    return directTotal;
+  }
+
+  const morningTotal = numberOrNull(data.morning_total_liters ?? data.session_totals?.morning_liters ?? data.session_totals?.morning?.liters);
+  const eveningTotal = numberOrNull(data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters);
+
+  if (morningTotal !== null || eveningTotal !== null) {
+    return roundMoney(Number(morningTotal || 0) + Number(eveningTotal || 0));
+  }
+
+  return null;
 }
 
 function settlementSessionRows(data = {}) {
@@ -507,9 +520,23 @@ export async function POST(request) {
 
       const deductions = getSettlementDeductions(data);
       const settlementNetPayable = calculateSettlementNetPayable(data);
+      const morningTotalLiters = numberOrNull(data.morning_total_liters ?? data.session_totals?.morning_liters ?? data.session_totals?.morning?.liters);
+      const eveningTotalLiters = numberOrNull(data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters);
+      const combinedSessionTotal =
+        morningTotalLiters !== null || eveningTotalLiters !== null
+          ? roundMoney(Number(morningTotalLiters || 0) + Number(eveningTotalLiters || 0))
+          : null;
       const normalizedSettlementRawData = {
         ...data,
         total_liters: getSettlementTotalLiters(data),
+        morning_total_liters: morningTotalLiters,
+        evening_total_liters: eveningTotalLiters,
+        session_totals: {
+          ...(data.session_totals || {}),
+          morning_liters: morningTotalLiters,
+          evening_liters: eveningTotalLiters,
+          total_liters: combinedSessionTotal
+        },
         total_milk_income: money(data.total_milk_income),
         cattle_feed_deduction: deductions.feedDeduction,
         other_deductions: deductions.otherDeductions,

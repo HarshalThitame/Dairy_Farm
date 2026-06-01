@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const motherStatusAfterCalving = "व्याललेली";
 const calvingReminderType = "व्यायण";
+const allowedCalfGenders = new Set(["नर", "मादी"]);
 
 const calvingFields = [
   "cow_id",
@@ -148,10 +149,15 @@ export async function POST(request) {
       return NextResponse.json({ error: "गाय, तारीख आणि वासराचे लिंग आवश्यक आहे." }, { status: 400 });
     }
 
+    if (!allowedCalfGenders.has(body.calf_gender)) {
+      return NextResponse.json({ error: "वासराचे लिंग नर किंवा मादी असावे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request, body.cow_id);
     const calfCount = Math.max(1, Math.min(2, Number(body.calf_count || 1)));
     const payload = {
       ...pickFields(body),
+      calf_gender: body.calf_gender,
       calf_count: calfCount,
       farm_id: farmId
     };

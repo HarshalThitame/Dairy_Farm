@@ -5,6 +5,8 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+const allowedHealthTypes = new Set(["लसीकरण", "आजारपण", "जंतनाशक", "तपासणी", "उपचार"]);
+
 const healthFields = [
   "cow_id",
   "date",
@@ -46,6 +48,10 @@ function normalizeHealthPayload(body) {
 function validateHealth(body) {
   if (!body.cow_id || !body.date || !body.type) {
     return "गाय, तारीख आणि प्रकार आवश्यक आहे.";
+  }
+
+  if (!allowedHealthTypes.has(body.type)) {
+    return "आरोग्य नोंदीचा प्रकार चुकीचा आहे.";
   }
 
   if (

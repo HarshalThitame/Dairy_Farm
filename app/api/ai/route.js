@@ -17,6 +17,7 @@ const aiFields = [
 ];
 
 const defaultBullBreed = "जर्सी";
+const allowedPregnancyResults = new Set(["positive", "negative", "pending"]);
 
 function pickFields(body) {
   return aiFields.reduce((payload, field) => {
@@ -66,6 +67,23 @@ export async function POST(request) {
       return NextResponse.json({ error: "गाय आणि रेतन तारीख आवश्यक आहे." }, { status: 400 });
     }
 
+    if (
+      body.pregnancy_result !== undefined &&
+      body.pregnancy_result !== "" &&
+      !allowedPregnancyResults.has(body.pregnancy_result)
+    ) {
+      return NextResponse.json({ error: "गर्भधारणा निकाल चुकीचा आहे." }, { status: 400 });
+    }
+
+    if (
+      body.cost !== undefined &&
+      body.cost !== "" &&
+      body.cost !== null &&
+      (!Number.isFinite(Number(body.cost)) || Number(body.cost) < 0)
+    ) {
+      return NextResponse.json({ error: "रेतन खर्च शून्य किंवा त्यापेक्षा जास्त असावा." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request, body.cow_id);
     const payload = {
       ...pickFields(body),
@@ -73,6 +91,8 @@ export async function POST(request) {
         body.bull_breed && String(body.bull_breed).trim()
           ? String(body.bull_breed).trim()
           : defaultBullBreed,
+      cost: body.cost === "" || body.cost === null || body.cost === undefined ? null : Number(body.cost),
+      pregnancy_result: body.pregnancy_result || "pending",
       farm_id: farmId
     };
     const supabase = getSupabaseServerClient();

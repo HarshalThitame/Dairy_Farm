@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
+import { displayFinanceCategory, expenseCategories, incomeCategories } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,33 @@ const financeFields = [
 
 const allowedTypes = new Set(["उत्पन्न", "खर्च"]);
 const allowedAccountingPeriods = new Set(["monthly", "annual"]);
+const allowedCategories = new Set([
+  ...incomeCategories,
+  ...expenseCategories,
+  "AI खर्च"
+]);
+
+function isFinanceCategorySchemaError(error) {
+  return error?.code === "23514" && String(error?.message || "").includes("finance_records_category_check");
+}
+
+function getSupabaseProjectRef() {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").hostname.split(".")[0];
+  } catch {
+    return "";
+  }
+}
+
+function financeCategorySchemaError() {
+  const projectRef = getSupabaseProjectRef();
+  const projectHint = projectRef ? ` Project: ${projectRef}.` : "";
+  const error = new Error(
+    `हिशोब category constraint जुना आहे.${projectHint} Supabase SQL Editor मध्ये supabase/fix_finance_records_category_check.sql पूर्ण file run करा.`
+  );
+  error.status = 409;
+  return error;
+}
 
 function pickFields(body) {
   return financeFields.reduce((payload, field) => {
@@ -53,6 +81,14 @@ function validateFinancePayload(payload, { requireBasics = false } = {}) {
     return "खर्चाचा कालावधी चुकीचा आहे.";
   }
 
+  if (payload.category !== undefined && payload.category !== null && payload.category !== "") {
+    const category = displayFinanceCategory(String(payload.category).trim());
+
+    if (!allowedCategories.has(category)) {
+      return "व्यवहाराचा वर्ग चुकीचा आहे.";
+    }
+  }
+
   return "";
 }
 
@@ -68,7 +104,7 @@ function normalizeFinancePayload(payload) {
   }
 
   if (normalized.category !== undefined) {
-    normalized.category = String(normalized.category || "इतर").trim() || "इतर";
+    normalized.category = displayFinanceCategory(String(normalized.category || "इतर").trim() || "इतर");
   }
 
   if (normalized.description !== undefined) {
@@ -143,6 +179,9 @@ export async function GET(request) {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (isFinanceCategorySchemaError(error)) {
+        throw financeCategorySchemaError();
+      }
       throw error;
     }
 
@@ -179,6 +218,9 @@ export async function POST(request) {
       .single();
 
     if (error) {
+      if (isFinanceCategorySchemaError(error)) {
+        throw financeCategorySchemaError();
+      }
       throw error;
     }
 
@@ -235,6 +277,10 @@ export async function PUT(request) {
       .eq("farm_id", farmId)
       .select()
       .single();
+
+    if (isFinanceCategorySchemaError(error)) {
+      throw financeCategorySchemaError();
+    }
 
     if (error || !data) {
       return NextResponse.json({ error: "व्यवहार सापडला नाही." }, { status: 404 });

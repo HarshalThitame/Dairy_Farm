@@ -545,7 +545,7 @@ export async function GET(request) {
         },
         reproductionSummary: {
           aiCount: (aiResult.data || []).length,
-          pregnantCount: (aiResult.data || []).filter((item) => item.pregnancy_result === "गाभण").length,
+          pregnantCount: (aiResult.data || []).filter((item) => item.pregnancy_result === "positive").length,
           calvingCount: (calvingResult.data || []).length,
           calfCount
         },
