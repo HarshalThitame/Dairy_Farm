@@ -3,9 +3,11 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   calculateSettlementMatch,
   matchSettlementToSlips,
-  refreshSettlementSummaries
+  refreshSettlementSummaries,
+  refreshSummaryForDate
 } from "@/lib/accountingUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +138,105 @@ async function fetchSettlement(supabase, farmId, id) {
   }
 
   return data;
+}
+
+function parseRawData(value) {
+  if (!value) {
+    return {};
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+
+  return typeof value === "object" ? value : {};
+}
+
+function isGeneratedFromSettlementSlip(slip = {}, settlement = {}) {
+  const raw = parseRawData(slip.ai_raw_data);
+  const isSettlementSlipSource = raw.source === "settlement_slip";
+  const periodStartMatches = !raw.settlement_period_start || raw.settlement_period_start === settlement.period_start;
+  const periodEndMatches = !raw.settlement_period_end || raw.settlement_period_end === settlement.period_end;
+  const imageMatches =
+    !settlement.settlement_image_url ||
+    !slip.slip_image_url ||
+    slip.slip_image_url === settlement.settlement_image_url;
+
+  if (isSettlementSlipSource && periodStartMatches && periodEndMatches && imageMatches) {
+    return true;
+  }
+
+  const notes = String(slip.notes || "");
+  return (
+    notes.includes("१५ दिवसांच्या सेटलमेंट स्लिपवरून") &&
+    slip.ai_extracted === true &&
+    imageMatches
+  );
+}
+
+async function deleteSettlementGeneratedSlips(supabase, farmId, settlement = {}) {
+  if (!settlement.period_start || !settlement.period_end) {
+    return { deletedSlipCount: 0, affectedDates: [] };
+  }
+
+  const { data: slips, error: fetchError } = await supabase
+    .from("dairy_slips")
+    .select("id, slip_date, notes, ai_extracted, ai_raw_data, slip_image_url")
+    .eq("farm_id", farmId)
+    .gte("slip_date", settlement.period_start)
+    .lte("slip_date", settlement.period_end);
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  const generatedSlips = (slips || []).filter((slip) => isGeneratedFromSettlementSlip(slip, settlement));
+  const generatedIds = generatedSlips.map((slip) => slip.id).filter(Boolean);
+  const affectedDates = Array.from(new Set(generatedSlips.map((slip) => slip.slip_date).filter(Boolean)));
+
+  if (!generatedIds.length) {
+    return { deletedSlipCount: 0, affectedDates };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("dairy_slips")
+    .delete()
+    .eq("farm_id", farmId)
+    .in("id", generatedIds);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  for (const date of affectedDates) {
+    await recomputeMilkRecordFromDairySlips(supabase, farmId, date);
+  }
+
+  return {
+    deletedSlipCount: generatedIds.length,
+    affectedDates
+  };
+}
+
+async function refreshSummariesForDates(supabase, farmId, dates = []) {
+  const monthDates = Array.from(
+    new Map(
+      dates
+        .filter(Boolean)
+        .map((date) => [String(date).slice(0, 7), date])
+    ).values()
+  );
+  const summaries = [];
+
+  for (const date of monthDates) {
+    summaries.push(await refreshSummaryForDate(supabase, farmId, date));
+  }
+
+  return summaries;
 }
 
 export async function GET(request, { params }) {
@@ -309,9 +410,23 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
     }
 
-    const summary = await refreshSettlementSummaries(supabase, farmId, data);
+    const generatedSlipCleanup = await deleteSettlementGeneratedSlips(supabase, farmId, existing);
+    const refreshedSummaries = await refreshSummariesForDates(supabase, farmId, [
+      data.period_end,
+      data.settlement_date,
+      ...generatedSlipCleanup.affectedDates
+    ]);
+    const summary = refreshedSummaries[0] || await refreshSettlementSummaries(supabase, farmId, data);
 
-    return NextResponse.json({ data: { success: true, settlement: data, summary } });
+    return NextResponse.json({
+      data: {
+        success: true,
+        settlement: data,
+        summary,
+        deletedGeneratedSlips: generatedSlipCleanup.deletedSlipCount,
+        affectedDates: generatedSlipCleanup.affectedDates
+      }
+    });
   } catch (error) {
     return farmErrorResponse(error);
   }
