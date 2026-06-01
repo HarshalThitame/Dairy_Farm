@@ -1,15 +1,31 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "majhi_dairy_ai_assistant_messages";
+const AI_LOGO_SRC = "/icons/ai logo.png";
 const suggestedQuestions = [
-  "आजचे दूध",
-  "या महिन्याचे उत्पन्न",
-  "सरासरी फॅट",
-  "सर्वाधिक दूध",
-  "सर्वात कमी दूध",
-  "SNF अहवाल"
+  "🥛 आजचे दूध?",
+  "📅 या महिन्याचे दूध?",
+  "💰 आजचे उत्पन्न?",
+  "💵 या महिन्याचे उत्पन्न?",
+  "📈 सरासरी दूध?",
+  "🏆 सर्वाधिक दूध?",
+  "📉 सर्वात कमी दूध?",
+  "🧈 सरासरी फॅट?",
+  "🧪 सरासरी SNF?",
+  "🌅 सकाळचे दूध?",
+  "🌙 संध्याकाळचे दूध?",
+  "📊 दूधाचा ट्रेंड?",
+  "📆 कालचे दूध?",
+  "🗓️ मागील महिन्याचा अहवाल?",
+  "🐄 सर्वाधिक उत्पादन?",
+  "💸 खर्च किती?",
+  "📋 नफा किती?",
+  "🔍 आजची नोंद?",
+  "📑 मासिक सारांश?",
+  "🤖 माझी डेअरी स्थिती?"
 ];
 
 function getAuthToken() {
@@ -59,12 +75,17 @@ function Bubble({ message }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+      {!isUser ? (
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-white p-1 shadow-sm">
+          <Image src={AI_LOGO_SRC} alt="" width={36} height={36} className="h-full w-full rounded-md object-cover" />
+        </div>
+      ) : null}
       <div
-        className={`max-w-[86%] rounded-lg px-4 py-3 text-[17px] font-semibold leading-relaxed shadow-sm ${
+        className={`max-w-[84%] rounded-lg px-4 py-3 text-[16.5px] font-semibold leading-relaxed shadow-sm ${
           isUser
-            ? "bg-sheti text-white"
-            : "border border-green-100 bg-white text-slate-800"
+            ? "rounded-br-sm bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-emerald-900/15"
+            : "rounded-bl-sm border border-emerald-100 bg-white/95 text-slate-800 shadow-emerald-900/5"
         }`}
       >
         {message.content}
@@ -75,11 +96,14 @@ function Bubble({ message }) {
 
 function TypingIndicator() {
   return (
-    <div className="flex justify-start">
-      <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-white px-4 py-3 text-[16px] font-bold text-slate-600 shadow-sm">
-        <span className="h-2 w-2 animate-bounce rounded-full bg-green-500" />
-        <span className="h-2 w-2 animate-bounce rounded-full bg-green-500 [animation-delay:120ms]" />
-        <span className="h-2 w-2 animate-bounce rounded-full bg-green-500 [animation-delay:240ms]" />
+    <div className="flex items-end gap-2">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-white p-1 shadow-sm">
+        <Image src={AI_LOGO_SRC} alt="" width={36} height={36} className="h-full w-full rounded-md object-cover" />
+      </div>
+      <div className="flex items-center gap-2 rounded-lg rounded-bl-sm border border-emerald-100 bg-white px-4 py-3 text-[16px] font-bold text-slate-600 shadow-sm">
+        <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 [animation-delay:120ms]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 [animation-delay:240ms]" />
         माहिती तपासत आहे...
       </div>
     </div>
@@ -173,25 +197,37 @@ export default function AIAssistantWidget() {
   return (
     <>
       {open ? (
-        <section className="fixed bottom-24 right-3 z-50 flex max-h-[74vh] w-[calc(100vw-24px)] max-w-[430px] flex-col overflow-hidden rounded-lg border border-green-100 bg-green-50 shadow-2xl sm:right-5">
-          <header className="bg-sheti px-4 py-3 text-white">
+        <section className="fixed bottom-24 right-2 z-[70] flex max-h-[78vh] w-[calc(100vw-16px)] max-w-[450px] flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-b from-emerald-50 via-white to-sky-50 shadow-[0_24px_70px_rgba(15,118,110,0.28)] sm:right-5">
+          <header className="bg-gradient-to-r from-emerald-700 via-green-600 to-sky-600 px-4 py-3 text-white">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[14px] font-extrabold text-green-100">माझी डेअरी</p>
-                <h2 className="text-[22px] font-extrabold leading-tight">🤖 AI सहाय्यक</h2>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white p-1 shadow-lg shadow-emerald-900/20">
+                  <Image
+                    src={AI_LOGO_SRC}
+                    alt="AI सहाय्यक"
+                    width={48}
+                    height={48}
+                    className="h-full w-full rounded-md object-cover"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-extrabold text-emerald-50">माझी डेअरी</p>
+                  <h2 className="truncate text-[21px] font-extrabold leading-tight">AI सहाय्यक</h2>
+                  <p className="mt-0.5 text-[12px] font-bold text-emerald-50/90">खऱ्या डेटावर उत्तर</p>
+                </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
                   onClick={resetChat}
-                  className="rounded-lg bg-white/15 px-3 py-2 text-[15px] font-extrabold active:bg-white/25"
+                  className="rounded-lg bg-white/15 px-3 py-2 text-[14px] font-extrabold shadow-sm ring-1 ring-white/10 active:bg-white/25"
                 >
                   साफ
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15 text-[20px] font-extrabold active:bg-white/25"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15 text-[20px] font-extrabold shadow-sm ring-1 ring-white/10 active:bg-white/25"
                   aria-label="बंद करा"
                 >
                   ×
@@ -222,7 +258,7 @@ export default function AIAssistantWidget() {
             </div>
           ) : null}
 
-          <div className="border-t border-green-100 bg-white px-3 py-3">
+          <div className="border-t border-emerald-100 bg-white/95 px-3 py-3 shadow-[0_-12px_28px_rgba(15,118,110,0.08)] backdrop-blur">
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
               {suggestedQuestions.map((question) => (
                 <button
@@ -230,14 +266,14 @@ export default function AIAssistantWidget() {
                   type="button"
                   onClick={() => askAssistant(question)}
                   disabled={loading}
-                  className="shrink-0 rounded-full border border-green-200 bg-green-50 px-3 py-2 text-[15px] font-extrabold text-sheti disabled:opacity-60"
+                  className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-[14px] font-extrabold text-emerald-800 shadow-sm active:scale-[0.98] disabled:opacity-60"
                 >
                   {question}
                 </button>
               ))}
             </div>
             <form
-              className="flex items-end gap-2"
+              className="flex items-end gap-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2 shadow-inner"
               onSubmit={(event) => {
                 event.preventDefault();
                 askAssistant();
@@ -248,28 +284,38 @@ export default function AIAssistantWidget() {
                 onChange={(event) => setInput(event.target.value)}
                 rows={1}
                 placeholder="प्रश्न विचारा..."
-                className="min-h-[52px] flex-1 resize-none rounded-lg border-2 border-green-100 bg-white px-4 py-3 text-[18px] font-semibold text-slate-900 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
+                className="min-h-[52px] flex-1 resize-none rounded-lg border border-white bg-white px-4 py-3 text-[17px] font-semibold text-slate-900 shadow-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white shadow-sm disabled:bg-slate-300"
+                className="flex min-h-[52px] shrink-0 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-emerald-600 to-green-700 px-4 text-[17px] font-extrabold text-white shadow-lg shadow-emerald-900/20 active:scale-[0.98] disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
               >
-                पाठवा
+                <span>पाठवा</span>
+                <span aria-hidden="true">➤</span>
               </button>
             </form>
           </div>
         </section>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="fixed bottom-24 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-sheti text-[31px] text-white shadow-2xl ring-4 ring-green-100 active:scale-95 sm:right-6"
-        aria-label="AI सहाय्यक"
-      >
-        🤖
-      </button>
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-24 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-white p-1.5 shadow-[0_18px_45px_rgba(15,118,110,0.35)] ring-4 ring-emerald-100 transition active:scale-95 sm:right-6"
+          aria-label="AI सहाय्यक"
+        >
+          <Image
+            src={AI_LOGO_SRC}
+            alt="AI सहाय्यक"
+            width={64}
+            height={64}
+            className="h-full w-full rounded-full object-cover"
+          />
+          <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500" />
+        </button>
+      ) : null}
     </>
   );
 }

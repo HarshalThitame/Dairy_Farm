@@ -63,7 +63,7 @@ function buildInputMessages(history, message) {
 }
 
 function looksLikeAnalyticsQuestion(message) {
-  return /दूध|लिटर|फॅट|fat|snf|एसएनएफ|उत्पन्न|income|revenue|दर|rate|सकाळ|संध्याकाळ|सरासरी|average|सर्वाधिक|कमी|महिना|आठवडा|दिवस|नफा/i.test(
+  return /दूध|लिटर|फॅट|fat|snf|एसएनएफ|उत्पन्न|income|revenue|दर|rate|सकाळ|संध्याकाळ|सरासरी|average|सर्वाधिक|कमी|महिना|आठवडा|दिवस|नफा|खर्च|expense|profit|trend|ट्रेंड|सारांश|स्थिती|नोंद|अहवाल/i.test(
     String(message || "")
   );
 }
