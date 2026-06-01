@@ -68,9 +68,9 @@ function buildSettlementDeductionExpenses(settlements = []) {
         ...base,
         id: `settlement-feed-${settlement.id}`,
         category: "चारा",
-        display_category: "डेअरी खाद्य कपात",
+        display_category: "अंतिम डेअरी खाद्य कपात",
         amount: Number(settlement.cattle_feed_deduction || 0),
-        description: `सेटलमेंट खाद्य कपात | ${period}`
+        description: `15 दिवसांच्या स्लिपवरील एकूण कपात | ${period}`
       });
     }
 
@@ -149,12 +149,16 @@ export async function GET(request) {
       healthRecords: healthExpenses.data || []
     }).concat(buildSettlementDeductionExpenses(settlementDeductions.data || []));
     const summary = summarizeExpenses(expenses);
+    const infoOnlyKhadyaTotal = expenses
+      .filter((expense) => expense.info_only === true)
+      .reduce((total, expense) => total + Number(expense.amount || 0), 0);
 
     return NextResponse.json({
       data: {
         expenses,
         byCategory: summary.byCategory,
-        monthlyTotal: summary.monthlyTotal
+        monthlyTotal: summary.monthlyTotal,
+        infoOnlyKhadyaTotal: Number(infoOnlyKhadyaTotal.toFixed(2))
       }
     });
   } catch (error) {

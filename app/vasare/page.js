@@ -10,8 +10,6 @@ import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
 import MarathiTextInput from "@/components/MarathiTextInput";
-import PageHeader from "@/components/PageHeader";
-import SummaryCard from "@/components/SummaryCard";
 import { calfStatuses } from "@/lib/calfLifecycle";
 import {
   addDaysToDate,
@@ -98,6 +96,37 @@ function getCalfTitle(calf) {
   return calf.name || (calf.gender === "मादी" ? "मादी वासरी" : "नर वासरू");
 }
 
+function FreshStat({ emoji, label, value, tone = "green" }) {
+  const tones = {
+    green: "bg-green-50 text-green-950 ring-green-100",
+    yellow: "bg-amber-50 text-amber-950 ring-amber-100",
+    blue: "bg-blue-50 text-blue-950 ring-blue-100",
+    slate: "bg-slate-950 text-white ring-slate-800"
+  };
+
+  return (
+    <article className={`rounded-lg p-3 shadow-sm ring-1 ${tones[tone] || tones.green}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[24px]" aria-hidden="true">{emoji}</span>
+        <span className="text-[24px] font-black leading-none">{value}</span>
+      </div>
+      <p className="mt-2 text-[14px] font-extrabold leading-tight opacity-75">{label}</p>
+    </article>
+  );
+}
+
+function filterButtonClass(active, tone = "green") {
+  if (active && tone === "yellow") {
+    return "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-100";
+  }
+
+  if (active) {
+    return "border-green-300 bg-green-100 text-sheti ring-2 ring-green-100";
+  }
+
+  return "border-slate-200 bg-white text-slate-700 active:bg-green-50";
+}
+
 function CalfCard({ calf, onEdit, onStatusChange }) {
   const canChangeStatus = ["active", "historical"].includes(calf.status);
   const statusActions = [
@@ -107,54 +136,80 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
   ];
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-      <div className="flex items-start gap-3">
-        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+    <article className="dashboard-card overflow-hidden rounded-lg border border-l-4 border-l-green-500 border-slate-200 bg-white/95 shadow-soft backdrop-blur">
+      <div className="relative p-4">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-green-500 via-sky-400 to-amber-400" />
+        <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-gradient-to-bl from-green-100/70 via-blue-50/70 to-transparent" />
+
+      <div className="relative flex items-start gap-3">
+        <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-white bg-gradient-to-br from-green-50 via-white to-amber-50 shadow-sm ring-1 ring-slate-100">
           {calf.photo_url ? (
             <img src={calf.photo_url} alt={getCalfTitle(calf)} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[42px]">🐮</div>
+            <div className="flex h-full w-full items-center justify-center text-[48px]">🐮</div>
           )}
+          <span className="absolute bottom-1 left-1 rounded bg-white/90 px-2 py-0.5 text-[12px] font-extrabold text-slate-700 shadow-sm">
+            {calf.gender || "वासरू"}
+          </span>
         </div>
-        <div className="min-w-0">
-          <h2 className="text-[24px] font-extrabold leading-tight text-slate-950">
-            {getCalfTitle(calf)}
-          </h2>
-          <p className="mt-1 text-[18px] font-bold text-slate-700">
-            जन्म: {formatMarathiDate(calf.birth_date)} | वय: {calf.age_text}
-          </p>
-          <p className="mt-1 text-[18px] font-bold text-slate-700">
-            आई: {calf.mother?.name || "माहिती नाही"}
-          </p>
-          <p className="mt-1 text-[18px] font-bold text-slate-700">
-            लिंग: {calf.gender} | जात: {formatCowBreed(calf.breed)}
-          </p>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="break-words text-[25px] font-extrabold leading-tight text-slate-950">
+                {getCalfTitle(calf)}
+              </h2>
+              <p className="mt-1 break-words text-[17px] font-bold leading-snug text-slate-500">
+                आई: {calf.mother?.name || "माहिती नाही"}
+              </p>
+            </div>
+            <p className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-[15px] font-extrabold text-sheti shadow-sm ring-1 ring-green-100">
+              {calfStatuses[calf.status] || calf.status}
+            </p>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[16px] font-bold leading-snug text-slate-700">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 shadow-sm ring-1 ring-slate-100">
+              <span className="block text-[13px] font-extrabold text-slate-400">जन्म</span>
+              {formatMarathiDate(calf.birth_date)}
+            </div>
+            <div className="rounded-lg bg-blue-50 px-3 py-2 text-blue-950 shadow-sm ring-1 ring-blue-100">
+              <span className="block text-[13px] font-extrabold text-blue-500">वय</span>
+              {calf.age_text}
+            </div>
+            <div className="rounded-lg bg-amber-50 px-3 py-2 text-amber-950 shadow-sm ring-1 ring-amber-100">
+              <span className="block text-[13px] font-extrabold text-amber-600">जात</span>
+              {formatCowBreed(calf.breed)}
+            </div>
+            <div className="rounded-lg bg-green-50 px-3 py-2 text-green-950 shadow-sm ring-1 ring-green-100">
+              <span className="block text-[13px] font-extrabold text-green-500">लिंग</span>
+              {calf.gender || "माहिती नाही"}
+            </div>
+          </div>
+
           {calf.color ? (
-            <p className="mt-1 text-[18px] font-bold text-slate-700">रंग: {calf.color}</p>
+            <p className="mt-2 text-[17px] font-bold text-slate-600">रंग: {calf.color}</p>
           ) : null}
           {calf.notes ? (
-            <p className="mt-2 text-[18px] font-semibold leading-snug text-slate-600">
+            <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[17px] font-bold leading-snug text-slate-600 ring-1 ring-slate-100">
               {calf.notes}
             </p>
           ) : null}
         </div>
-        <p className="ml-auto shrink-0 rounded-full bg-green-50 px-3 py-1 text-[16px] font-extrabold text-sheti">
-          {calfStatuses[calf.status] || calf.status}
-        </p>
       </div>
 
-      <div className="mt-3 rounded-lg bg-yellow-50 p-3 text-yellow-950">
-        <p className="text-[18px] font-extrabold">दूध स्थिती</p>
-        <p className="mt-1 text-[20px] font-extrabold">{calf.milk_status_label}</p>
+      <div className="relative mt-4 rounded-lg border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-green-50 p-3 text-amber-950 shadow-sm">
+        <p className="text-[17px] font-extrabold text-amber-700">दूध स्थिती</p>
+        <p className="mt-1 text-[21px] font-black leading-tight">{calf.milk_status_label}</p>
         {calf.is_raised ? (
-          <p className="mt-1 text-[17px] font-bold">
+          <p className="mt-1 text-[16px] font-bold leading-snug">
             कमी: {formatMarathiDate(calf.milk_reduce_date)} | बंद: {formatMarathiDate(calf.milk_stop_date)}
           </p>
         ) : null}
       </div>
 
       {calf.status === "sold" ? (
-        <div className="mt-3 rounded-lg bg-green-50 p-3 text-green-950">
+        <div className="mt-3 rounded-lg border border-green-100 bg-green-50 p-3 text-green-950 shadow-sm">
           <p className="text-[18px] font-extrabold">विक्री माहिती</p>
           <p className="mt-1 text-[18px] font-bold">
             तारीख: {formatMarathiDate(calf.sold_date)} | रक्कम: {formatCurrency(calf.sale_amount || 0)}
@@ -166,7 +221,7 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
       ) : null}
 
       {calf.status === "converted_to_cow" ? (
-        <div className="mt-3 rounded-lg bg-blue-50 p-3 text-blue-950">
+        <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-blue-950 shadow-sm">
           <p className="text-[18px] font-extrabold">गायीच्या यादीत जोडली</p>
           {calf.converted_cow ? (
             <Link
@@ -181,11 +236,11 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
         </div>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
         <button
           type="button"
           onClick={() => onEdit(calf)}
-          className="min-h-[50px] rounded-lg border-2 border-green-200 bg-green-50 px-3 text-[17px] font-extrabold text-sheti active:bg-green-100"
+          className="min-h-[52px] rounded-lg border-2 border-green-200 bg-green-50 px-3 text-[17px] font-extrabold text-sheti shadow-sm active:bg-green-100"
         >
           ✏️ संपादित करा
         </button>
@@ -197,13 +252,14 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
               key={action.status}
               type="button"
               onClick={() => onStatusChange(calf, action.status)}
-              className="min-h-[48px] rounded-lg border-2 border-slate-200 bg-slate-50 px-2 text-[16px] font-extrabold text-slate-800 active:bg-green-50"
+              className="min-h-[50px] rounded-lg border-2 border-slate-200 bg-slate-50 px-2 text-[16px] font-extrabold text-slate-800 shadow-sm active:bg-green-50"
             >
               {action.label}
             </button>
             ))}
           </div>
         ) : null}
+      </div>
       </div>
     </article>
   );
@@ -561,28 +617,56 @@ export default function CalvesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="🐮 वासरे" subtitle="वासरांची वाढ, दूध आणि आई गाय" />
+      <header className="dashboard-hero overflow-hidden rounded-lg px-4 pb-4 pt-5 text-white shadow-soft">
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[16px] font-extrabold text-green-100">
+                माझी डेअरी
+              </p>
+              <h1 className="mt-1 text-[34px] font-black leading-tight">
+                🐮 वासरे
+              </h1>
+              <p className="mt-1 text-[18px] font-bold leading-snug text-green-50">
+                वाढ, दूध पाजणे आणि आई गाय - सर्व एकाच ठिकाणी
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={formOpen ? resetForm : openAddForm}
+              className="flex min-h-[52px] shrink-0 items-center justify-center rounded-lg bg-white px-4 text-[18px] font-extrabold text-green-800 shadow-sm active:bg-green-50"
+            >
+              {formOpen ? "बंद" : "➕ जोडा"}
+            </button>
+          </div>
 
-      <section className="grid grid-cols-2 gap-3">
-        <SummaryCard emoji="🐮" title="सक्रिय वासरे" value={toMarathiNumerals(summary?.active || 0)} color="green" />
-        <SummaryCard emoji="🥛" title="दूध सुरू" value={toMarathiNumerals(summary?.milkFeeding || 0)} color="yellow" />
-        <SummaryCard emoji="📝" title="जन्म नोंदी" value={toMarathiNumerals(summary?.historical || 0)} color="slate" />
-        <SummaryCard emoji="📦" title="विकली" value={toMarathiNumerals(summary?.sold || 0)} color="purple" />
-      </section>
+          <div className="dashboard-glass mt-5 grid grid-cols-2 gap-2 rounded-lg p-2 sm:grid-cols-4">
+            <FreshStat emoji="🐮" label="सक्रिय" value={toMarathiNumerals(summary?.active || 0)} tone="green" />
+            <FreshStat emoji="🥛" label="दूध सुरू" value={toMarathiNumerals(summary?.milkFeeding || 0)} tone="yellow" />
+            <FreshStat emoji="📝" label="जन्म नोंदी" value={toMarathiNumerals(summary?.historical || 0)} tone="blue" />
+            <FreshStat emoji="📦" label="विकली" value={toMarathiNumerals(summary?.sold || 0)} tone="slate" />
+          </div>
+        </div>
+      </header>
 
       <button
         type="button"
         onClick={formOpen ? resetForm : openAddForm}
-        className="min-h-[56px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
+        className="dashboard-scan flex min-h-[62px] w-full items-center justify-center rounded-lg border border-green-200 bg-gradient-to-r from-green-50 via-white to-blue-50 px-4 text-[20px] font-extrabold text-sheti shadow-soft active:bg-green-100"
       >
         {formOpen ? "फॉर्म बंद करा" : "➕ जुने / नवीन वासरू जोडा"}
       </button>
 
       {formOpen ? (
-        <form onSubmit={submitCalf} className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-          <h2 className="text-[24px] font-extrabold text-slate-950">
-            {editingCalfId ? "वासरू संपादित करा" : "वासरू जोडा"}
-          </h2>
+        <form onSubmit={submitCalf} className="dashboard-panel space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+          <div className="relative z-10">
+            <h2 className="text-[25px] font-extrabold text-slate-950">
+              {editingCalfId ? "वासरू संपादित करा" : "वासरू जोडा"}
+            </h2>
+            <p className="mt-1 text-[17px] font-bold text-slate-500">
+              कमी typing, मोठे buttons आणि फोटोसह नोंद
+            </p>
+          </div>
 
           <FormField label="जन्म तारीख" required>
             <input
@@ -775,10 +859,10 @@ export default function CalvesPage() {
       ) : null}
 
       {conversionCalf ? (
-        <form onSubmit={submitConversion} className="space-y-4 rounded-lg border border-blue-200 bg-white p-4 shadow-soft">
+        <form onSubmit={submitConversion} className="dashboard-panel space-y-4 rounded-lg border border-blue-200 bg-white p-4 shadow-soft">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-[24px] font-extrabold text-slate-950">गाय झाली</h2>
+              <h2 className="text-[25px] font-extrabold text-slate-950">गाय झाली</h2>
               <p className="mt-1 text-[18px] font-bold text-slate-600">
                 {getCalfTitle(conversionCalf)} साठी गाय आणि रेतन नोंद
               </p>
@@ -793,7 +877,7 @@ export default function CalvesPage() {
             </button>
           </div>
 
-          <section className="space-y-4 rounded-lg bg-blue-50 p-3">
+          <section className="space-y-4 rounded-lg border border-blue-100 bg-blue-50 p-3 shadow-sm">
             <h3 className="text-[21px] font-extrabold text-blue-950">गायीची माहिती</h3>
             <FormField label="गायीचे नाव" required>
               <MarathiTextInput
@@ -837,7 +921,7 @@ export default function CalvesPage() {
             </FormField>
           </section>
 
-          <section className="space-y-4 rounded-lg bg-green-50 p-3">
+          <section className="space-y-4 rounded-lg border border-green-100 bg-green-50 p-3 shadow-sm">
             <h3 className="text-[21px] font-extrabold text-green-950">कृत्रिम रेतन</h3>
             <FormField label="रेतन तारीख" required>
               <input
@@ -927,29 +1011,32 @@ export default function CalvesPage() {
       ) : null}
 
       {message ? (
-        <p className="rounded-lg border border-green-200 bg-green-50 p-4 text-[20px] font-extrabold text-green-800">
+        <p className="rounded-lg border border-green-200 bg-green-50 p-4 text-[20px] font-extrabold text-green-800 shadow-sm">
           {message}
         </p>
       ) : null}
       {error ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-[20px] font-extrabold text-red-800">
+        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-[20px] font-extrabold text-red-800 shadow-sm">
           {error}
         </p>
       ) : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-        <h2 className="text-[24px] font-extrabold text-slate-950">फिल्टर</h2>
+      <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="relative z-10">
+          <h2 className="text-[24px] font-extrabold text-slate-950">फिल्टर</h2>
+          <p className="mt-1 text-[17px] font-bold text-slate-500">
+            स्थिती आणि वयानुसार वासरे पटकन शोधा
+          </p>
+        </div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {statusFilters.map((filter) => (
             <button
               key={filter.value}
               type="button"
               onClick={() => setStatusFilter(filter.value)}
-              className={`min-h-[48px] shrink-0 rounded-lg border-2 px-3 text-[17px] font-extrabold ${
+              className={`min-h-[50px] shrink-0 rounded-full border-2 px-4 text-[17px] font-extrabold shadow-sm ${filterButtonClass(
                 statusFilter === filter.value
-                  ? "border-green-300 bg-green-100 text-sheti"
-                  : "border-slate-200 bg-white text-slate-700"
-              }`}
+              )}`}
             >
               {filter.label}
             </button>
@@ -961,11 +1048,10 @@ export default function CalvesPage() {
               key={filter.value}
               type="button"
               onClick={() => setAgeFilter(filter.value)}
-              className={`min-h-[48px] shrink-0 rounded-lg border-2 px-3 text-[17px] font-extrabold ${
-                ageFilter === filter.value
-                  ? "border-yellow-300 bg-yellow-100 text-yellow-900"
-                  : "border-slate-200 bg-white text-slate-700"
-              }`}
+              className={`min-h-[50px] shrink-0 rounded-full border-2 px-4 text-[17px] font-extrabold shadow-sm ${filterButtonClass(
+                ageFilter === filter.value,
+                "yellow"
+              )}`}
             >
               {filter.label}
             </button>

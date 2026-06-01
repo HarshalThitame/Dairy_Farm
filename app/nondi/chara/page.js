@@ -430,11 +430,11 @@ export default function CharaCostPage() {
 
       <section className="grid grid-cols-2 gap-3" aria-label="चारा खर्च सारांश">
         <article className="rounded-lg border border-green-100 bg-green-50 p-4">
-          <p className="text-[18px] font-extrabold text-green-900">मासिक खर्च</p>
+          <p className="text-[18px] font-extrabold text-green-900">खाद्य नोंदी</p>
           <p className="mt-2 text-[26px] font-extrabold leading-none text-green-950">
             {formatCurrency(summary.monthlyTotal || summary.total || 0)}
           </p>
-          <p className="mt-1 text-[15px] font-bold text-green-800">खाद्य + इतर</p>
+          <p className="mt-1 text-[15px] font-bold text-green-800">फक्त माहितीसाठी, नफ्यात नाही</p>
         </article>
         <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="text-[18px] font-extrabold text-blue-900">वार्षिक खर्च</p>

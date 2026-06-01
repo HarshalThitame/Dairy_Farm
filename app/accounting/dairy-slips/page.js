@@ -157,6 +157,20 @@ export default function DairySlipsPage() {
         <>
           <section className="grid grid-cols-2 gap-3">
             <SummaryCard
+              emoji="🌅"
+              title="सकाळचे दूध"
+              value={`${formatLitres(monthly.morningLiters || 0)} लिटर`}
+              subtext={`${toMarathiNumerals(monthly.morningCount || 0)} सकाळ नोंदी`}
+              color="green"
+            />
+            <SummaryCard
+              emoji="🌆"
+              title="संध्याकाळचे दूध"
+              value={`${formatLitres(monthly.eveningLiters || 0)} लिटर`}
+              subtext={`${toMarathiNumerals(monthly.eveningCount || 0)} संध्याकाळ नोंदी`}
+              color="purple"
+            />
+            <SummaryCard
               emoji="📊"
               title={selectedDate ? "या तारखेचे दूध" : "या महिन्याचे एकूण दूध"}
               value={`${formatLitres(monthly.totalLiters || 0)} लिटर`}

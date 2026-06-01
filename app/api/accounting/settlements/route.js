@@ -34,12 +34,22 @@ function cleanOptional(value) {
   return text || null;
 }
 
+function parseNumber(value) {
+  const normalized = String(value ?? "")
+    .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[,₹\s]/g, "")
+    .replace(/[Oo]/g, "0");
+  const number = Number(normalized || 0);
+  return Number.isFinite(number) ? number : null;
+}
+
 function money(value) {
-  return Number(value || 0);
+  return parseNumber(value) ?? 0;
 }
 
 function isFiniteNumber(value) {
-  return Number.isFinite(Number(value));
+  return parseNumber(value) !== null;
 }
 
 function pickFields(body) {
@@ -64,7 +74,7 @@ function validateSettlement(body) {
     body.total_milk_income === "" ||
     body.total_milk_income === undefined ||
     !isFiniteNumber(body.total_milk_income) ||
-    Number(body.total_milk_income) <= 0
+    money(body.total_milk_income) <= 0
   ) {
     return "एकूण उत्पन्न शून्यापेक्षा जास्त असावे.";
   }
@@ -72,7 +82,7 @@ function validateSettlement(body) {
   if (
     body.total_liters !== "" &&
     body.total_liters !== undefined &&
-    (!isFiniteNumber(body.total_liters) || Number(body.total_liters) < 0)
+    (!isFiniteNumber(body.total_liters) || money(body.total_liters) < 0)
   ) {
     return "एकूण दूध शून्य किंवा त्यापेक्षा जास्त असावे.";
   }
@@ -80,10 +90,10 @@ function validateSettlement(body) {
   if (
     (body.cattle_feed_deduction !== undefined &&
       body.cattle_feed_deduction !== "" &&
-      (!isFiniteNumber(body.cattle_feed_deduction) || Number(body.cattle_feed_deduction) < 0)) ||
+      (!isFiniteNumber(body.cattle_feed_deduction) || money(body.cattle_feed_deduction) < 0)) ||
     (body.other_deductions !== undefined &&
       body.other_deductions !== "" &&
-      (!isFiniteNumber(body.other_deductions) || Number(body.other_deductions) < 0))
+      (!isFiniteNumber(body.other_deductions) || money(body.other_deductions) < 0))
   ) {
     return "कपात शून्य किंवा त्यापेक्षा जास्त असावी.";
   }
@@ -92,7 +102,7 @@ function validateSettlement(body) {
     body.payment_received &&
     body.payment_received_amount !== "" &&
     body.payment_received_amount !== undefined &&
-    (!isFiniteNumber(body.payment_received_amount) || Number(body.payment_received_amount) < 0)
+    (!isFiniteNumber(body.payment_received_amount) || money(body.payment_received_amount) < 0)
   ) {
     return "प्राप्त रक्कम शून्य किंवा त्यापेक्षा जास्त असावी.";
   }

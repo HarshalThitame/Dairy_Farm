@@ -138,7 +138,7 @@ function MonthTable({ rows }) {
               <th className="border border-slate-300 p-2 print:border-slate-900">उत्पन्न</th>
               <th className="border border-slate-300 p-2 print:border-slate-900">मासिक खर्च</th>
               <th className="border border-slate-300 p-2 print:border-slate-900">वार्षिक खर्च</th>
-              <th className="border border-slate-300 p-2 print:border-slate-900">इतर कपात</th>
+              <th className="border border-slate-300 p-2 print:border-slate-900">डेअरी कपात</th>
               <th className="border border-slate-300 p-2 print:border-slate-900">नफा/तोटा</th>
             </tr>
           </thead>
@@ -161,7 +161,7 @@ function MonthTable({ rows }) {
                   {formatCurrency(row.annualExpense)}
                 </td>
                 <td className="border border-slate-300 p-2 print:border-slate-900">
-                  {formatCurrency(row.otherDeductions)}
+                  {formatCurrency(Number(row.dairyFeedDeduction || 0) + Number(row.otherDeductions || 0))}
                 </td>
                 <td className={`border border-slate-300 p-2 font-extrabold print:border-slate-900 ${moneyClass(row.netProfit)}`}>
                   {formatCurrency(row.netProfit)}
@@ -221,7 +221,7 @@ function FarmerResult({ summary }) {
     >
       <h2 className="text-[24px] font-extrabold">या वर्षाचा सोपा निकाल</h2>
       <p className="mt-3 text-[20px] font-bold leading-relaxed">
-        या वर्षी दूध आणि इतर उत्पन्न {formatCurrency(summary.totalIncome)} झाले. फार्मचा एकूण खर्च {formatCurrency(totalExpense)}
+        या वर्षी दूध आणि इतर उत्पन्न {formatCurrency(summary.totalIncome)} झाले. फार्मचा खर्च {formatCurrency(totalExpense)}
         {summary.dairyFeedDeduction > 0 ? `, डेअरी खाद्य कपात ${formatCurrency(summary.dairyFeedDeduction)}` : ""}
         {summary.otherDeductions > 0 ? ` आणि इतर देयक कपात ${formatCurrency(summary.otherDeductions)}` : ""} धरल्यानंतर
         {result >= 0 ? " नफा " : " तोटा "}
@@ -262,6 +262,10 @@ export default function AnnualReportPage() {
   }, [loadReport]);
 
   const summary = data?.summary || {};
+  const totalExpenseWithDeductions =
+    Number(summary.totalExpenseForYear || 0) +
+    Number(summary.dairyFeedDeduction || 0) +
+    Number(summary.otherDeductions || 0);
   const topMonths = data?.topMonths || {};
   const statusItems = useMemo(
     () => (data?.cowSummary?.byStatus || []).map((item) => ({ status: item.status, count: item.count })),
@@ -338,8 +342,8 @@ export default function AnnualReportPage() {
             <SummaryCard
               emoji="💸"
               title="एकूण खर्च"
-              value={formatCurrency(summary.totalExpenseForYear)}
-              subtext="मासिक + वार्षिक"
+              value={formatCurrency(totalExpenseWithDeductions)}
+              subtext="मासिक + वार्षिक + डेअरी कपात"
               color="red"
             />
             <SummaryCard
@@ -395,7 +399,7 @@ export default function AnnualReportPage() {
                 rows={[
                   ["खाद्य कपात", formatCurrency(summary.dairyFeedDeduction || 0)],
                   ["इतर कपात", formatCurrency(summary.otherDeductions || 0)],
-                  ["नफ्यात धरलेली कपात", formatCurrency(summary.otherDeductions || 0)]
+                  ["नफ्यात धरलेली कपात", formatCurrency(Number(summary.dairyFeedDeduction || 0) + Number(summary.otherDeductions || 0))]
                 ]}
               />
             </section>

@@ -55,6 +55,23 @@ function sumAmounts(items, amountField = "amount") {
   return (items || []).reduce((sum, item) => sum + Number(item[amountField] || 0), 0);
 }
 
+function combineBreakdowns(...groups) {
+  const combined = new Map();
+
+  groups.flat().forEach((item) => {
+    if (!item || Number(item.amount || 0) <= 0) {
+      return;
+    }
+
+    const category = displayFinanceCategory(item.category);
+    combined.set(category, Number(combined.get(category) || 0) + Number(item.amount || 0));
+  });
+
+  return Array.from(combined.entries())
+    .map(([category, amount]) => ({ category, amount: Number(amount.toFixed(2)) }))
+    .sort((first, second) => second.amount - first.amount);
+}
+
 function CompactStat({ label, value, hint, tone = "slate" }) {
   const toneClass = {
     red: "border-red-100 bg-red-50 text-red-950",
@@ -334,17 +351,35 @@ export default function ExpenseAnalyticsPage() {
   }, [fetchReports]);
 
   const monthlyExpenses = useMemo(
-    () => (financeReport?.transactions || []).filter((transaction) => transaction.type === "खर्च"),
-    [financeReport?.transactions]
+    () => [
+      ...(financeReport?.transactions || []).filter((transaction) => transaction.type === "खर्च"),
+      ...(financeReport?.deductionTransactions || [])
+    ],
+    [financeReport?.transactions, financeReport?.deductionTransactions]
   );
   const annualExpenses = financeReport?.annualTransactions || [];
   const monthlyExpenseSections = buildExpenseSections(monthlyExpenses);
   const annualExpenseSections = buildExpenseSections(annualExpenses);
   const monthlyTrend = (financeReport?.monthlyTrend || []).map((item) => ({
     label: item.label,
-    amount: item.expense
+    amount: Number(item.expense || 0) + Number(item.deductionsCountedInProfit || item.deductions || 0)
   }));
-  const topMonthlyExpense = topAmountItem(financeReport?.expenseByCategory || []);
+  const finalMonthlyExpenseBreakdown = combineBreakdowns(
+    financeReport?.expenseByCategory || [],
+    [
+      {
+        category: "खाद्य",
+        amount: financeReport?.settlementDeductions?.cattleFeedDeduction || 0
+      },
+      {
+        category: "इतर",
+        amount: financeReport?.settlementDeductions?.otherDeductions || 0
+      }
+    ]
+  );
+  const finalMonthlyExpenseTotal =
+    Number(financeReport?.totalExpense || 0) + Number(financeReport?.deductionsCountedInProfit || 0);
+  const topMonthlyExpense = topAmountItem(finalMonthlyExpenseBreakdown);
   const topAnnualExpense = topAmountItem(financeReport?.annualExpenseByCategory || []);
 
   return (
@@ -369,8 +404,8 @@ export default function ExpenseAnalyticsPage() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <CompactStat
                 label="मासिक खर्च"
-                value={formatCurrency(financeReport.totalExpense || 0)}
-                hint="खाद्य + औषध + मजुरी + इतर"
+                value={formatCurrency(finalMonthlyExpenseTotal)}
+                hint="डेअरी खाद्य कपात + औषध + मजुरी + इतर"
                 tone="red"
               />
               <CompactStat
@@ -405,14 +440,14 @@ export default function ExpenseAnalyticsPage() {
           <LedgerSection
             number={1}
             title="मासिक खर्च"
-            total={financeReport.totalExpense || 0}
+            total={finalMonthlyExpenseTotal}
             entries={monthlyExpenses.length}
             topItem={topMonthlyExpense}
-            summaryText="हा भाग फक्त निवडलेल्या महिन्याचा रोजचा/मासिक खर्च दाखवतो."
-            includeText="खाद्य, औषध, मजुरी, वीज, वाहतूक, पशुवैद्यक आणि इतर रोजचे खर्च."
+            summaryText="हा भाग निवडलेल्या महिन्याचा अंतिम खर्च दाखवतो."
+            includeText="15 दिवसांच्या स्लिपवरील खाद्य कपात, औषध, मजुरी, वीज, वाहतूक, पशुवैद्यक आणि इतर खर्च."
             excludeText="मुरघास आणि भुसा इथे धरलेले नाहीत."
             breakdownTitle="मासिक खर्च विभागवार"
-            breakdownItems={financeReport.expenseByCategory || []}
+            breakdownItems={finalMonthlyExpenseBreakdown}
             breakdownEmptyText="या महिन्यात मासिक खर्च नाही."
             sections={monthlyExpenseSections}
             emptyText="या महिन्यात मासिक खर्च नोंदी नाहीत."

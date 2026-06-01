@@ -374,7 +374,7 @@ export default function VyayanNondPage() {
         onChangeCow={changeCowSelection}
       />
 
-      <PageHeader title="🤰 गाभण गायी" subtitle="तारखा, आठवणी आणि व्यायण नोंद" />
+      <PageHeader title="🐄 गाभण गायी" subtitle="तारखा, आठवणी आणि व्यायण नोंद" />
 
       {reminderId ? (
         <section className="rounded-lg border border-green-200 bg-green-50 p-4 shadow-soft">

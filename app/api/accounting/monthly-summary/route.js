@@ -3,6 +3,7 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   buildProfitTrend,
   generateMonthlyReport,
+  getMonthYearString,
   refreshMonthlySummary
 } from "@/lib/accountingUtils";
 import { getMonthInput } from "@/lib/reportUtils";
@@ -32,11 +33,11 @@ export async function GET(request) {
     }
 
     const supabase = getSupabaseServerClient();
-    const summary = await refreshMonthlySummary(supabase, farmId, monthInput.month, monthInput.year);
-    const [report, trend] = await Promise.all([
-      generateMonthlyReport(supabase, farmId, monthInput.month, monthInput.year),
-      buildProfitTrend(supabase, farmId, monthInput.month, monthInput.year)
-    ]);
+    const report = await generateMonthlyReport(supabase, farmId, monthInput.month, monthInput.year);
+    const summary = report.summary;
+    const trend = await buildProfitTrend(supabase, farmId, monthInput.month, monthInput.year, {
+      [getMonthYearString(monthInput.month, monthInput.year)]: summary
+    });
 
     return NextResponse.json({
       data: {

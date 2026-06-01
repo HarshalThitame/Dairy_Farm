@@ -50,11 +50,36 @@ function displayCategory(category) {
   return displayFinanceCategory(category);
 }
 
+function combineExpenseBreakdown(report) {
+  const grouped = new Map();
+
+  (report?.expenseByCategory || []).forEach((item) => {
+    const category = displayFinanceCategory(item.category);
+    grouped.set(category, Number(grouped.get(category) || 0) + Number(item.amount || 0));
+  });
+
+  const feedDeduction = Number(report?.settlementDeductions?.cattleFeedDeduction || 0);
+  const otherDeductions = Number(report?.settlementDeductions?.otherDeductions || 0);
+
+  if (feedDeduction > 0) {
+    grouped.set("खाद्य", Number(grouped.get("खाद्य") || 0) + feedDeduction);
+  }
+
+  if (otherDeductions > 0) {
+    grouped.set("इतर", Number(grouped.get("इतर") || 0) + otherDeductions);
+  }
+
+  return Array.from(grouped.entries()).map(([category, amount]) => ({
+    category,
+    amount: Number(amount.toFixed(2))
+  }));
+}
+
 function emptyForm(type = "उत्पन्न") {
   return {
     id: "",
     type,
-    category: type === "उत्पन्न" ? "दूध विक्री" : "चारा",
+    category: type === "उत्पन्न" ? "दूध विक्री" : "औषध",
     amount: "",
     date: toISODate(new Date()),
     cow_id: "",
@@ -124,7 +149,7 @@ function getDerivedTransactionLabel(transaction) {
   }
 
   if (transaction.source === "dairy_settlements") {
-    return "डेअरी देयक कपात माहिती म्हणून दाखवले आहे";
+    return "15 दिवसांच्या स्लिपवरील अंतिम डेअरी कपात";
   }
 
   return "आपोआप दाखवले आहे";
@@ -173,7 +198,7 @@ function TransactionModal({ form, setForm, selectedCow, setSelectedCow, onClose,
                     setForm((current) => ({
                       ...current,
                       type,
-                      category: type === "उत्पन्न" ? "दूध विक्री" : "चारा"
+                      category: type === "उत्पन्न" ? "दूध विक्री" : "औषध"
                     }))
                   }
                   className={`min-h-[56px] rounded-lg border-2 px-3 text-[20px] font-extrabold ${
@@ -308,7 +333,10 @@ export default function FinanceReportPage() {
   }, [fetchReport]);
 
   const filteredTransactions = useMemo(() => {
-    const transactions = report?.transactions || [];
+    const transactions = [
+      ...(report?.transactions || []),
+      ...(report?.deductionTransactions || [])
+    ];
 
     if (activeFilter === "सर्व") {
       return transactions;
@@ -316,6 +344,9 @@ export default function FinanceReportPage() {
 
     return transactions.filter((item) => item.type === activeFilter);
   }, [activeFilter, report]);
+  const finalMonthlyExpense =
+    Number(report?.totalExpense || 0) + Number(report?.deductionsCountedInProfit || 0);
+  const finalExpenseByCategory = useMemo(() => combineExpenseBreakdown(report), [report]);
 
   function openNewTransaction(type) {
     if (!canManageFinance) {
@@ -415,7 +446,7 @@ export default function FinanceReportPage() {
             <h2 className="text-[24px] font-extrabold text-slate-950">
               मासिक उत्पन्न आणि खर्च
             </h2>
-            <FinancePieChart income={report.totalIncome} expense={report.totalExpense} />
+            <FinancePieChart income={report.totalIncome} expense={finalMonthlyExpense} />
             <p
               className={`rounded-lg p-4 text-center text-[22px] font-extrabold ${
                 report.netProfit >= 0 ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
@@ -437,10 +468,10 @@ export default function FinanceReportPage() {
             <article className="rounded-lg border border-red-100 bg-red-50 p-4">
               <p className="text-[18px] font-extrabold text-red-900">मासिक खर्च</p>
               <p className="mt-2 text-[24px] font-extrabold leading-none text-red-950">
-                {formatCurrency(report.totalExpense || 0)}
+                {formatCurrency(finalMonthlyExpense)}
               </p>
               <p className="mt-2 text-[16px] font-bold leading-snug text-red-800">
-                खाद्य + औषध + इतर
+                डेअरी खाद्य कपात + इतर
               </p>
             </article>
             <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
@@ -474,8 +505,8 @@ export default function FinanceReportPage() {
 
           <CategoryBreakdown
             title="💸 मासिक खर्च"
-            items={report.expenseByCategory || []}
-            total={report.totalExpense}
+            items={finalExpenseByCategory}
+            total={finalMonthlyExpense}
             tone="red"
             buttonLabel="नवीन खर्च +"
             onAdd={canManageFinance ? () => openNewTransaction("खर्च") : null}

@@ -209,7 +209,6 @@ export async function GET(request) {
     const { farmId } = await verifyFarmAccess(request);
     const { searchParams } = new URL(request.url);
     const monthInput = getMonthInput(searchParams);
-    const cowId = searchParams.get("cow_id");
 
     if (!monthInput) {
       return NextResponse.json({ error: "महिना किंवा वर्ष चुकीचे आहे." }, { status: 400 });
@@ -226,28 +225,16 @@ export async function GET(request) {
       .select("*")
       .eq("farm_id", farmId)
       .gte("date", monthRange.start)
-      .lt("date", monthRange.end);
-
-    if (cowId) {
-      selectedQuery = selectedQuery.eq("cow_id", cowId);
-    }
+      .lt("date", monthRange.end)
+      .is("cow_id", null);
 
     let trendQuery = supabase
       .from("milk_records")
       .select("date, morning_litres, evening_litres, total_litres")
       .eq("farm_id", farmId)
       .gte("date", oldestRange.start)
-      .lt("date", monthRange.end);
-
-    if (cowId) {
-      trendQuery = trendQuery.eq("cow_id", cowId);
-    } else {
-      trendQuery = trendQuery.is("cow_id", null);
-    }
-
-    if (!cowId) {
-      selectedQuery = selectedQuery.is("cow_id", null);
-    }
+      .lt("date", monthRange.end)
+      .is("cow_id", null);
 
     const [selectedRecords, trendRecords] = await Promise.all([
       selectedQuery.order("date", { ascending: true }),

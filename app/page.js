@@ -15,7 +15,7 @@ import {
   getTodayISODate,
   toMarathiNumerals
 } from "@/lib/marathiUtils";
-import { getIndiaMonthParts, getMonthName } from "@/lib/reportUtils";
+import { addMonths, getIndiaMonthParts, getMonthName } from "@/lib/reportUtils";
 import { isOnline } from "@/lib/networkStatus";
 import {
   fetchCows as fetchCowsOffline,
@@ -38,6 +38,8 @@ export default function DashboardPage() {
   const [calvesSummary, setCalvesSummary] = useState(null);
   const [monthlyMilkReport, setMonthlyMilkReport] = useState(null);
   const [monthlyFinanceReport, setMonthlyFinanceReport] = useState(null);
+  const [previousMonthlyMilkReport, setPreviousMonthlyMilkReport] = useState(null);
+  const [previousMonthlyFinanceReport, setPreviousMonthlyFinanceReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -49,6 +51,17 @@ export default function DashboardPage() {
       const reportQuery = `month=${currentMonth.month}&year=${currentMonth.year}`;
       try {
         const snapshot = await fetchJson(`/api/dashboard?${reportQuery}`, { cacheTtlMs: 10 * 1000 });
+        const previousMonth = addMonths(currentMonth.month, currentMonth.year, -1);
+        let previousSnapshot = null;
+
+        try {
+          previousSnapshot = await fetchJson(
+            `/api/dashboard?month=${previousMonth.month}&year=${previousMonth.year}`,
+            { cacheTtlMs: 30 * 1000 }
+          );
+        } catch {
+          previousSnapshot = null;
+        }
 
         setCows([]);
         setCowsSummary(snapshot.cowsSummary || { total: 0, pregnant: 0 });
@@ -64,6 +77,8 @@ export default function DashboardPage() {
         setCalvesSummary(snapshot.calvesSummary || null);
         setMonthlyMilkReport(snapshot.monthlyMilkReport || null);
         setMonthlyFinanceReport(snapshot.monthlyFinanceReport || null);
+        setPreviousMonthlyMilkReport(previousSnapshot?.monthlyMilkReport || null);
+        setPreviousMonthlyFinanceReport(previousSnapshot?.monthlyFinanceReport || null);
         return;
       } catch (dashboardError) {
         if (isOnline()) {
@@ -104,6 +119,8 @@ export default function DashboardPage() {
       setCalvesSummary(null);
       setMonthlyMilkReport(null);
       setMonthlyFinanceReport(null);
+      setPreviousMonthlyMilkReport(null);
+      setPreviousMonthlyFinanceReport(null);
     } catch (fetchError) {
       setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
     } finally {
@@ -139,8 +156,16 @@ export default function DashboardPage() {
     Number(reminderCounts.upcoming || 0);
   const todayReminderCount = Number(reminderCounts.today || 0);
   const monthlyNetProfit = Number(monthlyFinanceReport?.netProfit || 0);
-  const monthlyExpenseTotal = Number(monthlyFinanceReport?.totalExpense || 0);
+  const monthlyExpenseTotal =
+    Number(monthlyFinanceReport?.totalExpense || 0) +
+    Number(monthlyFinanceReport?.deductionsCountedInProfit || monthlyFinanceReport?.totalDeductions || 0);
   const monthlyIncomeTotal = Number(monthlyFinanceReport?.totalIncome || 0);
+  const previousMonth = addMonths(currentMonth.month, currentMonth.year, -1);
+  const previousMonthlyNetProfit = Number(previousMonthlyFinanceReport?.netProfit || 0);
+  const previousMonthlyExpenseTotal =
+    Number(previousMonthlyFinanceReport?.totalExpense || 0) +
+    Number(previousMonthlyFinanceReport?.deductionsCountedInProfit || previousMonthlyFinanceReport?.totalDeductions || 0);
+  const previousMonthlyIncomeTotal = Number(previousMonthlyFinanceReport?.totalIncome || 0);
   const farmName = farm?.farmName || APP_NAME;
   const monthlyQuery = `month=${currentMonth.month}&year=${currentMonth.year}`;
   const today = getTodayISODate();
@@ -209,7 +234,7 @@ export default function DashboardPage() {
       href: "/accounting/expenses/new",
       icon: "💸",
       title: "खर्च नोंद",
-      subtitle: "खाद्य, औषध, इतर",
+      subtitle: "औषध, मजुरी, इतर",
       className: "border-amber-100 bg-amber-50 text-amber-950 active:bg-amber-100",
       iconClassName: "bg-amber-100"
     }
@@ -238,7 +263,7 @@ export default function DashboardPage() {
       tone: todayReminderCount > 0 ? "red" : "amber"
     },
     {
-      emoji: "🤰",
+      emoji: "🐄",
       label: "गाभण गायी",
       value: toMarathiNumerals(pregnantCount),
       href: "/nondi/vyayan",
@@ -362,13 +387,13 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <Link
-              href={`/nondi/dudh?date=${today}`}
+              href="/ahval"
               className="dashboard-card rounded-lg bg-white px-2 py-3 text-center text-green-950 shadow-sm ring-1 ring-white/40 active:bg-green-50"
             >
-              <p className="text-[20px] font-extrabold">🥛</p>
-              <p className="mt-1 text-[15px] font-extrabold leading-tight">दूध</p>
+              <p className="text-[20px] font-extrabold">📊</p>
+              <p className="mt-1 text-[15px] font-extrabold leading-tight">अहवाल</p>
             </Link>
             <Link
               href="/accounting/slip-scan"
@@ -377,32 +402,25 @@ export default function DashboardPage() {
               <p className="text-[20px] font-extrabold">📷</p>
               <p className="mt-1 text-[15px] font-extrabold leading-tight">स्कॅन</p>
             </Link>
-            <Link
-              href="/ahval"
-              className="dashboard-card rounded-lg bg-white px-2 py-3 text-center text-green-950 shadow-sm ring-1 ring-white/40 active:bg-green-50"
-            >
-              <p className="text-[20px] font-extrabold">📊</p>
-              <p className="mt-1 text-[15px] font-extrabold leading-tight">अहवाल</p>
-            </Link>
           </div>
         </div>
       </header>
 
-      <section className="dashboard-stagger grid gap-3 sm:grid-cols-3" aria-label="जलद काम">
+      <section className="dashboard-stagger grid grid-cols-3 gap-2" aria-label="जलद काम">
         {primaryActions.map((action) => (
           <Link
             key={action.title}
             href={action.href}
-            className={`dashboard-card dashboard-action-tile flex min-h-[88px] items-center gap-3 rounded-lg border p-3 shadow-soft ${action.className}`}
+            className={`dashboard-card dashboard-action-tile relative flex min-h-[122px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-3 text-center shadow-soft ${action.className}`}
           >
-            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg text-[29px] shadow-sm ${action.iconClassName}`}>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[23px] shadow-sm ${action.iconClassName}`}>
               {action.icon}
             </span>
             <span className="min-w-0">
-              <span className="block text-[21px] font-extrabold leading-tight">{action.title}</span>
-              <span className="mt-1 block text-[16px] font-bold leading-tight opacity-75">{action.subtitle}</span>
+              <span className="block break-words text-[15px] font-extrabold leading-tight sm:text-[18px]">{action.title}</span>
+              <span className="mt-1 block break-words text-[12px] font-bold leading-tight opacity-75 sm:text-[14px]">{action.subtitle}</span>
             </span>
-            <span className="ml-auto shrink-0 text-[22px] font-extrabold opacity-70">→</span>
+            <span className="absolute right-2 top-2 text-[16px] font-extrabold opacity-60">→</span>
           </Link>
         ))}
       </section>
@@ -484,17 +502,17 @@ export default function DashboardPage() {
 
         <div className="dashboard-stagger mt-4 space-y-3">
           <ReminderGroup
+            title="आजच्या आठवणी"
+            count={reminderCounts.today}
+            reminders={todayReminders}
+            emptyText="आज कोणतीही आठवण नाही."
+          />
+          <ReminderGroup
             title="मागील बाकी"
             count={reminderCounts.overdue}
             reminders={overdueReminders}
             emptyText="मागील बाकी आठवण नाही."
             tone="red"
-          />
-          <ReminderGroup
-            title="आजच्या आठवणी"
-            count={reminderCounts.today}
-            reminders={todayReminders}
-            emptyText="आज कोणतीही आठवण नाही."
           />
           <ReminderGroup
             title="पुढील आठवणी"
@@ -578,10 +596,10 @@ export default function DashboardPage() {
           >
             <p className="text-[18px] font-extrabold">💸 मासिक खर्च</p>
             <p className="mt-1 text-[22px] font-extrabold">
-              {formatCurrency(monthlyFinanceReport?.totalExpense || 0)}
+              {formatCurrency(monthlyExpenseTotal)}
             </p>
             <p className="mt-1 text-[15px] font-bold leading-snug text-red-800">
-              खाद्य + औषध + इतर
+              डेअरी खाद्य कपात + इतर
             </p>
           </Link>
           <Link
@@ -597,6 +615,37 @@ export default function DashboardPage() {
               {formatCurrency(monthlyNetProfit)}
             </p>
           </Link>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[15px] font-extrabold text-slate-500">मागील महिन्याचा डेटा</p>
+              <h3 className="text-[21px] font-extrabold text-slate-950">
+                {getMonthName(previousMonth.month)} {toMarathiNumerals(previousMonth.year)}
+              </h3>
+            </div>
+            <Link
+              href={`/ahval?month=${previousMonth.month}&year=${previousMonth.year}`}
+              className="shrink-0 rounded-full bg-white px-3 py-2 text-[15px] font-extrabold text-sheti shadow-sm ring-1 ring-green-100"
+            >
+              तपशील →
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-extrabold leading-snug">
+            <p className="rounded-lg bg-white px-3 py-2 text-blue-800">
+              दूध: {formatLitres(previousMonthlyMilkReport?.totalLitres || 0)} लि.
+            </p>
+            <p className="rounded-lg bg-white px-3 py-2 text-green-800">
+              उत्पन्न: {formatCurrency(previousMonthlyIncomeTotal)}
+            </p>
+            <p className="rounded-lg bg-white px-3 py-2 text-red-800">
+              खर्च: {formatCurrency(previousMonthlyExpenseTotal)}
+            </p>
+            <p className={`rounded-lg bg-white px-3 py-2 ${previousMonthlyNetProfit >= 0 ? "text-green-900" : "text-red-900"}`}>
+              नफा: {formatCurrency(previousMonthlyNetProfit)}
+            </p>
+          </div>
         </div>
 
         <Link

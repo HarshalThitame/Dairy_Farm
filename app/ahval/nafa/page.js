@@ -65,6 +65,27 @@ function PerformanceRow({ label, value, tone }) {
   );
 }
 
+function combineExpenseBreakdown(report) {
+  const combined = new Map();
+
+  (report?.expenseByCategory || []).forEach((item) => {
+    combined.set(item.category, Number(combined.get(item.category) || 0) + Number(item.amount || 0));
+  });
+
+  const feed = Number(report?.settlementDeductions?.cattleFeedDeduction || 0);
+  const other = Number(report?.settlementDeductions?.otherDeductions || 0);
+
+  if (feed > 0) {
+    combined.set("खाद्य", Number(combined.get("खाद्य") || 0) + feed);
+  }
+
+  if (other > 0) {
+    combined.set("इतर", Number(combined.get("इतर") || 0) + other);
+  }
+
+  return Array.from(combined.entries()).map(([category, amount]) => ({ category, amount }));
+}
+
 export default function ProfitAnalyticsPage() {
   const [monthValue, setMonthValue] = useState(getInitialMonth);
   const [report, setReport] = useState(null);
@@ -107,13 +128,15 @@ export default function ProfitAnalyticsPage() {
   }));
   const expenseChartData = trend.map((item) => ({
     label: item.label,
-    amount: item.expense
+    amount: Number(item.expense || 0) + Number(item.deductionsCountedInProfit || item.deductions || 0)
   }));
+  const finalMonthlyExpense =
+    Number(report?.totalExpense || 0) + Number(report?.deductionsCountedInProfit || 0);
   const topExpense = useMemo(() => {
-    return [...(report?.expenseByCategory || [])].sort(
+    return combineExpenseBreakdown(report).sort(
       (first, second) => Number(second.amount || 0) - Number(first.amount || 0)
     )[0];
-  }, [report?.expenseByCategory]);
+  }, [report]);
 
   return (
     <div className="space-y-6">
@@ -136,8 +159,8 @@ export default function ProfitAnalyticsPage() {
             <SummaryCard
               emoji="💸"
               title="मासिक खर्च"
-              value={formatCurrency(report.totalExpense || 0)}
-              subtext="खाद्य + औषध + इतर"
+              value={formatCurrency(finalMonthlyExpense)}
+              subtext="डेअरी खाद्य कपात + इतर"
               color="red"
             />
             <SummaryCard
@@ -158,7 +181,7 @@ export default function ProfitAnalyticsPage() {
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
             <h2 className="text-[24px] font-extrabold text-slate-950">या महिन्याचा निकाल</h2>
-            <FinancePieChart income={report.totalIncome} expense={report.totalExpense} />
+            <FinancePieChart income={report.totalIncome} expense={finalMonthlyExpense} />
             <p
               className={`rounded-lg p-4 text-center text-[22px] font-extrabold ${
                 Number(report.netProfit || 0) >= 0 ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
@@ -224,6 +247,11 @@ export default function ProfitAnalyticsPage() {
                 label="इतर उत्पन्न"
                 value={formatCurrency(Math.max(0, Number(report.totalIncome || 0) - Number(report.milkIncome || 0)))}
                 tone="bg-green-50 text-green-900"
+              />
+              <PerformanceRow
+                label="डेअरी खाद्य कपात"
+                value={formatCurrency(report.settlementDeductions?.cattleFeedDeduction || 0)}
+                tone="bg-red-50 text-red-900"
               />
               <PerformanceRow
                 label="वार्षिक खर्च वेगळा"

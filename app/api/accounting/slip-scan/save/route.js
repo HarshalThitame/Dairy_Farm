@@ -24,7 +24,12 @@ function numberOrNull(value) {
   if (value === "" || value === null || value === undefined) {
     return null;
   }
-  const numberValue = Number(value);
+  const normalized = String(value)
+    .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[,₹\s]/g, "")
+    .replace(/[Oo]/g, "0");
+  const numberValue = Number(normalized);
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 

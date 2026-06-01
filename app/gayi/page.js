@@ -6,7 +6,6 @@ import AdminOnly from "@/components/AdminOnly";
 import CowCard from "@/components/CowCard";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import PageHeader from "@/components/PageHeader";
 import {
   cowStatuses,
   getStatusFilterClass,
@@ -59,6 +58,14 @@ export default function GayiPage() {
     }, {});
   }, [cows]);
 
+  const primaryStats = useMemo(() => {
+    return [
+      { label: "एकूण गायी", value: cows.length, tone: "bg-slate-950 text-white" },
+      { label: "गाभण", value: counts["गाभण"] || 0, tone: "bg-green-50 text-green-900 ring-green-100" },
+      { label: "रिकामी", value: counts["रिकामी"] || 0, tone: "bg-blue-50 text-blue-900 ring-blue-100" }
+    ];
+  }, [counts, cows.length]);
+
   const filteredCows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("mr-IN");
 
@@ -82,58 +89,105 @@ export default function GayiPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="🐄 माझ्या गायी"
-        subtitle={`एकूण ${toMarathiNumerals(cows.length)} गायी`}
-      />
+      <header className="dashboard-hero rounded-lg px-4 pb-4 pt-5 text-white shadow-soft">
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[16px] font-extrabold text-green-100">
+                माझी डेअरी
+              </p>
+              <h1 className="mt-1 text-[32px] font-extrabold leading-tight">
+                🐄 माझ्या गायी
+              </h1>
+              <p className="mt-1 text-[18px] font-bold leading-snug text-green-50">
+                {toMarathiNumerals(filteredCows.length)} दाखवत आहे / एकूण {toMarathiNumerals(cows.length)}
+              </p>
+            </div>
+            <AdminOnly>
+              <Link
+                href="/gayi/navi"
+                className="flex min-h-[52px] shrink-0 items-center justify-center rounded-lg bg-white px-4 text-[18px] font-extrabold text-green-800 shadow-sm active:bg-green-50"
+              >
+                ➕ जोडा
+              </Link>
+            </AdminOnly>
+          </div>
+
+          <div className="dashboard-glass mt-5 grid grid-cols-3 gap-2 rounded-lg p-2">
+            {primaryStats.map((stat) => (
+              <article
+                key={stat.label}
+                className={`rounded-lg px-2 py-3 text-center shadow-sm ring-1 ${stat.tone}`}
+              >
+                <p className="text-[13px] font-extrabold leading-tight opacity-80">
+                  {stat.label}
+                </p>
+                <p className="mt-1 text-[26px] font-black leading-none">
+                  {toMarathiNumerals(stat.value)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </header>
 
       {fromCache ? (
-        <p className="rounded-lg bg-slate-100 px-4 py-3 text-[18px] font-bold text-slate-600">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[18px] font-bold text-amber-900 shadow-sm">
           शेवटचे अपडेट: {fetchedAt ? new Date(fetchedAt).toLocaleTimeString("mr-IN", { hour: "2-digit", minute: "2-digit" }) : "माहिती नाही"}
         </p>
       ) : null}
 
-      <section
-        className="-mx-4 overflow-x-auto px-4"
-        aria-label="स्थितीनुसार गायी"
-      >
-        <div className="flex gap-3 pb-1">
-          {cowStatuses.map((status) => {
-            const meta = getStatusMeta(status);
-            const active = statusFilter === status;
+      <section className="dashboard-panel space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <label className="block">
+          <span className="sr-only">गायीचे नाव शोधा</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="गायीचे नाव शोधा..."
+            autoComplete="off"
+            className="min-h-[58px] w-full rounded-lg border-2 border-slate-200 bg-slate-50 px-4 text-[20px] font-extrabold text-slate-950 shadow-sm outline-none transition focus:border-sheti focus:bg-white focus:ring-4 focus:ring-green-100"
+          />
+        </label>
 
-            return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setStatusFilter(active ? "" : status)}
-                className={`min-h-[52px] shrink-0 rounded-full border-2 px-4 text-[18px] font-extrabold ${getStatusFilterClass(
-                  status,
-                  active
-                )}`}
-              >
-                <span aria-hidden="true">{meta.emoji}</span>{" "}
-                {statusLabels[status]}: {toMarathiNumerals(counts[status] || 0)}
-              </button>
-            );
-          })}
+        <div className="-mx-4 overflow-x-auto px-4" aria-label="स्थितीनुसार गायी">
+          <div className="flex gap-3 pb-1">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("")}
+              className={`min-h-[52px] shrink-0 rounded-full border-2 px-4 text-[18px] font-extrabold ${
+                statusFilter
+                  ? "border-slate-200 bg-white text-slate-700 active:bg-slate-50"
+                  : "border-slate-950 bg-slate-950 text-white ring-2 ring-slate-200"
+              }`}
+            >
+              सर्व: {toMarathiNumerals(cows.length)}
+            </button>
+            {cowStatuses.map((status) => {
+              const meta = getStatusMeta(status);
+              const active = statusFilter === status;
+
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setStatusFilter(active ? "" : status)}
+                  className={`min-h-[52px] shrink-0 rounded-full border-2 px-4 text-[18px] font-extrabold ${getStatusFilterClass(
+                    status,
+                    active
+                  )}`}
+                >
+                  <span aria-hidden="true">{meta.emoji}</span>{" "}
+                  {statusLabels[status]}: {toMarathiNumerals(counts[status] || 0)}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      <label className="block">
-        <span className="sr-only">गायीचे नाव शोधा</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="गायीचे नाव शोधा..."
-          autoComplete="off"
-          className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
-        />
-      </label>
-
       {filteredCows.length > 0 ? (
-        <section className="space-y-3" aria-label="गायींची यादी">
+        <section className="space-y-4" aria-label="गायींची यादी">
           {filteredCows.map((cow) => (
             <CowCard key={cow.id} cow={cow} />
           ))}

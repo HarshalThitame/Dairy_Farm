@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import { createOcrAuditLog } from "@/lib/ocrAudit";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { extractTextWithGoogleVision } from "@/lib/googleVisionOCR";
-import { structureSlipTextWithGPT } from "@/lib/slipTextExtraction";
+import { structureSlipImageWithGPT, structureSlipTextWithGPT } from "@/lib/slipTextExtraction";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+function getImageMediaType(imageBase64 = "") {
+  const match = String(imageBase64 || "").match(/^data:([^;]+);base64,/);
+  return match?.[1] || "image/webp";
+}
 
 export async function POST(request) {
   try {
@@ -17,19 +22,51 @@ export async function POST(request) {
       return NextResponse.json({ error: "फोटो किंवा OCR text आवश्यक आहे." }, { status: 400 });
     }
 
-    const ocr = rawText
+    let ocr = rawText
       ? {
           success: true,
           rawText,
           confidence: 0,
           provider: "provided_text"
         }
-      : await extractTextWithGoogleVision(imageBase64);
+      : null;
+    let structured = null;
+    let directVisionFallback = {
+      used: false,
+      reason: null
+    };
 
-    const structured = await structureSlipTextWithGPT({
-      rawText: ocr.rawText,
-      ocr
-    });
+    if (ocr) {
+      structured = await structureSlipTextWithGPT({
+        rawText: ocr.rawText,
+        ocr
+      });
+    } else {
+      try {
+        ocr = await extractTextWithGoogleVision(imageBase64);
+        structured = await structureSlipTextWithGPT({
+          rawText: ocr.rawText,
+          ocr
+        });
+      } catch (error) {
+        directVisionFallback = {
+          used: true,
+          reason: `Google Vision/Text OCR failed: ${error.message || "unknown error"}`
+        };
+        structured = await structureSlipImageWithGPT({
+          imageBase64,
+          mediaType: getImageMediaType(imageBase64),
+          fallbackReason: directVisionFallback.reason
+        });
+        ocr = {
+          success: true,
+          rawText: "",
+          confidence: structured.confidence_score || 0,
+          provider: "openai_vision_direct"
+        };
+      }
+    }
+
     const supabase = getSupabaseServerClient();
     const audit = await createOcrAuditLog(supabase, {
       farm_id: farmId,
@@ -59,6 +96,9 @@ export async function POST(request) {
         confidence: structured.confidence_score,
         model: structured.model,
         retried: Boolean(structured.retried),
+        directVisionUsed: directVisionFallback.used,
+        directVisionReason: directVisionFallback.reason,
+        extractionMode: structured.extractionMode || (directVisionFallback.used ? "openai_vision_direct" : "google_vision_text"),
         usage: structured.usage,
         auditLogId: audit?.id || null,
         message: "OCR आणि AI extraction पूर्ण झाले. कृपया तपासा."

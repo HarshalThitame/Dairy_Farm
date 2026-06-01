@@ -62,7 +62,6 @@ export async function GET(request, { params }) {
     const [
       aiRecords,
       calvingRecords,
-      milkRecords,
       healthRecords,
       financeRecords,
       calves,
@@ -80,12 +79,6 @@ export async function GET(request, { params }) {
         .eq("farm_id", farmId)
         .eq("cow_id", params.id)
         .order("expected_date", { ascending: false }),
-      supabase
-        .from("milk_records")
-        .select("*")
-        .eq("farm_id", farmId)
-        .eq("cow_id", params.id)
-        .order("date", { ascending: false }),
       supabase
         .from("health_records")
         .select("*")
@@ -115,7 +108,6 @@ export async function GET(request, { params }) {
     const relatedError = firstError([
       aiRecords,
       calvingRecords,
-      milkRecords,
       healthRecords,
       financeRecords,
       calves,
@@ -132,7 +124,7 @@ export async function GET(request, { params }) {
         records: {
           ai_records: aiRecords.data || [],
           calving_records: calvingRecords.data || [],
-          milk_records: milkRecords.data || [],
+          milk_records: [],
           health_records: healthRecords.data || [],
           finance_records: financeRecords.data || [],
           calves: calves.data || [],

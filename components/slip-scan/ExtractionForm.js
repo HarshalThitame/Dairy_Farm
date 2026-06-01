@@ -43,7 +43,13 @@ function text(value, fallback = "") {
 }
 
 function numberValue(value) {
-  const number = Number(value);
+  const number = Number(
+    String(value ?? "")
+      .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(/[,₹\s]/g, "")
+      .replace(/[Oo]/g, "0")
+  );
   return Number.isFinite(number) ? number : 0;
 }
 
@@ -52,8 +58,38 @@ function optionalNumber(value) {
     return null;
   }
 
-  const number = Number(value);
+  const number = Number(
+    String(value)
+      .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(/[,₹\s]/g, "")
+      .replace(/[Oo]/g, "0")
+  );
   return Number.isFinite(number) ? number : null;
+}
+
+function resolveSettlementDeductions(data = {}) {
+  const deductions = data.deductions || {};
+  const explicitTotal = optionalNumber(data.total_deductions ?? deductions.total_deductions);
+  const explicitFeed = optionalNumber(
+    data.cattle_feed_deduction ??
+      data.feed_deduction ??
+      deductions.feed_deduction ??
+      deductions.cattle_feed_deduction
+  );
+  const otherDeduction = numberValue(data.other_deductions ?? deductions.other_deductions);
+  const feedDeduction =
+    explicitFeed !== null && explicitFeed > 0
+      ? explicitFeed
+      : explicitTotal !== null
+        ? explicitTotal
+        : 0;
+
+  return {
+    feedDeduction,
+    otherDeduction,
+    totalDeductions: roundMoney(feedDeduction + otherDeduction)
+  };
 }
 
 function roundMoney(value) {
@@ -130,7 +166,6 @@ function isEstimatedField(inferredFields, field) {
 
 function buildInitialForm(data = {}) {
   const slipType = data.slip_type === "settlement" ? "settlement" : "daily";
-  const deductions = data.deductions || {};
   const dairyMemberCode = data.dairy_member_code || data.code_no || data.member_number || data.dairy_member_number;
   const clrScore = data.clr_score ?? data.clr_degree;
   const amountWasAutoFilled = Array.isArray(data.gaps_filled)
@@ -142,14 +177,7 @@ function buildInitialForm(data = {}) {
     data.ocr_total_amount ??
     data.amount_verification?.printed_amount ??
     (data.calculated_total_amount === undefined && !amountWasAutoFilled ? data.total_amount : "");
-  const explicitTotalDeductions = data.total_deductions ?? deductions.total_deductions;
-  const feedDeduction =
-    data.cattle_feed_deduction ??
-    data.feed_deduction ??
-    deductions.feed_deduction ??
-    explicitTotalDeductions ??
-    0;
-  const explicitOtherDeduction = data.other_deductions ?? deductions.other_deductions ?? 0;
+  const resolvedDeductions = resolveSettlementDeductions(data);
 
   return {
     slip_type: slipType,
@@ -176,9 +204,9 @@ function buildInitialForm(data = {}) {
     daily_total_amount: text(data.daily_total_amount),
     total_liters: text(data.total_liters || data.daily_total_liters || data.total_liters_section2),
     total_milk_income: text(data.total_milk_income),
-    cattle_feed_deduction: text(feedDeduction),
-    other_deductions: text(explicitOtherDeduction),
-    total_deductions: text(explicitTotalDeductions),
+    cattle_feed_deduction: text(resolvedDeductions.feedDeduction),
+    other_deductions: text(resolvedDeductions.otherDeduction),
+    total_deductions: text(resolvedDeductions.totalDeductions),
     net_payable: text(data.net_payable),
     bank_name: text(data.bank_name),
     bank_account_no: text(data.bank_account_no),

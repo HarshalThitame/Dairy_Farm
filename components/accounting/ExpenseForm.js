@@ -14,7 +14,7 @@ export default function ExpenseForm({ initialData = null }) {
   const router = useRouter();
   const [form, setForm] = useState({
     expense_date: initialData?.expense_date || getTodayISODate(),
-    category: initialData?.category || "चारा",
+    category: initialData?.category || "औषध",
     amount: initialData?.amount || "",
     description: initialData?.description || "",
     vendor_name: initialData?.vendor_name || ""
@@ -83,6 +83,11 @@ export default function ExpenseForm({ initialData = null }) {
                 </button>
               ))}
             </div>
+            {form.category === "चारा" ? (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[17px] font-extrabold leading-snug text-amber-900">
+                खाद्य रक्कम इथे नोंदवली तरी ती फक्त माहितीसाठी राहील. अंतिम खाद्य खर्च 15 दिवसांच्या स्लिपवरील एकूण कपातवरूनच मोजला जातो.
+              </p>
+            ) : null}
           </div>
         </div>
       </section>

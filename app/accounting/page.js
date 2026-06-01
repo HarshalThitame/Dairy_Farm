@@ -5,50 +5,112 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import MonthSelector from "@/components/accounting/MonthSelector";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import PageHeader from "@/components/PageHeader";
-import SummaryCard from "@/components/SummaryCard";
 import { fetchAccountingSummary } from "@/lib/offlineActions";
 import { formatLitres, getTodayISODate, toMarathiCurrency } from "@/lib/marathiUtils";
-import { getIndiaMonthParts } from "@/lib/reportUtils";
+import { getIndiaMonthParts, getMonthLabel } from "@/lib/reportUtils";
 
 const actions = [
   {
     href: "/nondi/dudh?date=today",
     emoji: "🥛",
     title: "दूध नोंद",
-    text: "आजचे दूध नोंदवा"
+    text: "आजचे दूध नोंदवा",
+    tone: "border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 text-blue-950",
+    accent: "from-blue-500 to-cyan-400"
   },
   {
     href: "/accounting/settlements/new",
     emoji: "📋",
     title: "१५ दिवसांचे पेमेंट",
-    text: "डेअरी सेटलमेंट नोंद करा"
+    text: "डेअरी सेटलमेंट नोंद करा",
+    tone: "border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-green-50 text-emerald-950",
+    accent: "from-emerald-500 to-green-400"
   },
   {
     href: "/accounting/expenses/new",
     emoji: "💸",
     title: "खर्च नोंद",
-    text: "चारा, औषध, इतर खर्च"
+    text: "औषध, मजुरी, इतर खर्च",
+    tone: "border-red-100 bg-gradient-to-br from-red-50 via-white to-rose-50 text-red-950",
+    accent: "from-red-500 to-rose-400"
   },
   {
     href: "/accounting/dairy-slips",
     emoji: "📊",
     title: "दूध रेकॉर्ड्स बघा",
-    text: "या महिन्याच्या सर्व दूध नोंदी"
+    text: "या महिन्याच्या सर्व दूध नोंदी",
+    tone: "border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 text-sky-950",
+    accent: "from-sky-500 to-blue-400"
   },
   {
     href: "/accounting/settlements",
     emoji: "📋",
     title: "सेटलमेंट्स बघा",
-    text: "१५ दिवसांचे पेमेंट रेकॉर्ड्स"
+    text: "१५ दिवसांचे पेमेंट रेकॉर्ड्स",
+    tone: "border-amber-100 bg-gradient-to-br from-amber-50 via-white to-yellow-50 text-amber-950",
+    accent: "from-amber-500 to-yellow-400"
   },
   {
     href: "/accounting/profit",
     emoji: "📈",
     title: "नफा/तोटा बघा",
-    text: "महिन्याचा analysis"
+    text: "महिन्याचा analysis",
+    tone: "border-purple-100 bg-gradient-to-br from-purple-50 via-white to-pink-50 text-purple-950",
+    accent: "from-purple-500 to-pink-400"
   },
 ];
+
+function MetricCard({ emoji, title, value, subtext, tone = "green" }) {
+  const tones = {
+    green: "border-green-100 bg-gradient-to-br from-green-50 via-white to-emerald-50 text-green-950",
+    blue: "border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 text-blue-950",
+    red: "border-red-100 bg-gradient-to-br from-red-50 via-white to-rose-50 text-red-950"
+  };
+
+  return (
+    <article className={`dashboard-card dashboard-summary-tile min-h-[146px] overflow-hidden rounded-lg border p-4 shadow-soft ${tones[tone] || tones.green}`}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-[34px] leading-none" aria-hidden="true">{emoji}</span>
+        <span className="rounded-full bg-white/80 px-3 py-1 text-[13px] font-extrabold shadow-sm ring-1 ring-white/70">
+          हिशोब
+        </span>
+      </div>
+      <p className="mt-3 text-[16px] font-extrabold leading-tight opacity-75">{title}</p>
+      <p className="mt-2 break-words text-[24px] font-black leading-tight">{value}</p>
+      <p className="mt-2 text-[15px] font-bold leading-snug opacity-75">{subtext}</p>
+    </article>
+  );
+}
+
+function ActionTile({ action }) {
+  return (
+    <Link
+      href={action.href}
+      className={`dashboard-card dashboard-action-tile relative flex min-h-[118px] items-center gap-4 overflow-hidden rounded-lg border p-4 shadow-soft ${action.tone}`}
+    >
+      <span className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${action.accent}`} aria-hidden="true" />
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-white/85 text-[34px] shadow-sm ring-1 ring-white/70" aria-hidden="true">
+        {action.emoji}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[21px] font-extrabold leading-tight">{action.title}</span>
+        <span className="mt-1 block text-[16px] font-bold leading-snug opacity-75">{action.text}</span>
+      </span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[20px] font-extrabold text-white">
+        →
+      </span>
+    </Link>
+  );
+}
+
+function SummaryRow({ label, value, valueClass = "text-slate-950" }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
+      <span className="text-[18px] font-extrabold text-slate-700">{label}</span>
+      <span className={`text-right text-[18px] font-black leading-snug ${valueClass}`}>{value}</span>
+    </div>
+  );
+}
 
 function getInitialMonth() {
   return getIndiaMonthParts();
@@ -87,10 +149,45 @@ export default function AccountingHubPage() {
 
   const summary = data?.summary || {};
   const netProfit = Number(summary.net_profit || 0);
+  const selectedMonthLabel = getMonthLabel(monthValue.month, monthValue.year);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="💰 गोशाळा हिशोब" subtitle="दूध, खर्च, नफा - सर्व एकाठिकाणी" />
+    <div className="dashboard-enter space-y-5 pb-2">
+      <header className="dashboard-hero overflow-hidden rounded-lg px-4 pb-4 pt-5 text-white shadow-soft">
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[16px] font-extrabold text-green-100">माझी डेअरी</p>
+              <h1 className="mt-1 text-[34px] font-black leading-tight">💰 हिशोब</h1>
+              <p className="mt-2 max-w-[32rem] text-[18px] font-bold leading-snug text-green-50">
+                {selectedMonthLabel} - दूध, खर्च, कपात आणि नफा एका ठिकाणी
+              </p>
+            </div>
+            <Link
+              href="/accounting/slip-scan"
+              className="dashboard-card shrink-0 rounded-lg bg-white px-3 py-2 text-center text-[16px] font-black text-green-950 shadow-sm ring-1 ring-white/40 active:bg-green-50"
+            >
+              📷<span className="mt-1 block text-[13px]">स्कॅन</span>
+            </Link>
+          </div>
+
+          <div className="dashboard-glass mt-5 grid grid-cols-3 gap-2 rounded-lg p-2">
+            <div className="rounded-lg px-2 py-3 text-center">
+              <p className="text-[12px] font-bold text-green-100">आज दूध</p>
+              <p className="mt-1 break-words text-[20px] font-black">{formatLitres(todayMilk)}</p>
+            </div>
+            <div className="rounded-lg px-2 py-3 text-center">
+              <p className="text-[12px] font-bold text-green-100">उत्पन्न</p>
+              <p className="mt-1 break-words text-[20px] font-black">{toMarathiCurrency(summary.total_milk_income || 0)}</p>
+            </div>
+            <div className="rounded-lg px-2 py-3 text-center">
+              <p className="text-[12px] font-bold text-green-100">नफा</p>
+              <p className="mt-1 break-words text-[20px] font-black">{toMarathiCurrency(netProfit)}</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
       <MonthSelector value={monthValue} onChange={setMonthValue} />
 
       {loading ? <LoadingState text="हिशोब लोड होत आहे..." /> : null}
@@ -100,49 +197,88 @@ export default function AccountingHubPage() {
         <>
           <Link
             href="/accounting/slip-scan"
-            className="flex min-h-[104px] items-center gap-4 rounded-lg border-2 border-green-200 bg-green-50 p-4 shadow-soft active:bg-green-100"
+            className="dashboard-card dashboard-scan block rounded-lg border border-emerald-200 bg-gradient-to-r from-green-50 via-white to-blue-50 p-4 shadow-soft active:bg-green-100"
           >
-            <span className="text-[42px]" aria-hidden="true">📷</span>
-            <span>
-              <span className="block text-[24px] font-extrabold text-green-950">स्लिप स्कॅन करा</span>
-              <span className="mt-1 block text-[18px] font-bold leading-snug text-green-800">
-                दूध किंवा देयक स्लिप फोटोमधून वाचा
+            <span className="flex items-center gap-4">
+              <span className="dashboard-scan-icon flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-sheti text-[34px] text-white shadow-soft" aria-hidden="true">
+                📷
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[24px] font-black leading-tight text-green-950">स्लिप स्कॅन करा</span>
+                <span className="mt-1 block text-[17px] font-bold leading-snug text-green-800">
+                  दूध किंवा १५ दिवसांची देयक स्लिप फोटोवरून वाचा
+                </span>
+              </span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[20px] font-extrabold text-white">
+                →
               </span>
             </span>
           </Link>
 
-          <section className="grid grid-cols-2 gap-3">
-            <SummaryCard emoji="🥛" title="आजचे दूध" value={`${formatLitres(todayMilk)} लिटर`} subtext="आज" color="blue" />
-            <SummaryCard emoji="📊" title="या महिन्याचे दूध" value={`${formatLitres(summary.total_liters || 0)} लिटर`} subtext="एकूण" color="blue" />
-            <SummaryCard emoji="💰" title="या महिन्याचा उत्पन्न" value={toMarathiCurrency(summary.total_milk_income || 0)} subtext="दूध विक्री" color="green" />
-            <SummaryCard emoji="📊" title="या महिन्याचा नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "नफा" : "तोटा"} color={netProfit >= 0 ? "green" : "red"} />
+          <section className="dashboard-stagger grid grid-cols-2 gap-3" aria-label="हिशोब सारांश">
+            <MetricCard emoji="🥛" title="आजचे दूध" value={`${formatLitres(todayMilk)} लिटर`} subtext="आजची नोंद" tone="blue" />
+            <MetricCard emoji="📊" title="महिन्याचे दूध" value={`${formatLitres(summary.total_liters || 0)} लिटर`} subtext={selectedMonthLabel} tone="blue" />
+            <MetricCard emoji="💰" title="दूध उत्पन्न" value={toMarathiCurrency(summary.total_milk_income || 0)} subtext="दूध विक्रीतून" tone="green" />
+            <MetricCard emoji="📈" title="नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "महिन्याचा नफा" : "महिन्याचा तोटा"} tone={netProfit >= 0 ? "green" : "red"} />
           </section>
 
-          <section className="grid gap-3">
-            {actions.map((action) => (
+          <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <div className="mb-4">
+              <h2 className="text-[24px] font-black text-slate-950">हिशोब कामे</h2>
+              <p className="mt-1 text-[17px] font-bold leading-snug text-slate-600">
+                दूध नोंद, सेटलमेंट, खर्च आणि नफा लवकर उघडा.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {actions.map((action) => (
+                <ActionTile key={action.href} action={action} />
+              ))}
+            </div>
+          </section>
+
+          <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[24px] font-black text-slate-950">मासिक सारांश</h2>
+                <p className="mt-1 text-[17px] font-bold text-slate-600">{selectedMonthLabel}</p>
+              </div>
               <Link
-                key={action.href}
-                href={action.href}
-                className="flex min-h-[92px] items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft active:bg-green-50"
+                href="/accounting/profit"
+                className="dashboard-card shrink-0 rounded-full bg-green-50 px-3 py-2 text-[15px] font-extrabold text-sheti ring-1 ring-green-200 active:bg-green-100"
               >
-                <span className="text-[34px]" aria-hidden="true">{action.emoji}</span>
-                <span>
-                  <span className="block text-[22px] font-extrabold text-slate-950">{action.title}</span>
-                  <span className="mt-1 block text-[18px] font-bold text-slate-600">{action.text}</span>
-                </span>
+                तपशील
               </Link>
-            ))}
-          </section>
+            </div>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">मासिक सारांश</h2>
-            <div className="mt-4 space-y-3 text-[20px] font-bold">
-              <div className="flex justify-between gap-3"><span>दूध</span><span>{formatLitres(summary.total_liters || 0)} लि. | {toMarathiCurrency(summary.total_milk_income || 0)}</span></div>
-              <div className="flex justify-between gap-3"><span>खर्च</span><span className="text-red-700">{toMarathiCurrency(summary.total_all_expenses || 0)}</span></div>
-              <div className="flex justify-between gap-3"><span>खाद्य + इतर कपात</span><span className="text-red-700">{toMarathiCurrency(summary.total_dairy_deductions || 0)}</span></div>
-              <div className="flex justify-between gap-3 border-t border-slate-200 pt-3 text-[22px] font-extrabold">
-                <span>नफा</span>
-                <span className={netProfit >= 0 ? "text-green-700" : "text-red-700"}>{toMarathiCurrency(netProfit)}</span>
+            <div className="mt-4 space-y-3">
+              <SummaryRow
+                label="दूध"
+                value={`${formatLitres(summary.total_liters || 0)} लि. | ${toMarathiCurrency(summary.total_milk_income || 0)}`}
+              />
+              <SummaryRow
+                label="इतर खर्च"
+                value={toMarathiCurrency(summary.total_all_expenses || 0)}
+                valueClass="text-red-700"
+              />
+              <SummaryRow
+                label="डेअरी खाद्य/इतर कपात"
+                value={toMarathiCurrency(summary.total_dairy_deductions || 0)}
+                valueClass="text-red-700"
+              />
+              <div
+                className={`rounded-lg border-2 p-4 ${
+                  netProfit >= 0
+                    ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 text-green-900"
+                    : "border-red-200 bg-gradient-to-br from-red-50 to-rose-50 text-red-900"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-[20px] font-black">निव्वळ नफा</span>
+                  <span className="text-right text-[24px] font-black leading-tight">{toMarathiCurrency(netProfit)}</span>
+                </div>
+                <p className="mt-2 text-[15px] font-bold opacity-75">
+                  दूध उत्पन्नातून खर्च आणि डेअरी कपात वजा करून.
+                </p>
               </div>
             </div>
           </section>

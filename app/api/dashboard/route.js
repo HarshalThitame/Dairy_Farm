@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
+import { isKhadyaExpenseCategory, summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
 import {
@@ -45,11 +46,13 @@ function getFinanceAccountingPeriod(record) {
   return ACCOUNTING_PERIOD_MONTHLY;
 }
 
-function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, monthlyExpenses, settlements }) {
+function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, monthlyExpenses, settlements, milkIncomeSummary }) {
   const monthlyFinance = (financeRecords || []).filter(
     (record) => getFinanceAccountingPeriod(record) !== "annual"
   );
-  const milkIncome = (milkRecords || []).reduce((total, record) => total + getRecordMilkAmount(record), 0);
+  const milkIncome = milkIncomeSummary
+    ? Number(milkIncomeSummary.totalAmount || 0)
+    : (milkRecords || []).reduce((total, record) => total + getRecordMilkAmount(record), 0);
   const manualMilkIncome = monthlyFinance
     .filter(
       (record) =>
@@ -61,10 +64,13 @@ function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, month
     .filter((record) => record.type === "उत्पन्न")
     .reduce((total, record) => total + Number(record.amount || 0), 0);
   const manualExpense = monthlyFinance
-    .filter((record) => record.type === "खर्च")
+    .filter((record) => record.type === "खर्च" && !isKhadyaExpenseCategory(record.category))
     .reduce((total, record) => total + Number(record.amount || 0), 0);
   const healthExpense = sum(healthRecords, "cost");
-  const accountingExpense = sum(monthlyExpenses, "amount");
+  const accountingExpense = sum(
+    (monthlyExpenses || []).filter((record) => !isKhadyaExpenseCategory(record.category)),
+    "amount"
+  );
   const otherDeductions = sum(settlements, "other_deductions");
   const feedDeductions = sum(settlements, "cattle_feed_deduction");
 
@@ -209,21 +215,18 @@ export async function GET(request) {
 
     if (!monthlySummary) {
       const [
-        monthMilkResult,
+        monthDairySlipsResult,
         financeResult,
         healthResult,
         monthlyExpensesResult,
         settlementsResult
       ] = await Promise.all([
         supabase
-          .from("milk_records")
-          .select(
-            "id, date, morning_litres, evening_litres, total_litres, price_per_litre, morning_price_per_litre, evening_price_per_litre, total_amount"
-          )
+          .from("dairy_slips")
+          .select("*")
           .eq("farm_id", farmId)
-          .is("cow_id", null)
-          .gte("date", monthRange.start)
-          .lt("date", monthRange.end),
+          .gte("slip_date", monthRange.start)
+          .lt("slip_date", monthRange.end),
         supabase
           .from("finance_records")
           .select("id, date, type, category, amount, accounting_period, description")
@@ -239,34 +242,33 @@ export async function GET(request) {
           .lt("date", monthRange.end),
         supabase
           .from("monthly_expenses")
-          .select("id, expense_date, amount")
+          .select("id, expense_date, category, amount")
           .eq("farm_id", farmId)
           .gte("expense_date", monthRange.start)
           .lt("expense_date", monthRange.end),
         supabase
           .from("dairy_settlements")
-          .select("id, settlement_date, period_end, cattle_feed_deduction, other_deductions")
+          .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions")
           .eq("farm_id", farmId)
           .gte("period_end", monthRange.start)
           .lt("period_end", monthRange.end)
       ]);
 
-      const monthMilkRecords = assertQuery(monthMilkResult);
+      const monthDairySlips = assertQuery(monthDairySlipsResult);
       const financeRecords = assertQuery(financeResult);
       const healthRecords = assertQuery(healthResult);
       const monthlyExpenses = assertQuery(monthlyExpensesResult);
       const settlements = assertQuery(settlementsResult);
+      const milkIncomeSummary = summarizeMilkIncomeForMonth(monthDairySlips, settlements);
 
-      monthlyLitres = monthMilkRecords.reduce(
-        (total, record) => total + getRecordMilkTotal(record),
-        0
-      );
+      monthlyLitres = milkIncomeSummary.totalLiters;
       monthlyFinanceReport = buildFinanceSummary({
         financeRecords,
-        milkRecords: monthMilkRecords,
+        milkRecords: [],
         healthRecords,
         monthlyExpenses,
-        settlements
+        settlements,
+        milkIncomeSummary
       });
     }
 

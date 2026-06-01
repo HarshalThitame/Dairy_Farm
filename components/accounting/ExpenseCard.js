@@ -12,7 +12,9 @@ export default function ExpenseCard({ expense, onDelete }) {
     ? "हिशोब नोंदीतून"
     : expense.source === "health_records"
       ? "आरोग्य नोंदीतून"
-      : "";
+      : expense.source === "dairy_settlements"
+        ? "15 दिवसांच्या स्लिपवरून"
+        : "";
 
   const content = (
     <>
@@ -38,6 +40,11 @@ export default function ExpenseCard({ expense, onDelete }) {
       {sourceLabel ? (
         <p className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-[16px] font-extrabold text-slate-600">
           {sourceLabel}
+        </p>
+      ) : null}
+      {expense.info_only ? (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[16px] font-extrabold text-amber-800">
+          ही खाद्य नोंद फक्त माहितीसाठी आहे. नफा/मासिक खर्चात अंतिम खाद्य कपात 15 दिवसांच्या स्लिपवरूनच घेतली जाते.
         </p>
       ) : null}
     </>

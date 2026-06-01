@@ -10,11 +10,11 @@ import {
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
 
 const cardStyles = {
-  overdue: "border-l-red-900 bg-red-50",
-  today: "border-l-tatkal bg-white",
-  tomorrow: "border-l-athavan bg-yellow-50",
-  week: "border-l-blue-500 bg-white",
-  future: "border-l-slate-300 bg-white"
+  overdue: "border-l-red-600 bg-gradient-to-br from-red-50 via-white to-red-50",
+  today: "border-l-tatkal bg-gradient-to-br from-white via-red-50/50 to-green-50",
+  tomorrow: "border-l-athavan bg-gradient-to-br from-amber-50 via-white to-yellow-50",
+  week: "border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-green-50",
+  future: "border-l-slate-300 bg-gradient-to-br from-white via-slate-50 to-green-50"
 };
 
 function urgencyText(reminderDate) {
@@ -58,11 +58,12 @@ export default function ReminderCard({
 
   return (
     <article
-      className={`dashboard-card rounded-lg border border-l-4 border-slate-200 p-4 shadow-soft ${
+      className={`dashboard-card relative overflow-hidden rounded-lg border border-l-4 border-slate-200 p-4 shadow-soft ${
         colorClass
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-bl-full bg-gradient-to-bl from-white/80 to-transparent" />
+      <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[19px] font-extrabold leading-tight text-slate-800">
             {emoji} {reminder.type}
@@ -91,24 +92,24 @@ export default function ReminderCard({
       </div>
 
       {!compact ? (
-        <p className="mt-3 text-[19px] font-semibold leading-relaxed text-slate-700">
+        <p className="relative z-10 mt-3 text-[19px] font-semibold leading-relaxed text-slate-700">
           {reminder.message}
         </p>
       ) : (
-        <p className="mt-2 text-[18px] font-semibold leading-snug text-slate-700">
+        <p className="relative z-10 mt-2 text-[18px] font-semibold leading-snug text-slate-700">
           {reminder.message}
         </p>
       )}
 
-      <p className="mt-2 text-[18px] font-bold text-slate-600">
+      <p className="relative z-10 mt-2 text-[18px] font-bold text-slate-600">
         तारीख: {formatMarathiDate(reminder.reminder_date)}
       </p>
 
-      <div className={`mt-4 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
+      <div className={`relative z-10 mt-4 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
         {canComplete && calvingReminder ? (
           <Link
             href={getCalvingRecordHref(reminder)}
-            className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white active:bg-green-700"
+            className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white shadow-sm active:bg-green-700"
           >
             🐄 व्यायण नोंद
           </Link>
@@ -118,7 +119,7 @@ export default function ReminderCard({
           <button
             type="button"
             onClick={() => onDone(reminder)}
-            className="min-h-[52px] rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white active:bg-green-700"
+            className="min-h-[52px] rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white shadow-sm active:bg-green-700"
           >
             ✅ झाले
           </button>
@@ -127,7 +128,7 @@ export default function ReminderCard({
         {reminder.cow_id ? (
           <Link
             href={`/gayi/${reminder.cow_id}`}
-            className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-4 text-center text-[18px] font-extrabold text-sheti active:bg-green-100"
+            className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-white px-4 text-center text-[18px] font-extrabold text-sheti shadow-sm active:bg-green-100"
           >
             📋 माहिती बघा
           </Link>
@@ -137,7 +138,7 @@ export default function ReminderCard({
           <button
             type="button"
             onClick={() => onSkip(reminder)}
-            className="min-h-[52px] rounded-lg border-2 border-red-200 bg-white px-4 text-[18px] font-extrabold text-red-800 active:bg-red-50"
+            className="min-h-[52px] rounded-lg border-2 border-red-200 bg-white px-4 text-[18px] font-extrabold text-red-800 shadow-sm active:bg-red-50"
           >
             ⏭️ वगळा
           </button>
@@ -147,7 +148,7 @@ export default function ReminderCard({
           <button
             type="button"
             onClick={() => onSnooze(reminder)}
-            className="min-h-[52px] rounded-lg border-2 border-yellow-200 bg-yellow-50 px-4 text-[18px] font-extrabold text-yellow-900 active:bg-yellow-100"
+            className="min-h-[52px] rounded-lg border-2 border-yellow-200 bg-yellow-50 px-4 text-[18px] font-extrabold text-yellow-900 shadow-sm active:bg-yellow-100"
           >
             ⏭️ पुढे ढकला
           </button>

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
+import { isKhadyaExpenseCategory, summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
 import { displayFeedSectionName } from "@/lib/feedExpenseSections";
 import { farmErrorResponse, normalizeFarm, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   displayFinanceCategory,
   getMonthLabel,
-  getRecordMilkAmount,
-  getRecordMilkTotal,
   reportMonths
 } from "@/lib/reportUtils";
 
@@ -124,44 +123,54 @@ function normalizeFinanceRecord(record) {
   };
 }
 
-function buildMilkSummary(records, monthRows) {
+function isInfoOnlyKhadyaTransaction(record) {
+  return record?.type === "खर्च" && record?.source !== "dairy_settlements" && isKhadyaExpenseCategory(record.category);
+}
+
+function buildMilkSummary(slips, settlements, monthRows) {
   const daysByMonth = new Map();
-  let totalMilkLitres = 0;
   let morningLitres = 0;
   let eveningLitres = 0;
-  let milkIncome = 0;
-  let milkDays = 0;
 
-  records.forEach((record) => {
-    const key = getMonthKeyFromDate(record.date);
+  slips.forEach((slip) => {
+    const key = getMonthKeyFromDate(slip.slip_date);
     const month = monthRows.find((item) => item.key === key);
-    const total = getRecordMilkTotal(record);
-    const amount = getRecordMilkAmount(record);
-    const morning = Number(record.morning_litres || 0);
-    const evening = Number(record.evening_litres || 0);
+    const liters = Number(slip.liters || 0);
+    const morning = slip.session === "सकाळ" ? liters : 0;
+    const evening = slip.session === "संध्याकाळ" ? liters : 0;
 
     if (!month) {
       return;
     }
 
-    month.milkLitres += total;
     month.morningLitres += morning;
     month.eveningLitres += evening;
-    month.milkIncome += amount;
-    totalMilkLitres += total;
     morningLitres += morning;
     eveningLitres += evening;
-    milkIncome += amount;
 
-    if (total > 0) {
-      daysByMonth.set(key, (daysByMonth.get(key) || 0) + 1);
-      milkDays += 1;
+    if (liters > 0) {
+      if (!daysByMonth.has(key)) {
+        daysByMonth.set(key, new Set());
+      }
+      daysByMonth.get(key).add(slip.slip_date);
     }
   });
 
   monthRows.forEach((month) => {
-    month.milkDays = daysByMonth.get(month.key) || 0;
+    const monthSlips = (slips || []).filter((slip) => getMonthKeyFromDate(slip.slip_date) === month.key);
+    const monthSettlements = (settlements || []).filter(
+      (settlement) => getMonthKeyFromDate(getSettlementAccountingDate(settlement)) === month.key
+    );
+    const monthlyMilk = summarizeMilkIncomeForMonth(monthSlips, monthSettlements);
+
+    month.milkLitres = monthlyMilk.totalLiters;
+    month.milkIncome = monthlyMilk.totalAmount;
+    month.milkDays = daysByMonth.get(month.key)?.size || 0;
   });
+
+  const totalMilkLitres = monthRows.reduce((sum, month) => sum + Number(month.milkLitres || 0), 0);
+  const milkIncome = monthRows.reduce((sum, month) => sum + Number(month.milkIncome || 0), 0);
+  const milkDays = monthRows.reduce((sum, month) => sum + Number(month.milkDays || 0), 0);
 
   return {
     totalMilkLitres: roundMoney(totalMilkLitres),
@@ -252,7 +261,7 @@ function buildFinanceSummary(records, monthlyExpenses, healthRecords, aiRecords,
       if (month) {
         month.annualExpense += amount;
       }
-    } else {
+    } else if (!isInfoOnlyKhadyaTransaction(record)) {
       monthlyExpense += amount;
       addToGroup(monthlyExpenseByCategory, record.category, amount);
 
@@ -283,7 +292,7 @@ function buildFinanceSummary(records, monthlyExpenses, healthRecords, aiRecords,
     ...buildMonthlyExpenseTransactions(monthlyExpenses),
     ...buildHealthExpenseTransactions(healthRecords),
     ...buildAIExpenseTransactions(aiRecords)
-  ].forEach((record) => {
+  ].filter((record) => !isInfoOnlyKhadyaTransaction(record)).forEach((record) => {
       const amount = Number(record.amount || 0);
       const key = getMonthKeyFromDate(record.date);
       const month = monthRows.find((item) => item.key === key);
@@ -343,6 +352,7 @@ function buildFeedSummary(records) {
   const bySection = {};
   let monthlyTotal = 0;
   let annualTotal = 0;
+  let infoOnlyMonthlyTotal = 0;
 
   (records || []).forEach((record) => {
     const section = displayFeedSectionName(record.section);
@@ -353,6 +363,8 @@ function buildFeedSummary(records) {
 
     if (period === "annual") {
       annualTotal += amount;
+    } else if (isKhadyaExpenseCategory(section)) {
+      infoOnlyMonthlyTotal += amount;
     } else {
       monthlyTotal += amount;
     }
@@ -361,6 +373,7 @@ function buildFeedSummary(records) {
   return {
     monthlyTotal: roundMoney(monthlyTotal),
     annualTotal: roundMoney(annualTotal),
+    infoOnlyMonthlyTotal: roundMoney(infoOnlyMonthlyTotal),
     total: roundMoney(monthlyTotal + annualTotal),
     bySection: groupsToArray(bySection)
   };
@@ -400,7 +413,7 @@ export async function GET(request) {
     const supabase = getSupabaseServerClient();
     const [
       farmResult,
-      milkResult,
+      dairySlipsResult,
       financeResult,
       monthlyExpenseResult,
       healthResult,
@@ -412,13 +425,12 @@ export async function GET(request) {
     ] = await Promise.all([
       supabase.from("farms").select("*").eq("id", farmId).single(),
       supabase
-        .from("milk_records")
+        .from("dairy_slips")
         .select("*")
         .eq("farm_id", farmId)
-        .is("cow_id", null)
-        .gte("date", range.start)
-        .lt("date", range.end)
-        .order("date", { ascending: true }),
+        .gte("slip_date", range.start)
+        .lt("slip_date", range.end)
+        .order("slip_date", { ascending: true }),
       supabase
         .from("finance_records")
         .select("*")
@@ -440,7 +452,7 @@ export async function GET(request) {
         .lt("date", range.end),
       supabase
         .from("dairy_settlements")
-        .select("id, farm_id, settlement_date, period_start, period_end, cattle_feed_deduction, other_deductions")
+        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
         .gte("period_end", range.start)
         .lt("period_end", range.end),
@@ -472,7 +484,7 @@ export async function GET(request) {
 
     const firstError = [
       farmResult.error,
-      milkResult.error,
+      dairySlipsResult.error,
       financeResult.error,
       monthlyExpenseResult.error,
       healthResult.error,
@@ -488,7 +500,7 @@ export async function GET(request) {
     }
 
     const monthRows = buildEmptyMonths(year);
-    const milkSummary = buildMilkSummary(milkResult.data || [], monthRows);
+    const milkSummary = buildMilkSummary(dairySlipsResult.data || [], settlementResult.data || [], monthRows);
     const financeSummary = buildFinanceSummary(
       financeResult.data || [],
       monthlyExpenseResult.data || [],

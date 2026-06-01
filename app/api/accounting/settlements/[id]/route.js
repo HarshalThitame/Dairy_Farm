@@ -32,6 +32,16 @@ function cleanOptional(value) {
   return text || null;
 }
 
+function parseNumber(value) {
+  const normalized = String(value ?? "")
+    .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[,₹\s]/g, "")
+    .replace(/[Oo]/g, "0");
+  const number = Number(normalized || 0);
+  return Number.isFinite(number) ? number : null;
+}
+
 function pickFields(body) {
   return settlementFields.reduce((payload, field) => {
     if (body[field] !== undefined) {
@@ -62,7 +72,7 @@ function normalizePayload(payload) {
     if (payload[field] === "" || payload[field] === null) {
       payload[field] = 0;
     } else {
-      payload[field] = Number(payload[field]);
+      payload[field] = parseNumber(payload[field]) ?? Number.NaN;
     }
   });
 
@@ -71,11 +81,11 @@ function normalizePayload(payload) {
       return;
     }
 
-    payload[field] = payload[field] === "" || payload[field] === null ? null : Number(payload[field]);
+    payload[field] = payload[field] === "" || payload[field] === null ? null : parseNumber(payload[field]) ?? Number.NaN;
   });
 
   if (hasField(payload, "total_liters")) {
-    payload.total_liters = payload.total_liters === "" || payload.total_liters === null ? null : Number(payload.total_liters);
+    payload.total_liters = payload.total_liters === "" || payload.total_liters === null ? null : parseNumber(payload.total_liters) ?? Number.NaN;
   }
 
   if (payload.payment_received === false) {
@@ -243,7 +253,7 @@ export async function PATCH(request, { params }) {
           ? Number(settlement.total_milk_income || 0) -
             Number(settlement.cattle_feed_deduction || 0) -
             Number(settlement.other_deductions || 0)
-          : Number(body.payment_received_amount),
+          : parseNumber(body.payment_received_amount) ?? Number.NaN,
       updated_at: new Date().toISOString()
     };
 

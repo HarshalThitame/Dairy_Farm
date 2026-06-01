@@ -18,7 +18,6 @@ export async function GET(request) {
     const to = searchParams.get("to");
     const date = searchParams.get("date");
     const days = searchParams.get("days");
-    const cowId = searchParams.get("cow_id");
 
     const supabase = getSupabaseServerClient();
     let query = supabase
@@ -43,12 +42,7 @@ export async function GET(request) {
       startDate.setDate(startDate.getDate() - Number(days || 7));
       query = query.gte("date", startDate.toISOString().slice(0, 10)).lte("date", today);
     }
-    if (cowId) {
-      await verifyFarmAccess(request, cowId);
-      query = query.eq("cow_id", cowId);
-    } else {
-      query = query.is("cow_id", null);
-    }
+    query = query.is("cow_id", null);
 
     const { data, error } = await query;
 

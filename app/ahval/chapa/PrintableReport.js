@@ -33,6 +33,12 @@ function printableValue(value, convertDigits = false) {
 export default function PrintableReport({ reportData, selectedSections }) {
   const milk = reportData?.milk || {};
   const finance = reportData?.finance || {};
+  const dairyDeductions = Number(finance.deductionsCountedInProfit || finance.totalDeductions || 0);
+  const finalMonthlyExpense = Number(finance.totalExpense || 0) + dairyDeductions;
+  const financeTransactions = [
+    ...(finance.transactions || []),
+    ...(finance.deductionTransactions || [])
+  ];
   const performance = reportData?.performance || [];
   const vaccination = reportData?.vaccination || {};
   const farm = reportData?.farm || {};
@@ -114,7 +120,11 @@ export default function PrintableReport({ reportData, selectedSections }) {
               </tr>
               <tr>
                 <th className="border border-slate-900 p-2 text-left">मासिक खर्च</th>
-                <td className="border border-slate-900 p-2">{formatCurrency(finance.totalExpense || 0)}</td>
+                <td className="border border-slate-900 p-2">{formatCurrency(finalMonthlyExpense)}</td>
+              </tr>
+              <tr>
+                <th className="border border-slate-900 p-2 text-left">डेअरी खाद्य/इतर कपात</th>
+                <td className="border border-slate-900 p-2">{formatCurrency(dairyDeductions)}</td>
               </tr>
               <tr>
                 <th className="border border-slate-900 p-2 text-left">वार्षिक खर्च</th>
@@ -211,8 +221,8 @@ export default function PrintableReport({ reportData, selectedSections }) {
               </tr>
             </thead>
             <tbody>
-              {(finance.transactions || []).length > 0 ? (
-                finance.transactions.map((item) => (
+              {financeTransactions.length > 0 ? (
+                financeTransactions.map((item) => (
                   <tr key={item.id}>
                     <td className="border border-slate-900 p-2">{formatMarathiDate(item.date)}</td>
                     <td className="border border-slate-900 p-2">{item.type}</td>
