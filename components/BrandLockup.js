@@ -1,18 +1,22 @@
+import Image from "next/image";
 import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
 
 const sizeStyles = {
   sm: {
-    icon: "text-[28px]",
+    icon: "h-10 w-10",
+    imageSize: 40,
     title: "text-[22px]",
     tagline: "text-[14px]"
   },
   md: {
-    icon: "text-[42px]",
+    icon: "h-14 w-14",
+    imageSize: 56,
     title: "text-[30px]",
     tagline: "text-[18px]"
   },
   lg: {
-    icon: "text-[58px]",
+    icon: "h-20 w-20",
+    imageSize: 80,
     title: "text-[34px]",
     tagline: "text-[20px]"
   }
@@ -24,10 +28,16 @@ export default function BrandLockup({ size = "md", center = false, invert = fals
   return (
     <div className={`flex min-w-0 items-center gap-3 ${center ? "justify-center text-center" : ""} ${className}`}>
       <div
-        className={`${styles.icon} flex shrink-0 items-center justify-center rounded-lg bg-green-50 leading-none shadow-sm ring-1 ring-green-100`}
+        className={`${styles.icon} flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white leading-none shadow-sm ring-1 ring-green-100`}
         aria-hidden="true"
       >
-        🐄
+        <Image
+          src="/icons/majhi-dairy-logo.png"
+          alt=""
+          width={styles.imageSize}
+          height={styles.imageSize}
+          className="h-full w-full object-contain"
+        />
       </div>
       <div className="min-w-0">
         <div

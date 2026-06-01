@@ -21,6 +21,10 @@ function isFeedExpenseSchemaError(error) {
   ) || (error?.code === "PGRST204" && (message.includes("murghas_") || message.includes("accounting_period")));
 }
 
+function isFinanceCategorySchemaError(error) {
+  return error?.code === "23514" && String(error?.message || "").includes("finance_records_category_check");
+}
+
 function getSupabaseProjectRef() {
   try {
     return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").hostname.split(".")[0];
@@ -34,6 +38,16 @@ function feedExpenseSchemaError() {
   const projectHint = projectRef ? ` Project: ${projectRef}.` : "";
   const error = new Error(
     `चारा खर्चासाठी live डेटाबेस अजून update झालेला नाही.${projectHint} Supabase SQL Editor मध्ये supabase/fix_feed_expense_accounting_periods.sql पूर्ण file run करा.`
+  );
+  error.status = 409;
+  return error;
+}
+
+function financeCategorySchemaError() {
+  const projectRef = getSupabaseProjectRef();
+  const projectHint = projectRef ? ` Project: ${projectRef}.` : "";
+  const error = new Error(
+    `हिशोब category constraint जुना आहे.${projectHint} Supabase SQL Editor मध्ये supabase/fix_finance_records_category_check.sql पूर्ण file run करा.`
   );
   error.status = 409;
   return error;
@@ -384,6 +398,9 @@ export async function POST(request) {
       .single();
 
     if (financeResult.error) {
+      if (isFinanceCategorySchemaError(financeResult.error)) {
+        throw financeCategorySchemaError();
+      }
       throw financeResult.error;
     }
 
@@ -412,6 +429,9 @@ export async function POST(request) {
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
+    if (isFinanceCategorySchemaError(error)) {
+      return farmErrorResponse(financeCategorySchemaError());
+    }
     if (isFeedExpenseSchemaError(error)) {
       return farmErrorResponse(feedExpenseSchemaError());
     }

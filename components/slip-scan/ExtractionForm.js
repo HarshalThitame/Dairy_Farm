@@ -745,7 +745,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
           🔄 पुन्हा स्कॅन
         </button>
         <button type="submit" disabled={saving} className="min-h-[56px] rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white disabled:opacity-70 active:bg-green-700">
-          {saving ? "जतन होत आहे..." : "✅ तपासले, जतन करा"}
+          {saving ? "💾 जतन चालू आहे..." : "✅ तपासले, जतन करा"}
         </button>
       </div>
     </form>

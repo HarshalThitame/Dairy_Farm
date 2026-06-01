@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import BrandLockup from "@/components/BrandLockup";
 
 const items = [
   { href: "/admin", icon: "📊", label: "Dashboard" },
@@ -35,7 +36,7 @@ export default function Sidebar({ admin, onLogout, open, onClose }) {
         ].join(" ")}
       >
         <div className="border-b border-slate-200 px-5 py-5">
-          <div className="text-[26px] font-extrabold text-slate-950">🐄 माझी डेअरी</div>
+          <BrandLockup size="sm" />
           <div className="mt-1 text-[16px] font-semibold text-slate-500">Smart Dairy Platform</div>
         </div>
 

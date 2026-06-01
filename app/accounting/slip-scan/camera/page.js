@@ -5,6 +5,7 @@ import { useState } from "react";
 import CameraView from "@/components/slip-scan/CameraView";
 import ErrorState from "@/components/ErrorState";
 import PageHeader from "@/components/PageHeader";
+import AIReadingProgress from "@/components/slip-scan/AIReadingProgress";
 import CompressionStats from "@/components/slip-scan/CompressionStats";
 import { uploadSlipImage } from "@/lib/offlineActions";
 
@@ -13,6 +14,7 @@ export default function SlipScanCameraPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [stage, setStage] = useState("checking");
   const [compression, setCompression] = useState(null);
 
   async function handleCapture(blob) {
@@ -24,6 +26,7 @@ export default function SlipScanCameraPage() {
     setLoading(true);
     setError("");
     setCompression(null);
+    setStage("checking");
     setMessage("फोटो तपासत आहे...");
 
     try {
@@ -31,6 +34,9 @@ export default function SlipScanCameraPage() {
         originalFilename: blob.name || `dairy-slip-${Date.now()}.jpg`,
         originalSize: blob.size,
         onProgress: (progress) => {
+          if (progress.stage) {
+            setStage(progress.stage);
+          }
           if (progress.message) {
             setMessage(progress.message);
           }
@@ -51,6 +57,7 @@ export default function SlipScanCameraPage() {
         throw new Error("Upload ID मिळाला नाही.");
       }
 
+      setStage("reading");
       setMessage("फोटो अपलोड झाला. AI वाचत आहे...");
       router.push(`/accounting/slip-scan/preview/${uploadId}`);
     } catch (captureError) {
@@ -65,7 +72,11 @@ export default function SlipScanCameraPage() {
     <div className="space-y-5">
       <PageHeader title="📷 स्लिप फोटो घ्या" subtitle="स्लिप सरळ आणि स्पष्ट दिसेल अशी ठेवा" />
       {error ? <ErrorState message={error} /> : null}
-      {message ? <p className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-[19px] font-extrabold text-blue-900">{message}</p> : null}
+      {loading ? (
+        <AIReadingProgress stage={stage} message={message} />
+      ) : message ? (
+        <p className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-[19px] font-extrabold text-blue-900">{message}</p>
+      ) : null}
       {compression ? (
         <CompressionStats
           originalSize={compression.originalSize}

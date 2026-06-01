@@ -6,9 +6,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
-import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import AIReadingProgress from "@/components/slip-scan/AIReadingProgress";
 import ExtractionForm from "@/components/slip-scan/ExtractionForm";
+import SaveProgress from "@/components/slip-scan/SaveProgress";
 import { showToast } from "@/components/Toast";
 import { GAP_FILLING_MESSAGES } from "@/lib/marathiLabels";
 import { toMarathiCurrency } from "@/lib/marathiUtils";
@@ -126,13 +127,21 @@ export default function SlipScanPreviewPage() {
     <div className="space-y-5 pb-24">
       <PageHeader title="✅ AI ने माहिती वाचली आहे" subtitle="कृपया तपासा आणि मगच जतन करा" />
 
-      {loading ? <LoadingState text="AI स्लिप वाचत आहे..." /> : null}
+      {loading ? (
+        <AIReadingProgress
+          stage="reading"
+          message="OCR मजकूर, AI extraction आणि हिशोब validation चालू आहे..."
+          autoAdvance
+        />
+      ) : null}
       {error ? (
         <ErrorState
           message={error}
           onRetry={loadExtraction}
         />
       ) : null}
+
+      {saving || saveResult ? <SaveProgress done={Boolean(saveResult)} /> : null}
 
       {!loading && data?.imageUrl ? (
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">

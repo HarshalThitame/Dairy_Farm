@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import BrandLockup from "@/components/BrandLockup";
 import { SuperAdminProvider, useSuperAdmin } from "@/context/SuperAdminContext";
 
 function AdminLoginContent() {
@@ -50,7 +51,7 @@ function AdminLoginContent() {
       <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <div className="text-[56px] leading-none">🔐</div>
-          <h1 className="mt-4 text-[32px] font-extrabold">🐄 माझी डेअरी</h1>
+          <BrandLockup size="sm" center invert className="mt-4" />
           <p className="mt-2 text-[18px] text-slate-400">Smart Dairy Platform</p>
         </div>
 
