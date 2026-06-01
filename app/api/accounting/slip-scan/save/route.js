@@ -191,20 +191,20 @@ function validateSettlement(data) {
 }
 
 function getSettlementTotalLiters(data) {
-  const directTotal = numberOrNull(data.total_liters ?? data.daily_total_liters ?? data.total_liters_section2);
+  const morningTotal = numberOrNull(data.morning_total_liters ?? data.session_totals?.morning_liters ?? data.session_totals?.morning?.liters);
+  const eveningTotal = numberOrNull(data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters);
+
+  if (morningTotal !== null && eveningTotal !== null) {
+    return roundMoney(Number(morningTotal) + Number(eveningTotal));
+  }
+
+  const directTotal = numberOrNull(data.total_liters ?? data.total_liters_section2);
 
   if (directTotal !== null) {
     return directTotal;
   }
 
-  const morningTotal = numberOrNull(data.morning_total_liters ?? data.session_totals?.morning_liters ?? data.session_totals?.morning?.liters);
-  const eveningTotal = numberOrNull(data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters);
-
-  if (morningTotal !== null || eveningTotal !== null) {
-    return roundMoney(Number(morningTotal || 0) + Number(eveningTotal || 0));
-  }
-
-  return null;
+  return numberOrNull(data.daily_total_liters);
 }
 
 function settlementSessionRows(data = {}) {
@@ -523,8 +523,8 @@ export async function POST(request) {
       const morningTotalLiters = numberOrNull(data.morning_total_liters ?? data.session_totals?.morning_liters ?? data.session_totals?.morning?.liters);
       const eveningTotalLiters = numberOrNull(data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters);
       const combinedSessionTotal =
-        morningTotalLiters !== null || eveningTotalLiters !== null
-          ? roundMoney(Number(morningTotalLiters || 0) + Number(eveningTotalLiters || 0))
+        morningTotalLiters !== null && eveningTotalLiters !== null
+          ? roundMoney(Number(morningTotalLiters) + Number(eveningTotalLiters))
           : null;
       const normalizedSettlementRawData = {
         ...data,

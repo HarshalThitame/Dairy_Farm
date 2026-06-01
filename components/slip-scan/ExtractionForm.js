@@ -44,6 +44,10 @@ function text(value, fallback = "") {
   return String(value);
 }
 
+function firstPresent(...values) {
+  return values.find((value) => value !== null && value !== undefined && value !== "");
+}
+
 function numberValue(value) {
   const number = Number(
     String(value ?? "")
@@ -187,9 +191,10 @@ function buildInitialForm(data = {}) {
     data.evening_total_liters ?? data.session_totals?.evening_liters ?? data.session_totals?.evening?.liters
   );
   const sessionTotalLiters =
-    morningTotalLiters !== null || eveningTotalLiters !== null
-      ? roundMoney(Number(morningTotalLiters || 0) + Number(eveningTotalLiters || 0))
+    morningTotalLiters !== null && eveningTotalLiters !== null
+      ? roundMoney(Number(morningTotalLiters) + Number(eveningTotalLiters))
       : "";
+  const finalTotalLiters = firstPresent(sessionTotalLiters, data.total_liters, data.total_liters_section2, data.daily_total_liters);
 
   return {
     slip_type: slipType,
@@ -216,7 +221,7 @@ function buildInitialForm(data = {}) {
     daily_total_amount: text(data.daily_total_amount),
     morning_total_liters: text(morningTotalLiters),
     evening_total_liters: text(eveningTotalLiters),
-    total_liters: text(data.total_liters || data.daily_total_liters || data.total_liters_section2 || sessionTotalLiters),
+    total_liters: text(finalTotalLiters),
     total_milk_income: text(data.total_milk_income),
     cattle_feed_deduction: text(resolvedDeductions.feedDeduction),
     other_deductions: text(resolvedDeductions.otherDeduction),
@@ -295,8 +300,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   const eveningSessionTotal = useMemo(() => optionalNumber(form.evening_total_liters), [form.evening_total_liters]);
   const combinedSessionTotal = useMemo(
     () =>
-      morningSessionTotal !== null || eveningSessionTotal !== null
-        ? roundMoney(Number(morningSessionTotal || 0) + Number(eveningSessionTotal || 0))
+      morningSessionTotal !== null && eveningSessionTotal !== null
+        ? roundMoney(Number(morningSessionTotal) + Number(eveningSessionTotal))
         : null,
     [eveningSessionTotal, morningSessionTotal]
   );
@@ -380,7 +385,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               morning_liters: optionalNumber(form.morning_total_liters),
               evening_liters: optionalNumber(form.evening_total_liters),
               total_liters:
-                optionalNumber(form.morning_total_liters) !== null || optionalNumber(form.evening_total_liters) !== null
+                optionalNumber(form.morning_total_liters) !== null && optionalNumber(form.evening_total_liters) !== null
                   ? roundMoney(numberValue(form.morning_total_liters) + numberValue(form.evening_total_liters))
                   : optionalNumber(form.total_liters)
             },
@@ -762,6 +767,10 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               {combinedSessionTotal !== null ? (
                 <p className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[16px] font-extrabold text-green-900">
                   सकाळ + संध्याकाळ = {combinedSessionTotal.toFixed(2)} लि.
+                </p>
+              ) : morningSessionTotal !== null || eveningSessionTotal !== null ? (
+                <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-[16px] font-extrabold text-yellow-900">
+                  दोन्ही session totals वाचले नाहीत. Final एकूण दूध field स्लिपवरून तपासा.
                 </p>
               ) : null}
               <div className="mt-3 max-h-[520px] overflow-auto rounded-lg border border-slate-200">

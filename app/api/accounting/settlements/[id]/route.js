@@ -239,6 +239,13 @@ async function refreshSummariesForDates(supabase, farmId, dates = []) {
   return summaries;
 }
 
+function settlementPeriodChanged(oldSettlement = {}, updatedSettlement = {}) {
+  return (
+    oldSettlement.period_start !== updatedSettlement.period_start ||
+    oldSettlement.period_end !== updatedSettlement.period_end
+  );
+}
+
 export async function GET(request, { params }) {
   try {
     const { farmId } = await verifyFarmAccess(request);
@@ -317,9 +324,19 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "सेटलमेंट सापडले नाही." }, { status: 404 });
     }
 
+    const generatedSlipCleanup = settlementPeriodChanged(oldSettlement, updated)
+      ? await deleteSettlementGeneratedSlips(supabase, farmId, oldSettlement)
+      : { deletedSlipCount: 0, affectedDates: [] };
     const matched = await matchSettlementToSlips(supabase, farmId, updated);
-    await refreshSettlementSummaries(supabase, farmId, oldSettlement);
-    const summary = await refreshSettlementSummaries(supabase, farmId, updated);
+    const refreshedSummaries = await refreshSummariesForDates(supabase, farmId, [
+      oldSettlement.period_end,
+      oldSettlement.settlement_date,
+      updated.period_end,
+      updated.settlement_date,
+      ...generatedSlipCleanup.affectedDates
+    ]);
+    const summary = refreshedSummaries.find((item) => item?.month_year === String(updated.period_end || updated.settlement_date || "").slice(0, 7)) ||
+      await refreshSettlementSummaries(supabase, farmId, updated);
 
     return NextResponse.json({
       data: {
@@ -327,7 +344,9 @@ export async function PUT(request, { params }) {
         settlement: matched.settlement,
         matchedSlips: matched.reconciliation.matchedSlips,
         reconciliation: matched.reconciliation,
-        summary
+        summary,
+        deletedGeneratedSlips: generatedSlipCleanup.deletedSlipCount,
+        affectedDates: generatedSlipCleanup.affectedDates
       }
     });
   } catch (error) {
