@@ -43,15 +43,43 @@ function getStorageBucket() {
   return process.env.SUPABASE_STORAGE_BUCKET || "dairy-slips";
 }
 
+function getExtensionFromType(type = "") {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized.includes("png")) return "png";
+  if (normalized.includes("webp")) return "webp";
+  if (normalized.includes("heic")) return "heic";
+  if (normalized.includes("heif")) return "heif";
+  return "jpg";
+}
+
+function getUploadContentType(type = "", fallback = "image/jpeg") {
+  return String(type || "").startsWith("image/") ? String(type) : fallback;
+}
+
 async function compressServerSide(imageFile) {
   const sharp = (await import("sharp")).default;
   const buffer = Buffer.from(await imageFile.arrayBuffer());
+  const originalContentType = getUploadContentType(imageFile.type);
+
+  if (buffer.length <= 750000) {
+    return {
+      buffer,
+      originalSize: buffer.length,
+      compressedSize: buffer.length,
+      compressionRatio: 0,
+      serverCompressed: false,
+      skippedCompression: true,
+      contentType: originalContentType,
+      extension: getExtensionFromType(originalContentType)
+    };
+  }
+
   const attempts = [
-    { width: 1600, quality: 76 },
-    { width: 1400, quality: 70 },
-    { width: 1280, quality: 65 },
-    { width: 1100, quality: 58 },
-    { width: 960, quality: 52 }
+    { width: 1800, quality: 90 },
+    { width: 1600, quality: 86 },
+    { width: 1400, quality: 82 },
+    { width: 1280, quality: 76 },
+    { width: 1100, quality: 70 }
   ];
   let bestBuffer = null;
   let bestAttempt = attempts[attempts.length - 1];
@@ -69,7 +97,7 @@ async function compressServerSide(imageFile) {
     bestBuffer = compressed;
     bestAttempt = attempt;
 
-    if (compressed.length <= 300000) {
+    if (compressed.length <= 1000000) {
       break;
     }
   }
@@ -80,6 +108,9 @@ async function compressServerSide(imageFile) {
     compressedSize: bestBuffer.length,
     compressionRatio: Math.max(0, Math.round((1 - bestBuffer.length / buffer.length) * 100)),
     serverCompressed: true,
+    skippedCompression: false,
+    contentType: "image/webp",
+    extension: "webp",
     quality: bestAttempt.quality
   };
 }
@@ -141,16 +172,21 @@ export async function POST(request) {
     const originalFilename = String(formData.get("originalFilename") || imageFile.name || "dairy-slip");
     const originalSizeFromForm = Number(formData.get("originalSize") || imageFile.size || 0);
     const clientCompressed = String(formData.get("clientCompressed") || "") === "true";
+    const clientPrepared = String(formData.get("clientPrepared") || "") === "true";
     let compressed;
 
-    if (clientCompressed && imageFile.type === "image/webp") {
+    if (clientPrepared || clientCompressed) {
       const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+      const contentType = getUploadContentType(imageFile.type, "image/webp");
       compressed = {
         buffer: imageBuffer,
         originalSize: originalSizeFromForm || imageFile.size || imageBuffer.length,
         compressedSize: imageBuffer.length,
         compressionRatio: Number(formData.get("compressionRatio") || 0),
-        serverCompressed: false
+        serverCompressed: false,
+        skippedCompression: String(formData.get("skippedCompression") || "") === "true",
+        contentType,
+        extension: getExtensionFromType(contentType)
       };
     } else {
       compressed = await compressServerSide(imageFile);
@@ -164,11 +200,11 @@ export async function POST(request) {
 
     const supabase = getSupabaseServerClient();
     const bucket = getStorageBucket();
-    const fileName = `${farmId}/${Date.now()}-${randomUUID()}.webp`;
+    const fileName = `${farmId}/${Date.now()}-${randomUUID()}.${compressed.extension || "webp"}`;
     const { error: uploadErrorResult } = await supabase.storage
       .from(bucket)
       .upload(fileName, compressed.buffer, {
-        contentType: "image/webp",
+        contentType: compressed.contentType || "image/webp",
         upsert: false
       });
 
@@ -205,6 +241,7 @@ export async function POST(request) {
         imageSize: compressed.compressedSize,
         compressionRatio: compressed.compressionRatio,
         serverCompressed: compressed.serverCompressed,
+        skippedCompression: Boolean(compressed.skippedCompression),
         upload: publicSlipResponse(uploadRecord),
         message: "फोटो अपलोड झाला. AI वाचत आहे..."
       }

@@ -32,10 +32,11 @@ export async function GET(request) {
     const { farmId } = await verifyFarmAccess(request);
     const { searchParams } = new URL(request.url);
     const cowId = searchParams.get("cow_id");
+    const summaryOnly = searchParams.get("summary") === "true";
     const supabase = getSupabaseServerClient();
     let query = supabase
       .from("ai_records")
-      .select("*, cows(id, name, breed)")
+      .select(summaryOnly ? "id, cow_id, ai_date, pregnancy_check_date, pregnancy_result" : "*, cows(id, name, breed)")
       .eq("farm_id", farmId)
       .order("ai_date", { ascending: false })
       .order("created_at", { ascending: false });

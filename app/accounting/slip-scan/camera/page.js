@@ -24,7 +24,7 @@ export default function SlipScanCameraPage() {
     setLoading(true);
     setError("");
     setCompression(null);
-    setMessage("फोटो संकुचित करत आहे...");
+    setMessage("फोटो तपासत आहे...");
 
     try {
       const result = await uploadSlipImage(blob, {

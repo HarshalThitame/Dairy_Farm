@@ -21,28 +21,25 @@ import {
   fetchCows as fetchCowsOffline,
   saveCalvingRecord
 } from "@/lib/offlineActions";
-import { getCachedAIByCow } from "@/lib/localDB";
-
-async function fetchLastAI(cowId) {
+async function fetchAllAIRecords() {
   try {
-    const response = await fetch(`/api/ai?cow_id=${cowId}`, { cache: "no-store" });
+    const response = await fetch("/api/ai?summary=true", { cache: "no-store" });
     const result = await response.json();
 
     if (response.ok) {
-      return (result.data || [])[0] || null;
+      return result.data || [];
     }
   } catch {
-    // Fall back to local AI records below.
+    // The page can still render cows without AI context.
   }
 
-  const cachedRecords = await getCachedAIByCow(cowId);
-  return cachedRecords[0] || null;
+  return [];
 }
 
-async function fetchCowReminders(cowId) {
+async function fetchCalvingReminders() {
   try {
     const response = await fetch(
-      `/api/reminders?cow_id=${cowId}&from=2000-01-01&to=2099-12-31`,
+      "/api/reminders?from=2000-01-01&to=2099-12-31&type=व्यायण",
       { cache: "no-store" }
     );
     const result = await response.json();
@@ -51,10 +48,39 @@ async function fetchCowReminders(cowId) {
       return (result.data || []).filter((reminder) => !reminder.is_done);
     }
   } catch {
-    // Reminder cards can still render from AI dates when online reminders fail.
+    // Reminder cards can still render from AI dates when reminders fail.
   }
 
   return [];
+}
+
+function groupLatestAIByCow(records = []) {
+  const byCow = new Map();
+
+  records.forEach((record) => {
+    if (!record?.cow_id || byCow.has(record.cow_id)) {
+      return;
+    }
+
+    byCow.set(record.cow_id, record);
+  });
+
+  return byCow;
+}
+
+function groupRemindersByCow(records = []) {
+  return records.reduce((groups, reminder) => {
+    if (!reminder?.cow_id) {
+      return groups;
+    }
+
+    if (!groups.has(reminder.cow_id)) {
+      groups.set(reminder.cow_id, []);
+    }
+
+    groups.get(reminder.cow_id).push(reminder);
+    return groups;
+  }, new Map());
 }
 
 function reminderDistanceText(date) {
@@ -181,10 +207,15 @@ export default function VyayanNondPage() {
       const pregnantCows = (result.data || []).filter(
         (cow) => cow.status === "गाभण" || cow.id === requestedCowId
       );
-      const cowsWithAI = await Promise.all(
-        pregnantCows.map(async (cow) => {
-          const lastAI = await fetchLastAI(cow.id);
-          const pendingReminders = await fetchCowReminders(cow.id);
+      const [aiRecords, reminderRecords] = await Promise.all([
+        fetchAllAIRecords(),
+        fetchCalvingReminders()
+      ]);
+      const aiByCow = groupLatestAIByCow(aiRecords);
+      const remindersByCow = groupRemindersByCow(reminderRecords);
+      const cowsWithAI = pregnantCows.map((cow) => {
+          const lastAI = aiByCow.get(cow.id) || null;
+          const pendingReminders = remindersByCow.get(cow.id) || [];
           const heatCheckDate = lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 21)) : "";
           const pregnancyCheckDate =
             lastAI?.pregnancy_check_date || (lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 60)) : "");
@@ -198,8 +229,7 @@ export default function VyayanNondPage() {
             pending_reminders: pendingReminders,
             expected_calving_date: expectedDate
           };
-        })
-      );
+      });
 
       setCows(cowsWithAI);
     } catch (fetchError) {

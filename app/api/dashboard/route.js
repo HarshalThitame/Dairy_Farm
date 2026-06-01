@@ -103,6 +103,21 @@ function assertQuery(result) {
   return result.data || [];
 }
 
+function monthYearKey(month, year) {
+  return `${Number(year)}-${String(Number(month)).padStart(2, "0")}`;
+}
+
+function buildFinanceSummaryFromMonthlySummary(summary) {
+  return {
+    totalIncome: roundMoney(summary?.total_milk_income || 0),
+    totalExpense: roundMoney(summary?.total_all_expenses || 0),
+    netProfit: roundMoney(summary?.net_profit || 0),
+    milkIncome: roundMoney(summary?.total_milk_income || 0),
+    totalDeductions: roundMoney(summary?.total_dairy_deductions || 0),
+    deductionsCountedInProfit: roundMoney(summary?.total_dairy_deductions || 0)
+  };
+}
+
 export async function GET(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
@@ -124,11 +139,7 @@ export async function GET(request) {
       overdueRemindersResult,
       upcomingRemindersResult,
       calvesResult,
-      monthMilkResult,
-      financeResult,
-      healthResult,
-      monthlyExpensesResult,
-      settlementsResult
+      monthlySummaryResult
     ] = await Promise.all([
       supabase
         .from("cows")
@@ -173,39 +184,11 @@ export async function GET(request) {
         .select("id, status, is_raised, milk_feeding_status")
         .eq("farm_id", farmId),
       supabase
-        .from("milk_records")
-        .select(
-          "id, date, morning_litres, evening_litres, total_litres, price_per_litre, morning_price_per_litre, evening_price_per_litre, total_amount"
-        )
+        .from("monthly_summary")
+        .select("total_liters, total_milk_income, total_all_expenses, total_dairy_deductions, net_profit")
         .eq("farm_id", farmId)
-        .is("cow_id", null)
-        .gte("date", monthRange.start)
-        .lt("date", monthRange.end),
-      supabase
-        .from("finance_records")
-        .select("id, date, type, category, amount, accounting_period, description")
-        .eq("farm_id", farmId)
-        .gte("date", monthRange.start)
-        .lt("date", monthRange.end),
-      supabase
-        .from("health_records")
-        .select("id, date, cost")
-        .eq("farm_id", farmId)
-        .gt("cost", 0)
-        .gte("date", monthRange.start)
-        .lt("date", monthRange.end),
-      supabase
-        .from("monthly_expenses")
-        .select("id, expense_date, amount")
-        .eq("farm_id", farmId)
-        .gte("expense_date", monthRange.start)
-        .lt("expense_date", monthRange.end),
-      supabase
-        .from("dairy_settlements")
-        .select("id, settlement_date, period_end, cattle_feed_deduction, other_deductions")
-        .eq("farm_id", farmId)
-        .gte("period_end", monthRange.start)
-        .lt("period_end", monthRange.end)
+        .eq("month_year", monthYearKey(monthInput.month, monthInput.year))
+        .maybeSingle()
     ]);
 
     const cows = assertQuery(cowsResult);
@@ -214,26 +197,78 @@ export async function GET(request) {
     const overdueReminders = assertQuery(overdueRemindersResult);
     const upcomingReminders = assertQuery(upcomingRemindersResult);
     const calves = assertQuery(calvesResult);
-    const monthMilkRecords = assertQuery(monthMilkResult);
-    const financeRecords = assertQuery(financeResult);
-    const healthRecords = assertQuery(healthResult);
-    const monthlyExpenses = assertQuery(monthlyExpensesResult);
-    const settlements = assertQuery(settlementsResult);
+    const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
     const todayMilkTotal = todayMilkRecords.reduce(
       (total, record) => total + getRecordMilkTotal(record),
       0
     );
-    const monthlyLitres = monthMilkRecords.reduce(
-      (total, record) => total + getRecordMilkTotal(record),
-      0
-    );
-    const monthlyFinanceReport = buildFinanceSummary({
-      financeRecords,
-      milkRecords: monthMilkRecords,
-      healthRecords,
-      monthlyExpenses,
-      settlements
-    });
+    let monthlyLitres = Number(monthlySummary?.total_liters || 0);
+    let monthlyFinanceReport = monthlySummary
+      ? buildFinanceSummaryFromMonthlySummary(monthlySummary)
+      : null;
+
+    if (!monthlySummary) {
+      const [
+        monthMilkResult,
+        financeResult,
+        healthResult,
+        monthlyExpensesResult,
+        settlementsResult
+      ] = await Promise.all([
+        supabase
+          .from("milk_records")
+          .select(
+            "id, date, morning_litres, evening_litres, total_litres, price_per_litre, morning_price_per_litre, evening_price_per_litre, total_amount"
+          )
+          .eq("farm_id", farmId)
+          .is("cow_id", null)
+          .gte("date", monthRange.start)
+          .lt("date", monthRange.end),
+        supabase
+          .from("finance_records")
+          .select("id, date, type, category, amount, accounting_period, description")
+          .eq("farm_id", farmId)
+          .gte("date", monthRange.start)
+          .lt("date", monthRange.end),
+        supabase
+          .from("health_records")
+          .select("id, date, cost")
+          .eq("farm_id", farmId)
+          .gt("cost", 0)
+          .gte("date", monthRange.start)
+          .lt("date", monthRange.end),
+        supabase
+          .from("monthly_expenses")
+          .select("id, expense_date, amount")
+          .eq("farm_id", farmId)
+          .gte("expense_date", monthRange.start)
+          .lt("expense_date", monthRange.end),
+        supabase
+          .from("dairy_settlements")
+          .select("id, settlement_date, period_end, cattle_feed_deduction, other_deductions")
+          .eq("farm_id", farmId)
+          .gte("period_end", monthRange.start)
+          .lt("period_end", monthRange.end)
+      ]);
+
+      const monthMilkRecords = assertQuery(monthMilkResult);
+      const financeRecords = assertQuery(financeResult);
+      const healthRecords = assertQuery(healthResult);
+      const monthlyExpenses = assertQuery(monthlyExpensesResult);
+      const settlements = assertQuery(settlementsResult);
+
+      monthlyLitres = monthMilkRecords.reduce(
+        (total, record) => total + getRecordMilkTotal(record),
+        0
+      );
+      monthlyFinanceReport = buildFinanceSummary({
+        financeRecords,
+        milkRecords: monthMilkRecords,
+        healthRecords,
+        monthlyExpenses,
+        settlements
+      });
+    }
 
     return NextResponse.json({
       data: {

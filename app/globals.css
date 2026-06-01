@@ -377,6 +377,22 @@ input::placeholder {
   }
 }
 
+@media (max-width: 640px) {
+  .dashboard-hero::before,
+  .dashboard-scan::after,
+  .dashboard-scan-icon {
+    animation: none;
+  }
+
+  .dashboard-glass {
+    backdrop-filter: none;
+  }
+
+  .dashboard-summary-tile::after {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dashboard-enter,
   .dashboard-stagger > *,

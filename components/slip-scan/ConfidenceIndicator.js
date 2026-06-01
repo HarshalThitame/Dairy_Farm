@@ -11,7 +11,7 @@ export default function ConfidenceIndicator({ score }) {
       : confidence >= 0.8
         ? "border-yellow-200 bg-yellow-50 text-yellow-900"
         : "border-red-200 bg-red-50 text-red-800";
-  const label = confidence >= 0.95 ? "✅ स्पष्ट" : confidence >= 0.8 ? "⚠️ तपासा" : "⚠️ अस्पष्ट";
+  const label = confidence >= 0.95 ? "✅ स्पष्ट वाचले" : confidence >= 0.8 ? "⚠️ तपासा" : "⚠️ AI खात्री कमी";
 
   return (
     <span className={`inline-flex items-center rounded-lg border px-2 py-1 text-[14px] font-extrabold ${tone}`}>

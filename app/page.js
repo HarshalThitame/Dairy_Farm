@@ -16,6 +16,7 @@ import {
   toMarathiNumerals
 } from "@/lib/marathiUtils";
 import { getIndiaMonthParts, getMonthName } from "@/lib/reportUtils";
+import { isOnline } from "@/lib/networkStatus";
 import {
   fetchCows as fetchCowsOffline,
   fetchJson,
@@ -64,7 +65,10 @@ export default function DashboardPage() {
         setMonthlyMilkReport(snapshot.monthlyMilkReport || null);
         setMonthlyFinanceReport(snapshot.monthlyFinanceReport || null);
         return;
-      } catch {
+      } catch (dashboardError) {
+        if (isOnline()) {
+          throw dashboardError;
+        }
         // Offline fallback below keeps the dashboard usable with locally cached data.
       }
 
@@ -73,20 +77,14 @@ export default function DashboardPage() {
         milkResult,
         todayResult,
         overdueResult,
-        upcomingResult,
-        calvesResult,
-        monthlyMilkResult,
-        monthlyFinanceResult
+        upcomingResult
       ] =
         await Promise.all([
           fetchCowsOffline(),
           fetchMilkByDate(getTodayISODate()),
           fetchRemindersByFilter("today"),
           fetchRemindersByFilter("overdue"),
-          fetchRemindersByFilter("week"),
-          fetchJson("/api/calves", { unwrapData: false }),
-          fetchJson(`/api/reports/milk?${reportQuery}`),
-          fetchJson(`/api/reports/finance?${reportQuery}`)
+          fetchRemindersByFilter("week")
         ]);
 
       setCows(cowsResult.data || []);
@@ -103,9 +101,9 @@ export default function DashboardPage() {
         overdue: (overdueResult.data || []).length,
         upcoming: (upcomingResult.data || []).filter((reminder) => reminder.reminder_date > getTodayISODate()).length
       });
-      setCalvesSummary(calvesResult.summary || null);
-      setMonthlyMilkReport(monthlyMilkResult || null);
-      setMonthlyFinanceReport(monthlyFinanceResult || null);
+      setCalvesSummary(null);
+      setMonthlyMilkReport(null);
+      setMonthlyFinanceReport(null);
     } catch (fetchError) {
       setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
     } finally {

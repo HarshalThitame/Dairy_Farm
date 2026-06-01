@@ -7,7 +7,9 @@ const AuthContext = createContext(null);
 const TOKEN_KEY = "goshala_token";
 const USER_KEY = "goshala_user";
 const FARM_KEY = "goshala_farm";
+const VERIFIED_AT_KEY = "goshala_auth_verified_at";
 const AUTH_TIMEOUT_MS = 8000;
+const AUTH_VERIFY_TTL_MS = 5 * 60 * 1000;
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = AUTH_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -59,6 +61,7 @@ function storeSession(token, user, farm) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   localStorage.setItem(FARM_KEY, JSON.stringify(farm));
+  localStorage.setItem(VERIFIED_AT_KEY, String(Date.now()));
   setAuthCookie(token);
 }
 
@@ -67,9 +70,19 @@ function clearSession() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(FARM_KEY);
+    localStorage.removeItem(VERIFIED_AT_KEY);
   }
 
   clearAuthCookie();
+}
+
+function isRecentlyVerified() {
+  if (typeof localStorage === "undefined") {
+    return false;
+  }
+
+  const verifiedAt = Number(localStorage.getItem(VERIFIED_AT_KEY) || 0);
+  return verifiedAt > 0 && Date.now() - verifiedAt < AUTH_VERIFY_TTL_MS;
 }
 
 function getStoredToken() {
@@ -172,6 +185,11 @@ export function AuthProvider({ children }) {
         setUser(storedUser);
         setFarm(storedFarm);
         setIsLoading(false);
+      }
+
+      if (storedUser && storedFarm && isRecentlyVerified()) {
+        setAuthCookie(token);
+        return true;
       }
 
       if (typeof navigator !== "undefined" && !navigator.onLine) {
