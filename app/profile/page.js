@@ -6,6 +6,7 @@ import LoadingState from "@/components/LoadingState";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/context/AuthContext";
+import { useSpeechNotification } from "@/hooks/useSpeechNotification";
 import { formatCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 
 const districts = [
@@ -116,6 +117,13 @@ function inputClass(readOnly = false) {
 
 export default function ProfilePage() {
   const { farm, isFarmOwner, isAdmin, isSuperAdmin, refreshFarm } = useAuth();
+  const {
+    settings: voiceSettings,
+    supported: speechSupported,
+    voiceInfo,
+    updateSettings: updateVoiceSettings,
+    testVoice
+  } = useSpeechNotification();
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -144,6 +152,29 @@ export default function ProfilePage() {
     }));
     setError("");
     setSuccess("");
+  }
+
+  function toggleVoiceNotifications() {
+    if (!speechSupported) {
+      setError("या browser मध्ये आवाज सूचना support नाही.");
+      return;
+    }
+
+    updateVoiceSettings({ enabled: !voiceSettings.enabled });
+  }
+
+  function updateVoiceVolume(value) {
+    updateVoiceSettings({ volume: Number(value) / 100 });
+  }
+
+  function testVoiceNotification() {
+    if (!speechSupported) {
+      setError("या browser मध्ये आवाज सूचना support नाही.");
+      return;
+    }
+
+    testVoice();
+    setSuccess("🔊 आवाज तपासणी सुरू झाली.");
   }
 
   async function saveProfile() {
@@ -407,6 +438,57 @@ export default function ProfilePage() {
       {activeTab === "सेटिंग्ज" ? (
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
           <h2 className="text-[24px] font-extrabold text-slate-950">सेटिंग्ज</h2>
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[20px] font-extrabold text-slate-950">आवाज सूचना</p>
+                <p className="mt-1 text-[18px] font-bold text-slate-600">
+                  नवीन आठवण आली की app मराठीत मोठ्याने वाचून दाखवेल.
+                </p>
+                <p className="mt-2 text-[16px] font-bold text-slate-500">
+                  {speechSupported
+                    ? `Voice: ${voiceInfo.voiceName || "browser default"} ${voiceInfo.voiceLanguage ? `(${voiceInfo.voiceLanguage})` : ""}`
+                    : "या browser मध्ये voice support नाही."}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={!speechSupported}
+                onClick={toggleVoiceNotifications}
+                className={`min-h-[52px] min-w-[86px] rounded-full px-3 text-[18px] font-extrabold text-white ${
+                  voiceSettings.enabled && speechSupported ? "bg-sheti" : "bg-slate-400"
+                } disabled:opacity-60`}
+              >
+                {voiceSettings.enabled && speechSupported ? "चालू" : "बंद"}
+              </button>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[18px] font-extrabold text-slate-900">आवाजाची तीव्रता</p>
+                <p className="text-[20px] font-black text-sheti">
+                  {toMarathiNumerals(Math.round(Number(voiceSettings.volume || 0) * 100))}%
+                </p>
+              </div>
+              <input
+                disabled={!speechSupported}
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={Math.round(Number(voiceSettings.volume || 0) * 100)}
+                onChange={(event) => updateVoiceVolume(event.target.value)}
+                className="mt-2 w-full accent-green-600 disabled:opacity-50"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={!speechSupported}
+              onClick={testVoiceNotification}
+              className="mt-4 min-h-[52px] w-full rounded-lg bg-sheti px-4 text-[19px] font-extrabold text-white shadow-soft disabled:bg-slate-400"
+            >
+              🔊 आवाज तपासा
+            </button>
+          </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <div className="flex items-center justify-between gap-4">
               <div>

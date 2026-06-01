@@ -5,8 +5,11 @@ import {
   checkAndFireTodayNotifications,
   scheduleUpcomingNotifications
 } from "@/lib/notifications";
+import { useSpeechNotification } from "@/hooks/useSpeechNotification";
 
 export default function NotificationBoot() {
+  useSpeechNotification({ listenForPushMessages: true });
+
   useEffect(() => {
     function refreshNotifications() {
       checkAndFireTodayNotifications();

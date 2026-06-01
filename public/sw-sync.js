@@ -2,6 +2,53 @@
   const DB_NAME = "goshala-local";
   const DB_VERSION = 4;
 
+  function safeJsonParse(value) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizePushPayload(event) {
+    if (!event.data) {
+      return {
+        title: "🐄 माझी डेअरी",
+        body: "नवीन सूचना आली आहे."
+      };
+    }
+
+    const text = event.data.text();
+    const parsed = safeJsonParse(text);
+    const payload = parsed || { body: text };
+    const notification = payload.notification || {};
+    const data = payload.data || {};
+
+    return {
+      id: payload.id || payload.notificationId || data.id || data.notificationId || payload.tag || `${Date.now()}`,
+      title: payload.title || notification.title || data.title || "🐄 माझी डेअरी",
+      body: payload.body || payload.message || notification.body || data.body || data.message || "नवीन सूचना आली आहे.",
+      tag: payload.tag || data.tag || payload.id || payload.notificationId || "majhi-dairy-notification",
+      url: payload.url || data.url || "/",
+      icon: payload.icon || notification.icon || data.icon || "/icons/icon-192x192.png",
+      badge: payload.badge || notification.badge || data.badge || "/icons/icon-192x192.png"
+    };
+  }
+
+  async function postNotificationToClients(notification) {
+    const clientsList = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    });
+
+    clientsList.forEach((client) => {
+      client.postMessage({
+        type: "MAJHI_DAIRY_PUSH_NOTIFICATION",
+        notification
+      });
+    });
+  }
+
   function openLocalDB() {
     return new Promise((resolve, reject) => {
       if (!self.indexedDB) {
@@ -201,5 +248,54 @@
     if (event.tag === "goshala-sync") {
       event.waitUntil(syncPendingQueue());
     }
+  });
+
+  self.addEventListener("push", function (event) {
+    const notification = normalizePushPayload(event);
+
+    event.waitUntil(
+      Promise.all([
+        self.registration.showNotification(notification.title, {
+          body: notification.body,
+          icon: notification.icon,
+          badge: notification.badge,
+          tag: notification.tag,
+          data: {
+            id: notification.id,
+            url: notification.url,
+            body: notification.body,
+            title: notification.title
+          },
+          renotify: false
+        }),
+        postNotificationToClients(notification)
+      ])
+    );
+  });
+
+  self.addEventListener("notificationclick", function (event) {
+    event.notification.close();
+    const targetUrl = event.notification.data?.url || "/";
+
+    event.waitUntil(
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsList) => {
+        const openClient = clientsList.find((client) => client.url.includes(self.location.origin));
+        if (openClient) {
+          openClient.focus();
+          openClient.postMessage({
+            type: "MAJHI_DAIRY_PUSH_NOTIFICATION",
+            notification: {
+              id: event.notification.data?.id,
+              title: event.notification.data?.title || event.notification.title,
+              body: event.notification.data?.body || "",
+              tag: event.notification.tag
+            }
+          });
+          return;
+        }
+
+        return self.clients.openWindow(targetUrl);
+      })
+    );
   });
 })();
