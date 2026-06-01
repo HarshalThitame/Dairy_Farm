@@ -148,6 +148,11 @@ export default function MilkReportPage() {
   const filteredRevenue = filteredRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
   const quality = report?.qualitySummary || {};
   const session = report?.sessionSummary || {};
+  const settlementSessionAudits = report?.settlementSessionAudits || [];
+  const missingRows = settlementSessionAudits.flatMap((audit) => [
+    ...(audit.missingMorning || []),
+    ...(audit.missingEvening || [])
+  ]);
 
   return (
     <div className="space-y-6">
@@ -164,7 +169,7 @@ export default function MilkReportPage() {
               emoji="🥛"
               title="एकूण दूध"
               value={`${formatLitres(report.totalLitres)} लिटर`}
-              subtext="या महिन्यात"
+              subtext={session.source === "settlement_printed_totals" ? "सेटलमेंट स्लिपवरील final total" : "या महिन्यात"}
               color="blue"
             />
             <SummaryCard
@@ -189,6 +194,33 @@ export default function MilkReportPage() {
               color="green"
             />
           </section>
+
+          {session.source === "settlement_printed_totals" ? (
+            <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-soft">
+              <h2 className="text-[22px] font-extrabold text-amber-950">दूध total कुठून घेतले?</h2>
+              <p className="mt-1 text-[17px] font-bold text-amber-900">
+                या अहवालातील एकूण दूध सेटलमेंट स्लिपवरील छापील सकाळ + संध्याकाळ total वरून घेतले आहे.
+              </p>
+              {Number(report.rowTotalLitres || 0) !== Number(report.totalLitres || 0) ? (
+                <p className="mt-3 rounded-lg bg-white p-3 text-[16px] font-extrabold text-amber-950">
+                  Daily rows बेरीज: {formatLitres(report.rowTotalLitres || 0)} लि. | Final settlement total: {formatLitres(report.totalLitres || 0)} लि.
+                </p>
+              ) : null}
+              {missingRows.length > 0 ? (
+                <div className="mt-3 space-y-1 text-[15px] font-bold text-amber-900">
+                  <p className="font-extrabold">Missing daily rows:</p>
+                  {missingRows.slice(0, 8).map((item) => (
+                    <p key={`${item.date}-${item.session}`}>
+                      {formatMarathiDate(item.date)} {item.session}: {item.reason} {item.finalSource}
+                    </p>
+                  ))}
+                  {missingRows.length > 8 ? (
+                    <p>आणखी {toMarathiNumerals(missingRows.length - 8)} missing rows आहेत.</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
             <h2 className="text-[24px] font-extrabold text-slate-950">तारीख फिल्टर</h2>

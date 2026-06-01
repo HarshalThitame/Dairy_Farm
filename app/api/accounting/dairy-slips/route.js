@@ -3,8 +3,10 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   DAIRY_SESSION_EVENING,
   DAIRY_SESSION_MORNING,
+  analyzeSettlementSessionCoverage,
   refreshSummaryForDate,
-  summarizeDairySlips
+  summarizeDairySlips,
+  summarizeMilkSessionsForMonth
 } from "@/lib/accountingUtils";
 import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
@@ -133,26 +135,45 @@ export async function GET(request) {
 
     const range = getMonthRange(monthInput.month, monthInput.year);
     const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("dairy_slips")
-      .select("*")
-      .eq("farm_id", farmId)
-      .gte("slip_date", range.start)
-      .lt("slip_date", range.end)
-      .order("slip_date", { ascending: false })
-      .order("session", { ascending: true });
+    const [slipsResult, settlementsResult] = await Promise.all([
+      supabase
+        .from("dairy_slips")
+        .select("*")
+        .eq("farm_id", farmId)
+        .gte("slip_date", range.start)
+        .lt("slip_date", range.end)
+        .order("slip_date", { ascending: false })
+        .order("session", { ascending: true }),
+      supabase
+        .from("dairy_settlements")
+        .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
+        .eq("farm_id", farmId)
+        .gte("period_end", range.start)
+        .lt("period_end", range.end)
+    ]);
 
-    if (error) {
-      throw error;
+    if (slipsResult.error) {
+      throw slipsResult.error;
     }
 
-    const summary = summarizeDairySlips(data || []);
+    if (settlementsResult.error) {
+      throw settlementsResult.error;
+    }
+
+    const summary = summarizeDairySlips(slipsResult.data || []);
+    const accountingSummary = summarizeMilkSessionsForMonth(slipsResult.data || [], settlementsResult.data || []);
+    const settlementSessionAudits = (settlementsResult.data || [])
+      .map(analyzeSettlementSessionCoverage)
+      .filter((audit) => audit.missingMorning.length || audit.missingEvening.length || audit.hasPrintedSessionTotals);
 
     return NextResponse.json({
       data: {
-        slips: data || [],
+        slips: slipsResult.data || [],
+        settlements: settlementsResult.data || [],
         dailyTotals: summary.dailyTotals,
-        monthlyTotal: summary.monthlyTotal
+        monthlyTotal: accountingSummary.monthlyTotal,
+        rowMonthlyTotal: summary.monthlyTotal,
+        settlementSessionAudits
       }
     });
   } catch (error) {

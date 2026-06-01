@@ -452,7 +452,7 @@ export async function GET(request) {
         .lt("date", range.end),
       supabase
         .from("dairy_settlements")
-        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions")
+        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
         .eq("farm_id", farmId)
         .gte("period_end", range.start)
         .lt("period_end", range.end),

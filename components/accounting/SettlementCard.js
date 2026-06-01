@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { formatMarathiDate, toMarathiCurrency } from "@/lib/marathiUtils";
 
-export default function SettlementCard({ settlement, onMarkPaid, onDelete }) {
+export default function SettlementCard({ settlement, onMarkPaid, onDelete, isDeleting = false, isBusy = false }) {
   const deductions = Number(settlement.cattle_feed_deduction || 0) + Number(settlement.other_deductions || 0);
   const netPayable = Number(settlement.total_milk_income || 0) - deductions;
 
@@ -46,8 +46,9 @@ export default function SettlementCard({ settlement, onMarkPaid, onDelete }) {
         {!settlement.payment_received && onMarkPaid ? (
           <button
             type="button"
+            disabled={isBusy}
             onClick={() => onMarkPaid(settlement)}
-            className="min-h-[48px] rounded-lg bg-sheti px-3 text-[18px] font-extrabold text-white active:bg-green-700"
+            className="min-h-[48px] rounded-lg bg-sheti px-3 text-[18px] font-extrabold text-white active:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             ✅ पेमेंट मिळाली
           </button>
@@ -55,10 +56,18 @@ export default function SettlementCard({ settlement, onMarkPaid, onDelete }) {
         {onDelete ? (
           <button
             type="button"
+            disabled={isBusy}
             onClick={() => onDelete(settlement)}
-            className="min-h-[48px] rounded-lg border-2 border-red-200 bg-red-50 px-3 text-[18px] font-extrabold text-red-800 active:bg-red-100"
+            className="flex min-h-[48px] items-center justify-center gap-2 rounded-lg border-2 border-red-200 bg-red-50 px-3 text-[18px] font-extrabold text-red-800 active:bg-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            🗑️ काढा
+            {isDeleting ? (
+              <>
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-red-200 border-t-red-700" />
+                काढत आहे...
+              </>
+            ) : (
+              "🗑️ काढा"
+            )}
           </button>
         ) : null}
       </div>

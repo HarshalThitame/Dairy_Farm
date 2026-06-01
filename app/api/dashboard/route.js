@@ -3,6 +3,7 @@ import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
 import { isKhadyaExpenseCategory, summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
+import { getMissingSettlementSlipReminders } from "@/lib/settlementReminderUtils";
 import {
   displayFinanceCategory,
   getMonthInput,
@@ -145,7 +146,8 @@ export async function GET(request) {
       overdueRemindersResult,
       upcomingRemindersResult,
       calvesResult,
-      monthlySummaryResult
+      monthlySummaryResult,
+      settlementSlipRemindersResult
     ] = await Promise.all([
       supabase
         .from("cows")
@@ -194,13 +196,21 @@ export async function GET(request) {
         .select("total_liters, total_milk_income, total_all_expenses, total_dairy_deductions, net_profit")
         .eq("farm_id", farmId)
         .eq("month_year", monthYearKey(monthInput.month, monthInput.year))
-        .maybeSingle()
+        .maybeSingle(),
+      getMissingSettlementSlipReminders(supabase, farmId, { today })
     ]);
 
     const cows = assertQuery(cowsResult);
     const todayMilkRecords = assertQuery(todayMilkResult);
-    const todayReminders = assertQuery(todayRemindersResult);
-    const overdueReminders = assertQuery(overdueRemindersResult);
+    const settlementSlipReminders = settlementSlipRemindersResult || [];
+    const todaySettlementSlipReminders = settlementSlipReminders.filter(
+      (reminder) => reminder.reminder_date === today
+    );
+    const overdueSettlementSlipReminders = settlementSlipReminders.filter(
+      (reminder) => reminder.reminder_date < today
+    );
+    const todayReminders = [...assertQuery(todayRemindersResult), ...todaySettlementSlipReminders];
+    const overdueReminders = [...assertQuery(overdueRemindersResult), ...overdueSettlementSlipReminders];
     const upcomingReminders = assertQuery(upcomingRemindersResult);
     const calves = assertQuery(calvesResult);
     const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
@@ -248,7 +258,7 @@ export async function GET(request) {
           .lt("expense_date", monthRange.end),
         supabase
           .from("dairy_settlements")
-          .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions")
+          .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
           .eq("farm_id", farmId)
           .gte("period_end", monthRange.start)
           .lt("period_end", monthRange.end)
@@ -286,8 +296,8 @@ export async function GET(request) {
           today: todayReminders,
           overdue: overdueReminders,
           upcoming: upcomingReminders,
-          todayCount: todayRemindersResult.count ?? todayReminders.length,
-          overdueCount: overdueRemindersResult.count ?? overdueReminders.length,
+          todayCount: (todayRemindersResult.count ?? todayReminders.length - todaySettlementSlipReminders.length) + todaySettlementSlipReminders.length,
+          overdueCount: (overdueRemindersResult.count ?? overdueReminders.length - overdueSettlementSlipReminders.length) + overdueSettlementSlipReminders.length,
           upcomingCount: upcomingRemindersResult.count ?? upcomingReminders.length
         },
         calvesSummary: buildCalvesSummary(calves),

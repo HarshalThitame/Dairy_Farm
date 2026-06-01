@@ -11,6 +11,7 @@ import TopHeader from "@/components/TopHeader";
 
 const InstallBanner = dynamic(() => import("@/components/InstallBanner"), { ssr: false });
 const NotificationBoot = dynamic(() => import("@/components/NotificationBoot"), { ssr: false });
+const AIAssistantWidget = dynamic(() => import("@/components/ai/AIAssistantWidget"), { ssr: false });
 
 function isAdminRoute(pathname) {
   return pathname === "/admin-login" || pathname.startsWith("/admin");
@@ -18,6 +19,9 @@ function isAdminRoute(pathname) {
 
 export default function AppChrome({ children }) {
   const pathname = usePathname();
+  const hideAssistant = ["/login", "/signup", "/welcome"].some(
+    (path) => pathname === path || pathname?.startsWith(`${path}/`)
+  );
 
   if (isAdminRoute(pathname || "")) {
     return (
@@ -39,6 +43,7 @@ export default function AppChrome({ children }) {
       <NotificationBoot />
       <InstallBanner />
       <ToastContainer />
+      {!hideAssistant ? <AIAssistantWidget /> : null}
       <BottomNav />
     </>
   );

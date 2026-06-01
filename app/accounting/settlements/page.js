@@ -21,6 +21,7 @@ export default function SettlementsPage() {
   const [monthValue, setMonthValue] = useState(getInitialMonth);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
 
   const loadSettlements = useCallback(async () => {
@@ -54,15 +55,24 @@ export default function SettlementsPage() {
   }
 
   async function deleteSettlement(settlement) {
+    if (deletingId) {
+      return;
+    }
+
     if (!window.confirm("हे सेटलमेंट काढायचे का?")) {
       return;
     }
 
+    setDeletingId(settlement.id);
+    setError("");
+
     try {
       await fetchJson(`/api/accounting/settlements/${settlement.id}`, { method: "DELETE" });
-      loadSettlements();
+      await loadSettlements();
     } catch (deleteError) {
       setError(deleteError.message || "सेटलमेंट काढले नाही.");
+    } finally {
+      setDeletingId("");
     }
   }
 
@@ -109,7 +119,14 @@ export default function SettlementsPage() {
             <h2 className="text-[24px] font-extrabold text-slate-950">सेटलमेंट इतिहास</h2>
             {data?.settlements?.length > 0 ? (
               data.settlements.map((settlement) => (
-                <SettlementCard key={settlement.id} settlement={settlement} onMarkPaid={markPaid} onDelete={deleteSettlement} />
+                <SettlementCard
+                  key={settlement.id}
+                  settlement={settlement}
+                  onMarkPaid={markPaid}
+                  onDelete={deleteSettlement}
+                  isDeleting={deletingId === settlement.id}
+                  isBusy={Boolean(deletingId)}
+                />
               ))
             ) : (
               <div className="rounded-lg border-2 border-dashed border-slate-200 bg-white p-8 text-center shadow-soft">

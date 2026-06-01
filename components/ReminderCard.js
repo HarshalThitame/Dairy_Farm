@@ -50,7 +50,9 @@ export default function ReminderCard({
   const urgency = getUrgencyLevel(reminder.reminder_date);
   const emoji = getReminderEmoji(reminder.type);
   const cowName = reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
-  const canComplete = urgency === "overdue" || urgency === "today";
+  const actionHref = reminder.action_href || reminder.actionHref || "";
+  const actionLabel = reminder.action_label || reminder.actionLabel || "उघडा";
+  const canComplete = !actionHref && (urgency === "overdue" || urgency === "today");
   const calvingReminder = isCalvingReminder(reminder);
 
   const colorClass =
@@ -106,6 +108,17 @@ export default function ReminderCard({
       </p>
 
       <div className={`relative z-10 mt-4 grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
+        {actionHref ? (
+          <Link
+            href={actionHref}
+            className={`flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white shadow-sm active:bg-green-700 ${
+              compact ? "" : "col-span-2"
+            }`}
+          >
+            {actionLabel}
+          </Link>
+        ) : null}
+
         {canComplete && calvingReminder ? (
           <Link
             href={getCalvingRecordHref(reminder)}
@@ -134,7 +147,7 @@ export default function ReminderCard({
           </Link>
         ) : null}
 
-        {!compact && urgency === "overdue" && onSkip ? (
+        {!compact && !actionHref && urgency === "overdue" && onSkip ? (
           <button
             type="button"
             onClick={() => onSkip(reminder)}

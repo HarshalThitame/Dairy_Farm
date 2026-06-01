@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
+  analyzeSettlementSessionCoverage,
+  summarizeMilkSessionsForMonth
+} from "@/lib/accountingUtils";
+import {
   addMonths,
   calculateMilkStats,
   getMonthInput,
@@ -176,29 +180,26 @@ function buildQualitySummary(records) {
   };
 }
 
-function buildMonthlyTrend(records, selectedMonth, selectedYear) {
-  const totals = new Map();
+function buildMonthlyTrendFromAccounting(slips, settlements, selectedMonth, selectedYear) {
   const months = Array.from({ length: 6 }, (_, index) =>
     addMonths(selectedMonth, selectedYear, index - 5)
   );
 
-  months.forEach(({ month, year }) => {
-    totals.set(`${year}-${padDatePart(month)}`, 0);
-  });
-
-  records.forEach((record) => {
-    const key = record.date.slice(0, 7);
-    totals.set(key, (totals.get(key) || 0) + getRecordMilkTotal(record));
-  });
-
   return months.map(({ month, year }) => {
     const key = `${year}-${padDatePart(month)}`;
+    const monthRange = getMonthRange(month, year);
+    const monthSlips = (slips || []).filter((slip) => slip.slip_date >= monthRange.start && slip.slip_date < monthRange.end);
+    const monthSettlements = (settlements || []).filter((settlement) => {
+      const accountingDate = settlement.period_end || settlement.settlement_date;
+      return accountingDate >= monthRange.start && accountingDate < monthRange.end;
+    });
+    const summary = summarizeMilkSessionsForMonth(monthSlips, monthSettlements).monthlyTotal;
 
     return {
       month,
       year,
       label: getMonthLabel(month, year),
-      total: Number((totals.get(key) || 0).toFixed(2)),
+      total: Number((summary.totalLiters || 0).toFixed(2)),
       current: month === selectedMonth && year === selectedYear
     };
   });
@@ -228,28 +229,64 @@ export async function GET(request) {
       .lt("date", monthRange.end)
       .is("cow_id", null);
 
-    let trendQuery = supabase
-      .from("milk_records")
-      .select("date, morning_litres, evening_litres, total_litres")
-      .eq("farm_id", farmId)
-      .gte("date", oldestRange.start)
-      .lt("date", monthRange.end)
-      .is("cow_id", null);
-
-    const [selectedRecords, trendRecords] = await Promise.all([
+    const [selectedRecords, selectedSlips, trendSlips, selectedSettlements, trendSettlements] = await Promise.all([
       selectedQuery.order("date", { ascending: true }),
-      trendQuery.order("date", { ascending: true })
+      supabase
+        .from("dairy_slips")
+        .select("*")
+        .eq("farm_id", farmId)
+        .gte("slip_date", monthRange.start)
+        .lt("slip_date", monthRange.end)
+        .order("slip_date", { ascending: true }),
+      supabase
+        .from("dairy_slips")
+        .select("*")
+        .eq("farm_id", farmId)
+        .gte("slip_date", oldestRange.start)
+        .lt("slip_date", monthRange.end)
+        .order("slip_date", { ascending: true }),
+      supabase
+        .from("dairy_settlements")
+        .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
+        .eq("farm_id", farmId)
+        .gte("period_end", monthRange.start)
+        .lt("period_end", monthRange.end),
+      supabase
+        .from("dairy_settlements")
+        .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
+        .eq("farm_id", farmId)
+        .gte("period_end", oldestRange.start)
+        .lt("period_end", monthRange.end)
     ]);
 
     if (selectedRecords.error) {
       throw selectedRecords.error;
     }
 
-    if (trendRecords.error) {
-      throw trendRecords.error;
+    const firstAccountingError = [
+      selectedSlips.error,
+      trendSlips.error,
+      selectedSettlements.error,
+      trendSettlements.error
+    ].find(Boolean);
+
+    if (firstAccountingError) {
+      throw firstAccountingError;
     }
 
     const stats = calculateMilkStats(selectedRecords.data || [], monthRange.daysInMonth);
+    const accountingMilk = summarizeMilkSessionsForMonth(selectedSlips.data || [], selectedSettlements.data || []).monthlyTotal;
+    const recordSessionSummary = buildSessionSummary(selectedRecords.data || []);
+    const sessionSummary = {
+      ...recordSessionSummary,
+      morningLitres: accountingMilk.morningLiters,
+      eveningLitres: accountingMilk.eveningLiters,
+      totalLitres: accountingMilk.totalLiters,
+      totalAmount: accountingMilk.totalAmount,
+      averageRate: accountingMilk.averageRate,
+      daysWithMilk: accountingMilk.daysWithData,
+      source: accountingMilk.source
+    };
     const dailyData = fillDailyData(
       selectedRecords.data || [],
       month,
@@ -270,9 +307,12 @@ export async function GET(request) {
       data: {
         month,
         year,
-	        totalLitres: Number(stats.total.toFixed(2)),
-	        dailyAverage: Number(stats.average.toFixed(2)),
-	        sessionSummary: buildSessionSummary(selectedRecords.data || []),
+        totalLitres: Number((accountingMilk.totalLiters || 0).toFixed(2)),
+        dailyAverage: Number(
+          (accountingMilk.daysWithData > 0 ? accountingMilk.totalLiters / accountingMilk.daysWithData : 0).toFixed(2)
+        ),
+        rowTotalLitres: Number(stats.total.toFixed(2)),
+        sessionSummary,
 	        qualitySummary: buildQualitySummary(selectedRecords.data || []),
 	        bestDay: bestDay
           ? { date: bestDay.date, litres: bestDay.total }
@@ -282,8 +322,9 @@ export async function GET(request) {
           : { date: null, litres: 0 },
         dailyData,
         dailyRecords: buildDailyRecords(selectedRecords.data || []),
+        settlementSessionAudits: (selectedSettlements.data || []).map(analyzeSettlementSessionCoverage),
         perCow: [],
-        monthlyTrend: buildMonthlyTrend(trendRecords.data || [], month, year)
+        monthlyTrend: buildMonthlyTrendFromAccounting(trendSlips.data || [], trendSettlements.data || [], month, year)
       }
     });
   } catch (error) {

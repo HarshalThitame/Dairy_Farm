@@ -379,7 +379,7 @@ export async function GET(request) {
         .order("created_at", { ascending: false }),
       supabase
         .from("dairy_settlements")
-        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions")
+        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
         .eq("farm_id", farmId)
         .gte("period_end", monthRange.start)
         .lt("period_end", monthRange.end)
@@ -427,7 +427,7 @@ export async function GET(request) {
         .order("created_at", { ascending: false }),
       supabase
         .from("dairy_settlements")
-        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions")
+        .select("id, farm_id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
         .eq("farm_id", farmId)
         .gte("period_end", oldestRange.start)
         .lt("period_end", monthRange.end)

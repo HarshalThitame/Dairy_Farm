@@ -94,6 +94,8 @@ export default function DairySlipsPage() {
   );
   const filteredSummary = useMemo(() => summarizeDairySlips(visibleSlips).monthlyTotal, [visibleSlips]);
   const monthly = selectedDate ? filteredSummary : data?.monthlyTotal || {};
+  const rowMonthly = data?.rowMonthlyTotal || {};
+  const settlementSessionAudits = data?.settlementSessionAudits || [];
   const averageRate = Number(monthly.averageRate || 0);
   const byDate = useMemo(() => groupByDate(visibleSlips), [visibleSlips]);
   const dates = Object.keys(byDate).sort((first, second) => second.localeCompare(first));
@@ -160,14 +162,22 @@ export default function DairySlipsPage() {
               emoji="🌅"
               title="सकाळचे दूध"
               value={`${formatLitres(monthly.morningLiters || 0)} लिटर`}
-              subtext={`${toMarathiNumerals(monthly.morningCount || 0)} सकाळ नोंदी`}
+              subtext={
+                selectedDate
+                  ? `${toMarathiNumerals(monthly.morningCount || 0)} सकाळ नोंदी`
+                  : "सेटलमेंट स्लिपवरील final total"
+              }
               color="green"
             />
             <SummaryCard
               emoji="🌆"
               title="संध्याकाळचे दूध"
               value={`${formatLitres(monthly.eveningLiters || 0)} लिटर`}
-              subtext={`${toMarathiNumerals(monthly.eveningCount || 0)} संध्याकाळ नोंदी`}
+              subtext={
+                selectedDate
+                  ? `${toMarathiNumerals(monthly.eveningCount || 0)} संध्याकाळ नोंदी`
+                  : "सेटलमेंट स्लिपवरील final total"
+              }
               color="purple"
             />
             <SummaryCard
@@ -203,6 +213,51 @@ export default function DairySlipsPage() {
               color="purple"
             />
           </section>
+
+          {!selectedDate && settlementSessionAudits.length > 0 ? (
+            <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-soft">
+              <div>
+                <h2 className="text-[22px] font-extrabold text-amber-950">सेटलमेंट स्लिप तपासणी</h2>
+                <p className="mt-1 text-[17px] font-bold text-amber-900">
+                  Final दूध सेटलमेंट स्लिपवरील सकाळ/संध्याकाळ total वरून घेतले आहे. Daily rows फक्त तपासणीसाठी आहेत.
+                </p>
+              </div>
+              {settlementSessionAudits.map((audit) => {
+                const missing = [...(audit.missingMorning || []), ...(audit.missingEvening || [])];
+                return (
+                  <div key={audit.settlementId} className="rounded-lg border border-amber-200 bg-white p-3">
+                    <div className="grid grid-cols-2 gap-2 text-[16px] font-extrabold text-slate-800">
+                      <span>सकाळ final: {audit.printedMorningLiters === null ? "वाचता आले नाही" : `${formatLitres(audit.printedMorningLiters)} लि.`}</span>
+                      <span>संध्याकाळ final: {audit.printedEveningLiters === null ? "वाचता आले नाही" : `${formatLitres(audit.printedEveningLiters)} लि.`}</span>
+                      <span>सकाळ rows: {toMarathiNumerals(audit.morningRows || 0)} / {toMarathiNumerals(audit.expectedDays || 0)}</span>
+                      <span>संध्याकाळ rows: {toMarathiNumerals(audit.eveningRows || 0)} / {toMarathiNumerals(audit.expectedDays || 0)}</span>
+                    </div>
+                    {missing.length > 0 ? (
+                      <div className="mt-3 space-y-1 text-[15px] font-bold text-amber-900">
+                        {missing.slice(0, 6).map((item) => (
+                          <p key={`${audit.settlementId}-${item.date}-${item.session}`}>
+                            {formatMarathiDate(item.date)} {item.session}: {item.reason} {item.finalSource}
+                          </p>
+                        ))}
+                        {missing.length > 6 ? (
+                          <p>आणखी {toMarathiNumerals(missing.length - 6)} missing rows आहेत.</p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-[16px] font-extrabold text-green-800">
+                        Daily rows पूर्ण दिसत आहेत.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+              {Number(rowMonthly.totalLiters || 0) !== Number(monthly.totalLiters || 0) ? (
+                <p className="rounded-lg bg-white p-3 text-[16px] font-extrabold text-amber-950">
+                  Daily rows बेरीज: {formatLitres(rowMonthly.totalLiters || 0)} लि. | Final सेटलमेंट total: {formatLitres(monthly.totalLiters || 0)} लि.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
           {dates.length > 0 ? (
             <section className="space-y-4">
