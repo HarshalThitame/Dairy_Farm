@@ -68,35 +68,6 @@ function looksLikeAnalyticsQuestion(message) {
   );
 }
 
-function isGreetingOrThanks(message) {
-  return /^(hi|hello|hey|namaste|namaskar|thanks|thank you|ok|okay|हो|नमस्कार|धन्यवाद|ठीक आहे|बरं|बर)$/i.test(
-    String(message || "").trim()
-  );
-}
-
-function isDairyAssistantQuestion(message, history = []) {
-  const text = String(message || "").trim();
-
-  if (isGreetingOrThanks(text)) {
-    return true;
-  }
-
-  const dairyDomainPattern =
-    /दूध|लिटर|फॅट|fat|snf|एसएनएफ|clr|दर|rate|सकाळ|संध्याकाळ|डेअरी|dairy|स्लिप|slip|पेमेंट|payment|सेटलमेंट|settlement|गाय|गायी|gaay|cow|वासर|वासरे|calf|calves|बैल|जर्सी|होल्स्टीन|गाभण|gabhan|व्याय|व्या|ब्याय|delivery|कृत्रिम|रेतन|retan|कृत्रिम रेतन|चारा|खाद्य|khadya|feed|भुसा|मुरघास|औषध|medicine|आरोग्य|लसीकरण|vaccine|आठवण|reminder|नफा|profit|तोटा|loss|खर्च|expense|उत्पन्न|income|revenue|हिशोब|accounting|अहवाल|report|सारांश|summary|नोंद|record|नोंदी|trend|ट्रेंड|महिना|आठवडा|दिवस|आज|काल|परवा|सर्वाधिक|सरासरी|कमी|थकबाकी|ग्राहक|दुध|दुभती|वांझ|वासरी/i;
-
-  if (dairyDomainPattern.test(text)) {
-    return true;
-  }
-
-  const followUpPattern = /^(त्या|ते|तो|ती|याचा|त्याचा|मग|आणि|किती|का|कधी|कुठे|दाखवा|सांग|सांगा|detail|details|more|why|when|show)/i;
-  const hasRecentDairyContext = (history || []).some((item) => dairyDomainPattern.test(String(item?.content || "")));
-
-  return hasRecentDairyContext && followUpPattern.test(text);
-}
-
-const OUT_OF_DOMAIN_ANSWER =
-  "नमस्कार! मी माझी डेअरी AI सहाय्यक आहे. मी फक्त डेअरी, दूध नोंदी, गायी-वासरे, खर्च, उत्पन्न, नफा, अहवाल आणि आठवणी याच विषयांवर मदत करू शकतो. कृपया डेअरीशी संबंधित प्रश्न विचारा.";
-
 async function writeAssistantLog(supabase, payload) {
   try {
     await supabase.from("ai_assistant_logs").insert(payload);
@@ -119,29 +90,6 @@ export async function POST(request) {
     }
 
     const supabase = getSupabaseServerClient();
-    if (!isDairyAssistantQuestion(message, body.messages || [])) {
-      const answer = toMarathiNumerals(OUT_OF_DOMAIN_ANSWER);
-      const executionMs = Date.now() - startedAt;
-      logPayload = {
-        farm_id: farmId,
-        user_id: userId,
-        question: message,
-        tools_used: [],
-        execution_ms: executionMs,
-        response: answer,
-        error: null
-      };
-      await writeAssistantLog(supabase, logPayload);
-
-      return NextResponse.json({
-        data: {
-          answer,
-          toolsUsed: [],
-          executionMs
-        }
-      });
-    }
-
     const client = getOpenAIClient();
     const instructions = buildAssistantInstructions();
     let input = buildInputMessages(body.messages || [], message);
