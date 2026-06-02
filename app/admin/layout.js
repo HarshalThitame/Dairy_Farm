@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/admin/Sidebar";
 import { SuperAdminProvider, useSuperAdmin } from "@/context/SuperAdminContext";
@@ -41,9 +42,17 @@ function AdminShell({ children }) {
             <div className="text-[22px] font-extrabold">Platform Management</div>
             <div className="text-[14px] font-semibold text-slate-500">{pathname}</div>
           </div>
-          <div className="hidden text-right lg:block">
-            <div className="text-[18px] font-extrabold">{admin?.name}</div>
-            <div className="text-[14px] font-semibold text-slate-500">{admin?.email}</div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/notification-center"
+              className="flex min-h-[48px] items-center justify-center rounded-lg bg-yellow-100 px-4 text-[16px] font-extrabold text-yellow-900 ring-1 ring-yellow-200 hover:bg-yellow-200"
+            >
+              🔔 Notifications
+            </Link>
+            <div className="hidden text-right lg:block">
+              <div className="text-[18px] font-extrabold">{admin?.name}</div>
+              <div className="text-[14px] font-semibold text-slate-500">{admin?.email}</div>
+            </div>
           </div>
         </header>
         <main className="p-4 lg:p-8">{children}</main>

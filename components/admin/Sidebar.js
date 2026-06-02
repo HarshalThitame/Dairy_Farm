@@ -8,6 +8,7 @@ const items = [
   { href: "/admin", icon: "📊", label: "Dashboard" },
   { href: "/admin/farms", icon: "🏠", label: "All Farms" },
   { href: "/admin/users", icon: "👥", label: "All Users" },
+  { href: "/admin/notification-center", icon: "🔔", label: "Notification Center" },
   { href: "/admin/analytics", icon: "📈", label: "Analytics" },
   { href: "/admin/activity", icon: "📋", label: "Activity Log" },
   { href: "/admin/settings", icon: "⚙️", label: "Settings" }

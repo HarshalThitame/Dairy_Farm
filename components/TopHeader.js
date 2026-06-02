@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import BrandLockup from "@/components/BrandLockup";
+import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/context/AuthContext";
 
 export default function TopHeader() {
@@ -46,6 +47,7 @@ export default function TopHeader() {
         </Link>
 
         <div className="relative flex items-center gap-2">
+          <NotificationBell />
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
@@ -76,6 +78,13 @@ export default function TopHeader() {
                 className="mt-1 flex min-h-[52px] items-center rounded-lg px-3 text-[18px] font-extrabold text-slate-800 active:bg-slate-100"
               >
                 🔑 PIN बदला
+              </Link>
+              <Link
+                href="/notifications"
+                onClick={() => setOpen(false)}
+                className="mt-1 flex min-h-[52px] items-center rounded-lg px-3 text-[18px] font-extrabold text-slate-800 active:bg-yellow-50"
+              >
+                🔔 सूचना
               </Link>
               <Link
                 href="/vasare"

@@ -1,6 +1,6 @@
 (function () {
   const DB_NAME = "goshala-local";
-  const DB_VERSION = 6;
+  const DB_VERSION = 7;
 
   function safeJsonParse(value) {
     try {
@@ -144,6 +144,14 @@
           store.createIndex("status", "status");
           store.createIndex("slip_type", "slip_type");
           store.createIndex("uploadedAt", "uploadedAt");
+        }
+
+        if (!db.objectStoreNames.contains("notifications_cache")) {
+          store = db.createObjectStore("notifications_cache", { keyPath: "id" });
+          store.createIndex("farm_id", "farm_id");
+          store.createIndex("deliveredAt", "deliveredAt");
+          store.createIndex("readAt", "readAt");
+          store.createIndex("type", "type");
         }
       };
 
