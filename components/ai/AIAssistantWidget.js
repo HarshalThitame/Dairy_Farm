@@ -42,7 +42,7 @@ function initialMessages() {
     {
       id: "welcome",
       role: "assistant",
-      content: "नमस्कार. तुमच्या डेअरीच्या खऱ्या नोंदींवरून मी दूध, फॅट, SNF आणि उत्पन्नाची माहिती सांगू शकतो."
+      content: "नमस्कार! माझी डेअरी AI सहाय्यकात आपले स्वागत आहे. तुमच्या खऱ्या नोंदींवरून मी दूध, फॅट, SNF, खर्च, उत्पन्न, नफा, अहवाल आणि आठवणी याबद्दल मदत करू शकतो."
     }
   ];
 }
@@ -119,6 +119,9 @@ export default function AIAssistantWidget() {
   const [error, setError] = useState("");
   const [lastQuestion, setLastQuestion] = useState("");
   const scrollerRef = useRef(null);
+  const dialogRef = useRef(null);
+  const inputRef = useRef(null);
+  const previousFocusRef = useRef(null);
   const aiHistoryPushedRef = useRef(false);
 
   useEffect(() => {
@@ -147,6 +150,74 @@ export default function AIAssistantWidget() {
 
     return () => {
       window.removeEventListener("popstate", handleBackButton);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") {
+      return undefined;
+    }
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => {
+      inputRef.current?.focus({ preventScroll: true });
+      if (!inputRef.current) {
+        dialogRef.current?.focus({ preventScroll: true });
+      }
+    }, 0);
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAssistant();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const focusable = Array.from(
+        dialog.querySelectorAll(
+          'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element instanceof HTMLElement && !element.hasAttribute("hidden"));
+
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+        previousFocusRef.current.focus({ preventScroll: true });
+      }
+      previousFocusRef.current = null;
     };
   }, [open]);
 
@@ -220,17 +291,15 @@ export default function AIAssistantWidget() {
           ? window.history.state
           : {};
 
-      if (!currentState[AI_HISTORY_STATE_KEY]) {
-        window.history.pushState(
-          {
-            ...currentState,
-            [AI_HISTORY_STATE_KEY]: true
-          },
-          "",
-          window.location.href
-        );
-        aiHistoryPushedRef.current = true;
-      }
+      window.history.pushState(
+        {
+          ...currentState,
+          [AI_HISTORY_STATE_KEY]: true
+        },
+        "",
+        window.location.href
+      );
+      aiHistoryPushedRef.current = true;
     }
 
     setOpen(true);
@@ -253,7 +322,24 @@ export default function AIAssistantWidget() {
   return (
     <>
       {open ? (
-        <section className="fixed bottom-24 right-2 z-[70] flex max-h-[78vh] w-[calc(100vw-16px)] max-w-[450px] flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-b from-emerald-50 via-white to-sky-50 shadow-[0_24px_70px_rgba(15,118,110,0.28)] sm:right-5">
+        <div
+          className="fixed inset-0 z-[90] flex overscroll-contain items-end justify-center bg-slate-950/35 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-4 backdrop-blur-[2px] sm:items-end sm:justify-end sm:px-5 sm:pb-24"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+        >
+        <section
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ai-assistant-title"
+          tabIndex={-1}
+          className="flex max-h-[88vh] w-full max-w-[450px] flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-b from-emerald-50 via-white to-sky-50 shadow-[0_24px_70px_rgba(15,118,110,0.35)]"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
           <header className="bg-gradient-to-r from-emerald-700 via-green-600 to-sky-600 px-4 py-3 text-white">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -268,7 +354,7 @@ export default function AIAssistantWidget() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-extrabold text-emerald-50">माझी डेअरी</p>
-                  <h2 className="truncate text-[21px] font-extrabold leading-tight">AI सहाय्यक</h2>
+                  <h2 id="ai-assistant-title" className="truncate text-[21px] font-extrabold leading-tight">AI सहाय्यक</h2>
                   <p className="mt-0.5 text-[12px] font-bold text-emerald-50/90">खऱ्या डेटावर उत्तर</p>
                 </div>
               </div>
@@ -336,6 +422,7 @@ export default function AIAssistantWidget() {
               }}
             >
               <textarea
+                ref={inputRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 rows={1}
@@ -353,6 +440,7 @@ export default function AIAssistantWidget() {
             </form>
           </div>
         </section>
+        </div>
       ) : null}
 
       {!open ? (

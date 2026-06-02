@@ -14,7 +14,8 @@ const actions = [
     href: "/nondi/dudh?date=today",
     emoji: "🥛",
     title: "दूध नोंद",
-    text: "आजचे दूध नोंदवा",
+    badge: "हाताने नोंद",
+    text: "स्कॅन न करता स्वतः दूध भरा",
     tone: "border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 text-blue-950",
     accent: "from-blue-500 to-cyan-400"
   },
@@ -22,17 +23,10 @@ const actions = [
     href: "/accounting/settlements/new",
     emoji: "📋",
     title: "१५ दिवसांचे पेमेंट",
-    text: "डेअरी सेटलमेंट नोंद करा",
+    badge: "हाताने नोंद",
+    text: "स्कॅन न करता सेटलमेंट भरा",
     tone: "border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-green-50 text-emerald-950",
     accent: "from-emerald-500 to-green-400"
-  },
-  {
-    href: "/accounting/expenses/new",
-    emoji: "💸",
-    title: "खर्च नोंद",
-    text: "औषध, मजुरी, इतर खर्च",
-    tone: "border-red-100 bg-gradient-to-br from-red-50 via-white to-rose-50 text-red-950",
-    accent: "from-red-500 to-rose-400"
   },
   {
     href: "/accounting/dairy-slips",
@@ -93,7 +87,14 @@ function ActionTile({ action }) {
         {action.emoji}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[21px] font-extrabold leading-tight">{action.title}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="block text-[21px] font-extrabold leading-tight">{action.title}</span>
+          {action.badge ? (
+            <span className="rounded-full bg-white/85 px-2.5 py-1 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-white/70">
+              {action.badge}
+            </span>
+          ) : null}
+        </span>
         <span className="mt-1 block text-[16px] font-bold leading-snug opacity-75">{action.text}</span>
       </span>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[20px] font-extrabold text-white">
@@ -234,7 +235,7 @@ export default function AccountingHubPage() {
             <div className="mb-4">
               <h2 className="text-[24px] font-black text-slate-950">हिशोब कामे</h2>
               <p className="mt-1 text-[17px] font-bold leading-snug text-slate-600">
-                दूध नोंद, सेटलमेंट, खर्च आणि नफा लवकर उघडा.
+                हाताने दूध/सेटलमेंट भरा किंवा हिशोबाचे तपशील लवकर उघडा.
               </p>
             </div>
             <div className="space-y-3">
