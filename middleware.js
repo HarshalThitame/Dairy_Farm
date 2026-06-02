@@ -10,6 +10,7 @@ const publicPaths = [
   "/api/admin/auth/login",
   "/manifest.json",
   "/sw.js",
+  "/push-sw.js",
   "/sw-sync.js"
 ];
 
