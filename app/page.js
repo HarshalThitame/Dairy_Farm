@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import NotificationBanner from "@/components/NotificationBanner";
 import ReminderCard from "@/components/ReminderCard";
 import TrialBanner from "@/components/TrialBanner";
 import { useAuth } from "@/context/AuthContext";
@@ -347,7 +346,6 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-enter space-y-5 pb-2">
-      <NotificationBanner />
       <TrialBanner />
 
       <header className="dashboard-hero rounded-lg px-4 pb-4 pt-5 text-white shadow-soft">

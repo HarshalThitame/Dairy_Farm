@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { cacheNotifications, getCachedNotifications, updateCachedNotification } from "@/lib/localDB";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
+import { requestAndRegisterPushSubscription } from "@/lib/pushClient";
 import { supabase } from "@/lib/supabase";
 
 const typeLabels = {
@@ -111,6 +112,8 @@ export default function NotificationsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pushMessage, setPushMessage] = useState("");
+  const [testingPush, setTestingPush] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -206,20 +209,52 @@ export default function NotificationsPage() {
     load();
   }
 
+  async function testMobilePush() {
+    setTestingPush(true);
+    setPushMessage("");
+    try {
+      const subscription = await requestAndRegisterPushSubscription({ requestPermission: true });
+      if (!subscription.success) {
+        setPushMessage(subscription.message || "मोबाइल notification चालू झाले नाही.");
+        return;
+      }
+
+      const response = await fetch("/api/notifications/test-push", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getAuthToken()}` }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || "Test notification पाठवता आली नाही.");
+      }
+      setPushMessage(result.message || "Test notification पाठवली.");
+    } catch (pushError) {
+      setPushMessage(pushError.message || "Test notification मध्ये अडचण आली.");
+    } finally {
+      setTestingPush(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader title="🔔 सूचना" subtitle="Admin कडून आलेल्या सूचना, updates आणि reminders" />
 
       <section className="dashboard-card rounded-lg border border-yellow-200 bg-gradient-to-r from-yellow-50 via-white to-green-50 p-4 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[18px] font-extrabold text-slate-700">न वाचलेल्या सूचना</p>
             <p className="mt-1 text-[34px] font-black text-slate-950">{toMarathiNumerals(unreadCount)}</p>
           </div>
-          <button type="button" onClick={markAllRead} disabled={!unreadCount} className="min-h-[52px] rounded-lg bg-sheti px-4 text-[17px] font-extrabold text-white disabled:bg-slate-300">
-            सर्व वाचले
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={testMobilePush} disabled={testingPush} className="min-h-[52px] rounded-lg bg-yellow-500 px-4 text-[17px] font-extrabold text-white disabled:bg-slate-300">
+              {testingPush ? "Test..." : "📱 Mobile test"}
+            </button>
+            <button type="button" onClick={markAllRead} disabled={!unreadCount} className="min-h-[52px] rounded-lg bg-sheti px-4 text-[17px] font-extrabold text-white disabled:bg-slate-300">
+              सर्व वाचले
+            </button>
+          </div>
         </div>
+        {pushMessage ? <p className="mt-3 rounded-lg bg-white px-3 py-2 text-[16px] font-bold text-slate-700">{pushMessage}</p> : null}
       </section>
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-soft sm:grid-cols-3">

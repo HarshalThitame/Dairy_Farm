@@ -11,6 +11,7 @@ export default function AdminFarmsPage() {
   const [meta, setMeta] = useState({ total: 0, page: 1, pages: 1 });
   const [filters, setFilters] = useState({ status: "all", district: "all", sortBy: "newest", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
+  const [actionFarmId, setActionFarmId] = useState(null);
   const [error, setError] = useState("");
 
   const query = useMemo(() => new URLSearchParams({
@@ -46,20 +47,33 @@ export default function AdminFarmsPage() {
   }, [loadFarms]);
 
   async function handleSuspend(farm) {
+    const action = farm.is_active ? "suspend" : "unsuspend";
     const reason = farm.is_active ? window.prompt("Suspension reason", "Support review") : "";
     if (farm.is_active && reason === null) return;
+    const confirmMessage = farm.is_active
+      ? `${farm.farm_name} farm suspend करायचा आहे का? User ला mobile notification जाईल.`
+      : `${farm.farm_name} farm पुन्हा active करायचा आहे का? User ला mobile notification जाईल.`;
+    if (!window.confirm(confirmMessage)) return;
 
-    const response = await fetch(`/api/admin/farms/${farm.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
-      body: JSON.stringify({ action: farm.is_active ? "suspend" : "unsuspend", reason })
-    });
-    if (!response.ok) {
+    setActionFarmId(farm.id);
+    try {
+      const response = await fetch(`/api/admin/farms/${farm.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
+        body: JSON.stringify({ action, reason })
+      });
       const result = await response.json().catch(() => ({}));
-      window.alert(result.error || "Action failed");
-      return;
+      if (!response.ok) {
+        window.alert(result.error || "Action failed");
+        return;
+      }
+      if (result.notificationWarning) {
+        window.alert(`Action complete, पण notification issue: ${result.notificationWarning}`);
+      }
+      await loadFarms();
+    } finally {
+      setActionFarmId(null);
     }
-    loadFarms();
   }
 
   function updateFilter(key, value) {
@@ -107,7 +121,7 @@ export default function AdminFarmsPage() {
       </section>
 
       {error ? <div className="rounded-lg bg-red-50 p-4 text-[18px] font-bold text-red-800">{error}</div> : null}
-      {loading ? <div className="text-[20px] font-extrabold text-slate-600">Loading farms...</div> : <FarmsTable farms={farms} onSuspend={handleSuspend} />}
+      {loading ? <div className="text-[20px] font-extrabold text-slate-600">Loading farms...</div> : <FarmsTable farms={farms} onSuspend={handleSuspend} loadingFarmId={actionFarmId} />}
 
       <div className="flex items-center justify-between">
         <button disabled={meta.page <= 1} onClick={() => updateFilter("page", meta.page - 1)} className="min-h-[52px] rounded-lg bg-slate-900 px-5 text-[18px] font-bold text-white disabled:bg-slate-300">

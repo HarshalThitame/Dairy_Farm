@@ -5,6 +5,7 @@ import {
   superAdminErrorResponse,
   verifySuperAdmin
 } from "@/lib/superAdminGuard";
+import { createAdminNotification, sendNotificationNow } from "@/lib/notificationCenter";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -110,6 +111,94 @@ async function getFarmDetails(supabase, farmId) {
     },
     users: userResult.data || [],
     activity: activityResult.data || []
+  };
+}
+
+function formatDateForMessage(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("mr-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function buildFarmActionNotification(action, farm, context = {}) {
+  const farmName = farm?.farm_name || "तुमची डेअरी";
+
+  if (action === "extend_trial") {
+    return {
+      type: "trial_expiry_reminder",
+      priority: "high",
+      title: "ट्रायल कालावधी वाढवला आहे",
+      message: `${farmName} साठी trial ${context.days || 30} दिवसांनी वाढवला आहे. नवीन शेवटची तारीख: ${formatDateForMessage(farm.trial_ends_at)}.`,
+      actionText: "तपशील बघा",
+      actionUrl: "/profile"
+    };
+  }
+
+  if (action === "activate") {
+    return {
+      type: "subscription_reminder",
+      priority: "high",
+      title: "Subscription सक्रिय झाले",
+      message: `${farmName} चे subscription सक्रिय झाले आहे. App वापरणे सुरू ठेवू शकता. शेवटची तारीख: ${formatDateForMessage(farm.subscription_ends_at)}.`,
+      actionText: "App उघडा",
+      actionUrl: "/"
+    };
+  }
+
+  if (action === "suspend") {
+    return {
+      type: "critical",
+      priority: "urgent",
+      title: "खाते स्थगित केले आहे",
+      message: `${farmName} चे app खाते तात्पुरते स्थगित केले आहे. कारण: ${context.reason || farm.suspended_reason || "Support review"}.`,
+      actionText: "माहिती बघा",
+      actionUrl: "/profile"
+    };
+  }
+
+  if (action === "unsuspend") {
+    return {
+      type: "success",
+      priority: "high",
+      title: "खाते पुन्हा सक्रिय झाले",
+      message: `${farmName} चे app खाते पुन्हा सक्रिय केले आहे. आता app वापरू शकता.`,
+      actionText: "App उघडा",
+      actionUrl: "/"
+    };
+  }
+
+  return null;
+}
+
+async function notifyFarmUsersForAdminAction(supabase, adminId, farmId, action, farm, context = {}) {
+  const notification = buildFarmActionNotification(action, farm, context);
+  if (!notification) {
+    return null;
+  }
+
+  const created = await createAdminNotification(supabase, adminId, {
+    title: notification.title,
+    message: notification.message,
+    type: notification.type,
+    priority: notification.priority,
+    actionText: notification.actionText,
+    actionUrl: notification.actionUrl,
+    targetAudience: "selected_farms",
+    farmIds: [farmId],
+    channels: ["in_app", "push"],
+    scheduleType: "now",
+    sendNow: true
+  });
+  const sent = await sendNotificationNow(supabase, created.notification.id);
+
+  return {
+    notificationId: sent.notification.id,
+    recipientCount: sent.recipientCount,
+    push: sent.push,
+    failureReason: sent.notification.failure_reason || null
   };
 }
 
@@ -226,8 +315,19 @@ export async function PATCH(request, { params }) {
       throw error;
     }
 
-    await logAdminAction(request, adminId, action, params.id, { payload });
-    return NextResponse.json({ farm: data });
+    let notification = null;
+    let notificationWarning = null;
+    try {
+      notification = await notifyFarmUsersForAdminAction(supabase, adminId, params.id, action, data, {
+        days: body.days,
+        reason: body.reason
+      });
+    } catch (notifyError) {
+      notificationWarning = notifyError.message || "Notification delivery failed.";
+    }
+
+    await logAdminAction(request, adminId, action, params.id, { payload, notification, notificationWarning });
+    return NextResponse.json({ farm: data, notification, notificationWarning });
   } catch (error) {
     return superAdminErrorResponse(error);
   }

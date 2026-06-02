@@ -18,9 +18,12 @@ const initialForm = {
 export default function NotificationTemplatesPage() {
   const [templates, setTemplates] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function load() {
     setLoading(true);
@@ -43,26 +46,81 @@ export default function NotificationTemplatesPage() {
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+    setError("");
+    setSuccess("");
+  }
+
+  function startEdit(template) {
+    setEditingId(template.id);
+    setForm({
+      name: template.name || "",
+      title: template.title || "",
+      message: template.message || "",
+      type: template.type || "information",
+      priority: template.priority || "normal",
+      actionText: template.action_text || "",
+      actionUrl: template.action_url || "",
+      imageUrl: template.image_url || ""
+    });
+    setError("");
+    setSuccess("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(initialForm);
+    setError("");
+    setSuccess("");
   }
 
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
     setError("");
+    setSuccess("");
     try {
-      const response = await fetch("/api/admin/notifications/templates", {
-        method: "POST",
+      const response = await fetch(editingId ? `/api/admin/notifications/templates/${editingId}` : "/api/admin/notifications/templates", {
+        method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
         body: JSON.stringify(form)
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Template save failed");
       setForm(initialForm);
-      load();
+      setEditingId(null);
+      setSuccess(editingId ? "Template updated." : "Template saved.");
+      await load();
     } catch (saveError) {
       setError(saveError.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteTemplate(template) {
+    if (!window.confirm(`"${template.name}" template delete करायचा आहे का?`)) {
+      return;
+    }
+    setDeletingId(template.id);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch(`/api/admin/notifications/templates/${template.id}`, {
+        method: "DELETE",
+        headers: getSuperAdminAuthHeader()
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Template delete failed");
+      if (editingId === template.id) {
+        cancelEdit();
+      }
+      setSuccess("Template deleted.");
+      await load();
+    } catch (deleteError) {
+      setError(deleteError.message);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -75,10 +133,18 @@ export default function NotificationTemplatesPage() {
       </div>
 
       {error ? <div className="rounded-xl bg-red-50 p-5 text-[18px] font-bold text-red-800">{error}</div> : null}
+      {success ? <div className="rounded-xl bg-green-50 p-5 text-[18px] font-bold text-green-800">{success}</div> : null}
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <form onSubmit={submit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-[24px] font-extrabold text-slate-950">Create Template</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-[24px] font-extrabold text-slate-950">{editingId ? "Edit Template" : "Create Template"}</h2>
+            {editingId ? (
+              <button type="button" onClick={cancelEdit} className="min-h-[44px] rounded-lg border border-slate-300 bg-white px-4 text-[16px] font-extrabold text-slate-700">
+                Cancel
+              </button>
+            ) : null}
+          </div>
           <input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Template name" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
           <input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Title" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
           <textarea value={form.message} onChange={(event) => update("message", event.target.value)} placeholder="Message" rows={5} className="w-full rounded-lg border border-slate-300 px-4 py-3 text-[17px]" />
@@ -104,7 +170,7 @@ export default function NotificationTemplatesPage() {
           <input value={form.actionText} onChange={(event) => update("actionText", event.target.value)} placeholder="Action text" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
           <input value={form.actionUrl} onChange={(event) => update("actionUrl", event.target.value)} placeholder="Action URL" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
           <button disabled={saving} className="min-h-[54px] w-full rounded-lg bg-green-600 px-5 text-[18px] font-extrabold text-white disabled:bg-slate-300">
-            {saving ? "Saving..." : "Save Template"}
+            {saving ? "Saving..." : editingId ? "Update Template" : "Save Template"}
           </button>
         </form>
 
@@ -122,6 +188,23 @@ export default function NotificationTemplatesPage() {
                   <span className="rounded-full bg-white px-3 py-1 text-[13px] font-extrabold text-slate-600">{template.type}</span>
                 </div>
                 <p className="mt-2 text-[15px] font-semibold text-slate-500">{template.message}</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(template)}
+                    className="min-h-[46px] rounded-lg bg-blue-600 px-4 text-[16px] font-extrabold text-white"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTemplate(template)}
+                    disabled={deletingId === template.id}
+                    className="min-h-[46px] rounded-lg bg-red-600 px-4 text-[16px] font-extrabold text-white disabled:bg-slate-300"
+                  >
+                    {deletingId === template.id ? "Deleting..." : "🗑️ Delete"}
+                  </button>
+                </div>
               </article>
             ))}
           </div>

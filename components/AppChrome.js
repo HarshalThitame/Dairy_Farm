@@ -6,6 +6,7 @@ import AppFooter from "@/components/AppFooter";
 import AuthRequired from "@/components/AuthRequired";
 import BottomNav from "@/components/BottomNav";
 import NetworkStatusBar from "@/components/NetworkStatusBar";
+import NotificationBanner from "@/components/NotificationBanner";
 import ToastContainer from "@/components/Toast";
 import TopHeader from "@/components/TopHeader";
 
@@ -37,7 +38,10 @@ export default function AppChrome({ children }) {
       <NetworkStatusBar />
       <TopHeader />
       <main className="app-shell safe-bottom relative mx-auto min-h-screen w-full max-w-3xl px-4 pb-28 pt-5 sm:px-6">
-        <AuthRequired>{children}</AuthRequired>
+        <AuthRequired>
+          <NotificationBanner />
+          {children}
+        </AuthRequired>
       </main>
       <AppFooter />
       <NotificationBoot />

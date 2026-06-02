@@ -14,6 +14,7 @@ export default function AdminFarmDetailPage({ params }) {
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [actionLoading, setActionLoading] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -52,6 +53,7 @@ export default function AdminFarmDetailPage({ params }) {
 
   async function patchFarm(action, body = {}) {
     setSaving(true);
+    setActionLoading(action);
     try {
       const response = await fetch(`/api/admin/farms/${params.id}`, {
         method: "PATCH",
@@ -60,12 +62,38 @@ export default function AdminFarmDetailPage({ params }) {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Action failed");
+      if (result.notificationWarning) {
+        window.alert(`Action complete, पण notification issue: ${result.notificationWarning}`);
+      }
       await loadFarm();
     } catch (err) {
       window.alert(err.message);
     } finally {
       setSaving(false);
+      setActionLoading("");
     }
+  }
+
+  async function confirmAndPatchFarm(action) {
+    let body = {};
+    let message = "";
+
+    if (action === "extend_trial") {
+      body = { days: 30 };
+      message = `${farm.farm_name} चा trial 30 दिवसांनी वाढवायचा आहे का? User ला notification जाईल.`;
+    } else if (action === "activate") {
+      message = `${farm.farm_name} चे subscription activate करायचे आहे का? User ला notification जाईल.`;
+    } else if (action === "suspend") {
+      const reason = window.prompt("Suspension reason", "Support review");
+      if (reason === null) return;
+      body = { reason: reason || "Support review" };
+      message = `${farm.farm_name} farm suspend करायचा आहे का? User ला mobile notification जाईल.`;
+    } else if (action === "unsuspend") {
+      message = `${farm.farm_name} farm पुन्हा active करायचा आहे का? User ला notification जाईल.`;
+    }
+
+    if (!window.confirm(message)) return;
+    await patchFarm(action, body);
   }
 
   async function saveNotes() {
@@ -122,12 +150,20 @@ export default function AdminFarmDetailPage({ params }) {
           <p className="text-[18px] font-semibold text-slate-500">{farm.owner_name} · {farm.owner_mobile}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => patchFarm("extend_trial", { days: 30 })} disabled={saving} className="min-h-[52px] rounded-lg bg-yellow-600 px-4 text-[17px] font-bold text-white">Extend Trial</button>
-          <button onClick={() => patchFarm("activate")} disabled={saving} className="min-h-[52px] rounded-lg bg-green-600 px-4 text-[17px] font-bold text-white">Activate</button>
+          <button onClick={() => confirmAndPatchFarm("extend_trial")} disabled={saving} className="min-h-[52px] rounded-lg bg-yellow-600 px-4 text-[17px] font-bold text-white disabled:bg-slate-300">
+            {actionLoading === "extend_trial" ? "Extending..." : "Extend Trial"}
+          </button>
+          <button onClick={() => confirmAndPatchFarm("activate")} disabled={saving} className="min-h-[52px] rounded-lg bg-green-600 px-4 text-[17px] font-bold text-white disabled:bg-slate-300">
+            {actionLoading === "activate" ? "Activating..." : "Activate"}
+          </button>
           {farm.is_active ? (
-            <button onClick={() => patchFarm("suspend", { reason: window.prompt("Suspension reason", "Support review") || "Support review" })} disabled={saving} className="min-h-[52px] rounded-lg bg-red-600 px-4 text-[17px] font-bold text-white">Suspend</button>
+            <button onClick={() => confirmAndPatchFarm("suspend")} disabled={saving} className="min-h-[52px] rounded-lg bg-red-600 px-4 text-[17px] font-bold text-white disabled:bg-slate-300">
+              {actionLoading === "suspend" ? "Suspending..." : "Suspend"}
+            </button>
           ) : (
-            <button onClick={() => patchFarm("unsuspend")} disabled={saving} className="min-h-[52px] rounded-lg bg-slate-900 px-4 text-[17px] font-bold text-white">Unsuspend</button>
+            <button onClick={() => confirmAndPatchFarm("unsuspend")} disabled={saving} className="min-h-[52px] rounded-lg bg-slate-900 px-4 text-[17px] font-bold text-white disabled:bg-slate-300">
+              {actionLoading === "unsuspend" ? "Activating..." : "Unsuspend"}
+            </button>
           )}
         </div>
       </div>

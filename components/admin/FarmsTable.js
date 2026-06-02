@@ -33,7 +33,7 @@ function daysUntil(value) {
   return `${days} days`;
 }
 
-export default function FarmsTable({ farms = [], onSuspend }) {
+export default function FarmsTable({ farms = [], onSuspend, loadingFarmId = null }) {
   if (!farms.length) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-[18px] font-bold text-slate-500">
@@ -61,7 +61,7 @@ export default function FarmsTable({ farms = [], onSuspend }) {
         </thead>
         <tbody className="divide-y divide-slate-100 text-[17px]">
           {farms.map((farm) => (
-            <tr key={farm.id} className="hover:bg-slate-50">
+            <tr key={farm.id} className={`hover:bg-slate-50 ${loadingFarmId === farm.id ? "opacity-70" : ""}`}>
               <td className="px-4 py-4 font-extrabold text-slate-950">
                 <Link href={`/admin/farms/${farm.id}`} className="text-green-700 hover:underline">
                   {farm.farm_name}
@@ -90,9 +90,10 @@ export default function FarmsTable({ farms = [], onSuspend }) {
                   <button
                     type="button"
                     onClick={() => onSuspend?.(farm)}
-                    className="rounded-lg bg-red-600 px-3 py-2 text-[15px] font-bold text-white"
+                    disabled={loadingFarmId === farm.id}
+                    className="rounded-lg bg-red-600 px-3 py-2 text-[15px] font-bold text-white disabled:bg-slate-300"
                   >
-                    {farm.is_active ? "Suspend" : "Unsuspend"}
+                    {loadingFarmId === farm.id ? "Loading..." : farm.is_active ? "Suspend" : "Unsuspend"}
                   </button>
                 </div>
               </td>
