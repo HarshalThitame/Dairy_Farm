@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
-import { isKhadyaExpenseCategory, summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
+import {
+  applyFinanceIncomeToSummary,
+  isKhadyaExpenseCategory,
+  summarizeMilkIncomeForMonth
+} from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
-import { getMissingSettlementSlipReminders } from "@/lib/settlementReminderUtils";
+import { getMissingSettlementSlipPeriods } from "@/lib/settlementReminderUtils";
 import {
   displayFinanceCategory,
   getMonthInput,
@@ -47,7 +51,15 @@ function getFinanceAccountingPeriod(record) {
   return ACCOUNTING_PERIOD_MONTHLY;
 }
 
-function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, monthlyExpenses, settlements, milkIncomeSummary }) {
+function buildFinanceSummary({
+  financeRecords,
+  milkRecords,
+  healthRecords,
+  aiRecords,
+  monthlyExpenses,
+  settlements,
+  milkIncomeSummary
+}) {
   const monthlyFinance = (financeRecords || []).filter(
     (record) => getFinanceAccountingPeriod(record) !== "annual"
   );
@@ -72,11 +84,12 @@ function buildFinanceSummary({ financeRecords, milkRecords, healthRecords, month
     (monthlyExpenses || []).filter((record) => !isKhadyaExpenseCategory(record.category)),
     "amount"
   );
+  const aiExpense = sum(aiRecords, "cost");
   const otherDeductions = sum(settlements, "other_deductions");
   const feedDeductions = sum(settlements, "cattle_feed_deduction");
 
   const totalIncome = roundMoney(manualIncome + derivedMilkIncome);
-  const totalExpense = roundMoney(manualExpense + healthExpense + accountingExpense);
+  const totalExpense = roundMoney(manualExpense + healthExpense + aiExpense + accountingExpense);
 
   return {
     totalIncome,
@@ -114,14 +127,17 @@ function monthYearKey(month, year) {
   return `${Number(year)}-${String(Number(month)).padStart(2, "0")}`;
 }
 
-function buildFinanceSummaryFromMonthlySummary(summary) {
+function buildFinanceSummaryFromMonthlySummary(summary, financeRecords = []) {
+  const adjustedSummary = applyFinanceIncomeToSummary(summary, financeRecords);
+
   return {
-    totalIncome: roundMoney(summary?.total_milk_income || 0),
-    totalExpense: roundMoney(summary?.total_all_expenses || 0),
-    netProfit: roundMoney(summary?.net_profit || 0),
-    milkIncome: roundMoney(summary?.total_milk_income || 0),
-    totalDeductions: roundMoney(summary?.total_dairy_deductions || 0),
-    deductionsCountedInProfit: roundMoney(summary?.total_dairy_deductions || 0)
+    totalIncome: roundMoney(adjustedSummary?.total_all_income ?? adjustedSummary?.total_milk_income ?? 0),
+    totalExpense: roundMoney(adjustedSummary?.total_all_expenses || 0),
+    netProfit: roundMoney(adjustedSummary?.net_profit || 0),
+    milkIncome: roundMoney(adjustedSummary?.total_milk_income || 0),
+    otherIncome: roundMoney(adjustedSummary?.total_other_income || 0),
+    totalDeductions: roundMoney(adjustedSummary?.total_dairy_deductions || 0),
+    deductionsCountedInProfit: roundMoney(adjustedSummary?.total_dairy_deductions || 0)
   };
 }
 
@@ -147,7 +163,8 @@ export async function GET(request) {
       upcomingRemindersResult,
       calvesResult,
       monthlySummaryResult,
-      settlementSlipRemindersResult
+      monthlyIncomeRecordsResult,
+      pendingSettlementSlipPeriodsResult
     ] = await Promise.all([
       supabase
         .from("cows")
@@ -197,22 +214,23 @@ export async function GET(request) {
         .eq("farm_id", farmId)
         .eq("month_year", monthYearKey(monthInput.month, monthInput.year))
         .maybeSingle(),
-      getMissingSettlementSlipReminders(supabase, farmId, { today })
+      supabase
+        .from("finance_records")
+        .select("id, farm_id, date, type, category, amount, accounting_period")
+        .eq("farm_id", farmId)
+        .gte("date", monthRange.start)
+        .lt("date", monthRange.end),
+      getMissingSettlementSlipPeriods(supabase, farmId, { today })
     ]);
 
     const cows = assertQuery(cowsResult);
     const todayMilkRecords = assertQuery(todayMilkResult);
-    const settlementSlipReminders = settlementSlipRemindersResult || [];
-    const todaySettlementSlipReminders = settlementSlipReminders.filter(
-      (reminder) => reminder.reminder_date === today
-    );
-    const overdueSettlementSlipReminders = settlementSlipReminders.filter(
-      (reminder) => reminder.reminder_date < today
-    );
-    const todayReminders = [...assertQuery(todayRemindersResult), ...todaySettlementSlipReminders];
-    const overdueReminders = [...assertQuery(overdueRemindersResult), ...overdueSettlementSlipReminders];
+    const pendingSettlementSlipPeriods = pendingSettlementSlipPeriodsResult || [];
+    const todayReminders = assertQuery(todayRemindersResult);
+    const overdueReminders = assertQuery(overdueRemindersResult);
     const upcomingReminders = assertQuery(upcomingRemindersResult);
     const calves = assertQuery(calvesResult);
+    const monthlyIncomeRecords = assertQuery(monthlyIncomeRecordsResult);
     const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
     const todayMilkTotal = todayMilkRecords.reduce(
       (total, record) => total + getRecordMilkTotal(record),
@@ -220,7 +238,7 @@ export async function GET(request) {
     );
     let monthlyLitres = Number(monthlySummary?.total_liters || 0);
     let monthlyFinanceReport = monthlySummary
-      ? buildFinanceSummaryFromMonthlySummary(monthlySummary)
+      ? buildFinanceSummaryFromMonthlySummary(monthlySummary, monthlyIncomeRecords)
       : null;
 
     if (!monthlySummary) {
@@ -228,6 +246,7 @@ export async function GET(request) {
         monthDairySlipsResult,
         financeResult,
         healthResult,
+        aiResult,
         monthlyExpensesResult,
         settlementsResult
       ] = await Promise.all([
@@ -251,6 +270,13 @@ export async function GET(request) {
           .gte("date", monthRange.start)
           .lt("date", monthRange.end),
         supabase
+          .from("ai_records")
+          .select("id, ai_date, cost")
+          .eq("farm_id", farmId)
+          .gt("cost", 0)
+          .gte("ai_date", monthRange.start)
+          .lt("ai_date", monthRange.end),
+        supabase
           .from("monthly_expenses")
           .select("id, expense_date, category, amount")
           .eq("farm_id", farmId)
@@ -267,6 +293,7 @@ export async function GET(request) {
       const monthDairySlips = assertQuery(monthDairySlipsResult);
       const financeRecords = assertQuery(financeResult);
       const healthRecords = assertQuery(healthResult);
+      const aiRecords = assertQuery(aiResult);
       const monthlyExpenses = assertQuery(monthlyExpensesResult);
       const settlements = assertQuery(settlementsResult);
       const milkIncomeSummary = summarizeMilkIncomeForMonth(monthDairySlips, settlements);
@@ -276,6 +303,7 @@ export async function GET(request) {
         financeRecords,
         milkRecords: [],
         healthRecords,
+        aiRecords,
         monthlyExpenses,
         settlements,
         milkIncomeSummary
@@ -296,9 +324,15 @@ export async function GET(request) {
           today: todayReminders,
           overdue: overdueReminders,
           upcoming: upcomingReminders,
-          todayCount: (todayRemindersResult.count ?? todayReminders.length - todaySettlementSlipReminders.length) + todaySettlementSlipReminders.length,
-          overdueCount: (overdueRemindersResult.count ?? overdueReminders.length - overdueSettlementSlipReminders.length) + overdueSettlementSlipReminders.length,
+          todayCount: todayRemindersResult.count ?? todayReminders.length,
+          overdueCount: overdueRemindersResult.count ?? overdueReminders.length,
           upcomingCount: upcomingRemindersResult.count ?? upcomingReminders.length
+        },
+        settlementSlipStatus: {
+          pendingCount: pendingSettlementSlipPeriods.length,
+          dueTodayCount: pendingSettlementSlipPeriods.filter((period) => period.due_date === today).length,
+          overdueCount: pendingSettlementSlipPeriods.filter((period) => period.due_date < today).length,
+          periods: pendingSettlementSlipPeriods.slice(0, 4)
         },
         calvesSummary: buildCalvesSummary(calves),
         monthlyMilkReport: {

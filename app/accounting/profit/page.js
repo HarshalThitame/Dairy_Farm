@@ -54,7 +54,9 @@ export default function ProfitPage() {
   const report = data?.report || {};
   const settlements = report.settlements || [];
   const expensesByCategory = report.expensesSummary?.byCategory || {};
-  const income = Number(summary.total_milk_income || 0);
+  const milkIncome = Number(summary.total_milk_income || 0);
+  const otherIncome = Number(summary.total_other_income || 0);
+  const income = Number(summary.total_all_income ?? milkIncome);
   const expenses = Number(summary.total_all_expenses || 0);
   const deductions = Number(summary.total_dairy_deductions || 0);
   const settlementFeedDeduction = Number(report.settlementsSummary?.cattleFeedDeduction || 0);
@@ -78,7 +80,7 @@ export default function ProfitPage() {
           <ProfitWaterfall income={income} expenses={expenses} deductions={deductions} />
 
           <section className="grid grid-cols-2 gap-3">
-            <SummaryCard emoji="💰" title="एकूण दूध उत्पन्न" value={toMarathiCurrency(income)} subtext={`${formatLitres(summary.total_liters || 0)} लिटर`} color="green" />
+            <SummaryCard emoji="💰" title="एकूण उत्पन्न" value={toMarathiCurrency(income)} subtext={`${formatLitres(summary.total_liters || 0)} लि. दूध + इतर`} color="green" />
             <SummaryCard emoji="💸" title="एकूण खर्च" value={toMarathiCurrency(expenses)} subtext="फार्म खर्च" color="red" />
             <SummaryCard emoji="📉" title="डेअरी कपात" value={toMarathiCurrency(deductions)} subtext="खाद्य + इतर" color="red" />
             <SummaryCard emoji="📊" title="शुद्ध नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "नफा" : "तोटा"} color={netProfit >= 0 ? "green" : "red"} />
@@ -90,8 +92,13 @@ export default function ProfitPage() {
               <div>
                 <h3 className="text-[21px] font-extrabold text-green-800">उत्पन्न</h3>
                 <p className="mt-2 text-[19px] font-bold text-slate-700">
-                  दूध विक्री: {toMarathiCurrency(income)}
+                  दूध विक्री: {toMarathiCurrency(milkIncome)}
                 </p>
+                {otherIncome > 0 ? (
+                  <p className="mt-1 text-[19px] font-bold text-slate-700">
+                    इतर उत्पन्न: {toMarathiCurrency(otherIncome)}
+                  </p>
+                ) : null}
                 {settlements.map((settlement) => (
                   <p key={settlement.id} className="mt-1 text-[18px] font-semibold text-slate-600">
                     सेटलमेंट: {toMarathiCurrency(settlement.total_milk_income)}

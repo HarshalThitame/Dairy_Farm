@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
-import { isKhadyaExpenseCategory, summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
+import { isKhadyaExpenseCategory, summarizeMilkSessionsForMonth } from "@/lib/accountingUtils";
 import { displayFeedSectionName } from "@/lib/feedExpenseSections";
 import { farmErrorResponse, normalizeFarm, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -128,44 +128,23 @@ function isInfoOnlyKhadyaTransaction(record) {
 }
 
 function buildMilkSummary(slips, settlements, monthRows) {
-  const daysByMonth = new Map();
   let morningLitres = 0;
   let eveningLitres = 0;
-
-  slips.forEach((slip) => {
-    const key = getMonthKeyFromDate(slip.slip_date);
-    const month = monthRows.find((item) => item.key === key);
-    const liters = Number(slip.liters || 0);
-    const morning = slip.session === "सकाळ" ? liters : 0;
-    const evening = slip.session === "संध्याकाळ" ? liters : 0;
-
-    if (!month) {
-      return;
-    }
-
-    month.morningLitres += morning;
-    month.eveningLitres += evening;
-    morningLitres += morning;
-    eveningLitres += evening;
-
-    if (liters > 0) {
-      if (!daysByMonth.has(key)) {
-        daysByMonth.set(key, new Set());
-      }
-      daysByMonth.get(key).add(slip.slip_date);
-    }
-  });
 
   monthRows.forEach((month) => {
     const monthSlips = (slips || []).filter((slip) => getMonthKeyFromDate(slip.slip_date) === month.key);
     const monthSettlements = (settlements || []).filter(
       (settlement) => getMonthKeyFromDate(getSettlementAccountingDate(settlement)) === month.key
     );
-    const monthlyMilk = summarizeMilkIncomeForMonth(monthSlips, monthSettlements);
+    const monthlyMilk = summarizeMilkSessionsForMonth(monthSlips, monthSettlements).monthlyTotal;
 
     month.milkLitres = monthlyMilk.totalLiters;
     month.milkIncome = monthlyMilk.totalAmount;
-    month.milkDays = daysByMonth.get(month.key)?.size || 0;
+    month.morningLitres = monthlyMilk.morningLiters;
+    month.eveningLitres = monthlyMilk.eveningLiters;
+    month.milkDays = monthlyMilk.daysWithData || 0;
+    morningLitres += Number(month.morningLitres || 0);
+    eveningLitres += Number(month.eveningLitres || 0);
   });
 
   const totalMilkLitres = monthRows.reduce((sum, month) => sum + Number(month.milkLitres || 0), 0);

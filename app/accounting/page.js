@@ -149,6 +149,8 @@ export default function AccountingHubPage() {
 
   const summary = data?.summary || {};
   const netProfit = Number(summary.net_profit || 0);
+  const totalIncome = Number(summary.total_all_income ?? summary.total_milk_income ?? 0);
+  const otherIncome = Number(summary.total_other_income || 0);
   const selectedMonthLabel = getMonthLabel(monthValue.month, monthValue.year);
 
   return (
@@ -178,7 +180,7 @@ export default function AccountingHubPage() {
             </div>
             <div className="rounded-lg px-2 py-3 text-center">
               <p className="text-[12px] font-bold text-green-100">उत्पन्न</p>
-              <p className="mt-1 break-words text-[20px] font-black">{toMarathiCurrency(summary.total_milk_income || 0)}</p>
+              <p className="mt-1 break-words text-[20px] font-black">{toMarathiCurrency(totalIncome)}</p>
             </div>
             <div className="rounded-lg px-2 py-3 text-center">
               <p className="text-[12px] font-bold text-green-100">नफा</p>
@@ -218,7 +220,13 @@ export default function AccountingHubPage() {
           <section className="dashboard-stagger grid grid-cols-2 gap-3" aria-label="हिशोब सारांश">
             <MetricCard emoji="🥛" title="आजचे दूध" value={`${formatLitres(todayMilk)} लिटर`} subtext="आजची नोंद" tone="blue" />
             <MetricCard emoji="📊" title="महिन्याचे दूध" value={`${formatLitres(summary.total_liters || 0)} लिटर`} subtext={selectedMonthLabel} tone="blue" />
-            <MetricCard emoji="💰" title="दूध उत्पन्न" value={toMarathiCurrency(summary.total_milk_income || 0)} subtext="दूध विक्रीतून" tone="green" />
+            <MetricCard
+              emoji="💰"
+              title="उत्पन्न"
+              value={toMarathiCurrency(totalIncome)}
+              subtext={otherIncome > 0 ? "दूध + इतर उत्पन्न" : "दूध विक्रीतून"}
+              tone="green"
+            />
             <MetricCard emoji="📈" title="नफा" value={toMarathiCurrency(netProfit)} subtext={netProfit >= 0 ? "महिन्याचा नफा" : "महिन्याचा तोटा"} tone={netProfit >= 0 ? "green" : "red"} />
           </section>
 
@@ -255,6 +263,13 @@ export default function AccountingHubPage() {
                 label="दूध"
                 value={`${formatLitres(summary.total_liters || 0)} लि. | ${toMarathiCurrency(summary.total_milk_income || 0)}`}
               />
+              {otherIncome > 0 ? (
+                <SummaryRow
+                  label="इतर उत्पन्न"
+                  value={toMarathiCurrency(otherIncome)}
+                  valueClass="text-green-700"
+                />
+              ) : null}
               <SummaryRow
                 label="इतर खर्च"
                 value={toMarathiCurrency(summary.total_all_expenses || 0)}
@@ -277,7 +292,7 @@ export default function AccountingHubPage() {
                   <span className="text-right text-[24px] font-black leading-tight">{toMarathiCurrency(netProfit)}</span>
                 </div>
                 <p className="mt-2 text-[15px] font-bold opacity-75">
-                  दूध उत्पन्नातून खर्च आणि डेअरी कपात वजा करून.
+                  एकूण उत्पन्नातून खर्च आणि डेअरी कपात वजा करून.
                 </p>
               </div>
             </div>

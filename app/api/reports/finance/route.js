@@ -159,6 +159,32 @@ function buildHealthExpenseTransactions(healthRecords) {
     }));
 }
 
+function buildAIExpenseTransactions(aiRecords) {
+  return (aiRecords || [])
+    .filter((record) => Number(record.cost || 0) > 0)
+    .map((record) => ({
+      id: `ai-expense-${record.id}`,
+      farm_id: record.farm_id,
+      cow_id: record.cow_id || null,
+      date: record.ai_date,
+      type: "खर्च",
+      category: "रेतन खर्च",
+      amount: Number(record.cost || 0),
+      accounting_period: ACCOUNTING_PERIOD_MONTHLY,
+      description: [
+        "कृत्रिम रेतन",
+        record.bull_breed ? `बैल जात: ${record.bull_breed}` : "",
+        record.bull_code ? `बैल कोड: ${record.bull_code}` : "",
+        record.doctor_name ? `डॉक्टर: ${record.doctor_name}` : "",
+        record.cows?.name ? `गाय: ${record.cows.name}` : ""
+      ].filter(Boolean).join(" | "),
+      cows: record.cows || null,
+      is_derived: true,
+      source: "ai_records",
+      source_record_id: record.id
+    }));
+}
+
 function buildSettlementDeductionTransactions(settlements) {
   return (settlements || []).flatMap((settlement) => {
     const period = `${settlement.period_start} ते ${settlement.period_end}`;
@@ -256,6 +282,7 @@ function buildMonthlyTrend(
   financeRecords,
   dairySlips,
   healthRecords,
+  aiRecords,
   accountingExpenses,
   settlements,
   selectedMonth,
@@ -278,6 +305,11 @@ function buildMonthlyTrend(
     const monthlyHealthExpenses = buildHealthExpenseTransactions(
       (healthRecords || []).filter(
         (record) => record.date >= monthRange.start && record.date < monthRange.end
+      )
+    );
+    const monthlyAIExpenses = buildAIExpenseTransactions(
+      (aiRecords || []).filter(
+        (record) => record.ai_date >= monthRange.start && record.ai_date < monthRange.end
       )
     );
     const monthlyAccountingExpenses = buildAccountingExpenseTransactions(
@@ -303,6 +335,7 @@ function buildMonthlyTrend(
       ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
       ...monthlyFinance,
       ...monthlyHealthExpenses,
+      ...monthlyAIExpenses,
       ...monthlyAccountingExpenses
     ];
     const stats = calculateFinanceStats(transactions);
@@ -350,6 +383,8 @@ export async function GET(request) {
       trendFinanceRecords,
       trendDairySlips,
       trendHealthRecords,
+      monthAIRecords,
+      trendAIRecords,
       trendAccountingExpenses,
       trendSettlements
     ] = await Promise.all([
@@ -418,6 +453,24 @@ export async function GET(request) {
         .order("date", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
+        .from("ai_records")
+        .select("id, farm_id, cow_id, ai_date, bull_code, bull_breed, doctor_name, cost, cows(id, name, breed)")
+        .eq("farm_id", farmId)
+        .gt("cost", 0)
+        .gte("ai_date", monthRange.start)
+        .lt("ai_date", monthRange.end)
+        .order("ai_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("ai_records")
+        .select("id, farm_id, cow_id, ai_date, bull_code, bull_breed, doctor_name, cost, cows(id, name, breed)")
+        .eq("farm_id", farmId)
+        .gt("cost", 0)
+        .gte("ai_date", oldestRange.start)
+        .lt("ai_date", monthRange.end)
+        .order("ai_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
         .from("monthly_expenses")
         .select("*")
         .eq("farm_id", farmId)
@@ -467,6 +520,14 @@ export async function GET(request) {
       throw trendHealthRecords.error;
     }
 
+    if (monthAIRecords.error) {
+      throw monthAIRecords.error;
+    }
+
+    if (trendAIRecords.error) {
+      throw trendAIRecords.error;
+    }
+
     if (trendAccountingExpenses.error) {
       throw trendAccountingExpenses.error;
     }
@@ -493,6 +554,7 @@ export async function GET(request) {
         (record) => record.date >= monthRange.start && record.date < monthRange.end
       )
     );
+    const monthlyAIExpenses = buildAIExpenseTransactions(monthAIRecords.data || []);
     const monthlyAccountingExpenses = buildAccountingExpenseTransactions(monthAccountingExpenses.data || []);
     const countedMonthlyAccountingExpenses = monthlyAccountingExpenses.filter(
       (record) => !isInfoOnlyKhadyaTransaction(record)
@@ -502,6 +564,7 @@ export async function GET(request) {
       ...(milkIncomeTransaction ? [milkIncomeTransaction] : []),
       ...countedMonthlyFinance,
       ...monthlyHealthExpenses,
+      ...monthlyAIExpenses,
       ...countedMonthlyAccountingExpenses
     ];
     const stats = calculateFinanceStats(transactions);
@@ -537,6 +600,7 @@ export async function GET(request) {
           trendFinanceRecords.data || [],
           trendDairySlips.data || [],
           trendHealthRecords.data || [],
+          trendAIRecords.data || [],
           trendAccountingExpenses.data || [],
           trendSettlements.data || [],
           monthInput.month,

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { addDaysToISODate, getCalfAgeText, getCalfLifecycleDates, getCalfMilkStatus } from "@/lib/calfLifecycle";
-import { buildCalfPayload, CALF_SELECT, insertCalfWithReminders } from "@/lib/calfServer";
+import { buildCalfPayload, CALF_SELECT, insertCalfWithReminders, syncCalfReminders } from "@/lib/calfServer";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -12,6 +13,28 @@ const allowedStatuses = new Set(["active", "historical", "sold", "dead", "conver
 const allowedGenders = new Set(["नर", "मादी"]);
 const editableTextFields = ["name", "color", "breed", "notes"];
 const editablePhotoFields = ["photo_url", "photo_storage_path"];
+
+function isFinanceCategorySchemaError(error) {
+  return error?.code === "23514" && String(error?.message || "").includes("finance_records_category_check");
+}
+
+function getSupabaseProjectRef() {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").hostname.split(".")[0];
+  } catch {
+    return "";
+  }
+}
+
+function financeCategorySchemaError() {
+  const projectRef = getSupabaseProjectRef();
+  const projectHint = projectRef ? ` Project: ${projectRef}.` : "";
+  const error = new Error(
+    `हिशोब category constraint जुना आहे.${projectHint} Supabase SQL Editor मध्ये supabase/fix_finance_records_category_check.sql पूर्ण file run करा.`
+  );
+  error.status = 409;
+  return error;
+}
 
 function cleanText(value) {
   const text = String(value || "").trim();
@@ -99,6 +122,10 @@ async function upsertSaleFinanceRecord(supabase, farmId, calf) {
       .select()
       .single();
 
+    if (isFinanceCategorySchemaError(error)) {
+      throw financeCategorySchemaError();
+    }
+
     if (error) {
       throw error;
     }
@@ -111,6 +138,10 @@ async function upsertSaleFinanceRecord(supabase, farmId, calf) {
     .insert(payload)
     .select()
     .single();
+
+  if (isFinanceCategorySchemaError(error)) {
+    throw financeCategorySchemaError();
+  }
 
   if (error) {
     throw error;
@@ -223,6 +254,10 @@ async function createCowFromConversion(supabase, farmId, calf, conversion) {
   if (aiError) {
     await supabase.from("cows").delete().eq("id", cow.id).eq("farm_id", farmId);
     throw aiError;
+  }
+
+  if (Number(aiRecord.cost || 0) > 0) {
+    await refreshSummaryForDate(supabase, farmId, aiRecord.ai_date);
   }
 
   await updateFarmCowCount(supabase, farmId);
@@ -524,8 +559,15 @@ export async function PATCH(request) {
     conversionCowIdToCleanup = null;
     conversionFarmIdToCleanup = null;
 
+    const summaryRefreshDates = new Set();
+
+    if (existingCalf.sold_date) {
+      summaryRefreshDates.add(existingCalf.sold_date);
+    }
+
     if (calf.status === "sold" && Number(calf.sale_amount || 0) > 0 && calf.sold_date) {
       const financeRecord = await upsertSaleFinanceRecord(supabase, farmId, calf);
+      summaryRefreshDates.add(calf.sold_date);
 
       if (financeRecord.id !== calf.finance_record_id) {
         const { data: calfWithFinanceRecord, error: financeLinkError } = await supabase
@@ -548,6 +590,15 @@ export async function PATCH(request) {
     } else if (existingCalf.status === "sold" && existingCalf.finance_record_id) {
       await deleteSaleFinanceRecord(supabase, farmId, existingCalf.finance_record_id);
     }
+
+    for (const date of summaryRefreshDates) {
+      await refreshSummaryForDate(supabase, farmId, date);
+    }
+
+    calf = {
+      ...calf,
+      reminders: await syncCalfReminders(supabase, calf)
+    };
 
     return NextResponse.json({ data: enrichCalf(calf) });
   } catch (error) {

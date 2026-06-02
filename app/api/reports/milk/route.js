@@ -294,13 +294,14 @@ export async function GET(request) {
       monthRange.daysInMonth
     );
 
-    const bestDay = dailyData.reduce(
+    const nonZeroDailyData = dailyData.filter((day) => Number(day.total || 0) > 0);
+    const bestDay = nonZeroDailyData.reduce(
       (best, day) => (day.total > best.total ? day : best),
-      dailyData[0]
+      nonZeroDailyData[0] || null
     );
-    const worstDay = dailyData.reduce(
+    const worstDay = nonZeroDailyData.reduce(
       (worst, day) => (day.total < worst.total ? day : worst),
-      dailyData[0]
+      nonZeroDailyData[0] || null
     );
 
     return NextResponse.json({

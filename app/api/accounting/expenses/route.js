@@ -101,7 +101,7 @@ export async function GET(request) {
 
     const range = getMonthRange(monthInput.month, monthInput.year);
     const supabase = getSupabaseServerClient();
-    const [monthlyExpenses, financeExpenses, healthExpenses, settlementDeductions] = await Promise.all([
+    const [monthlyExpenses, financeExpenses, healthExpenses, aiExpenses, settlementDeductions] = await Promise.all([
       supabase
         .from("monthly_expenses")
         .select("*")
@@ -128,6 +128,15 @@ export async function GET(request) {
         .order("date", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
+        .from("ai_records")
+        .select("id, farm_id, cow_id, ai_date, bull_code, bull_breed, doctor_name, cost, cows(id, name, breed)")
+        .eq("farm_id", farmId)
+        .gt("cost", 0)
+        .gte("ai_date", range.start)
+        .lt("ai_date", range.end)
+        .order("ai_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
         .from("dairy_settlements")
         .select("id, farm_id, settlement_date, period_start, period_end, dairy_name, cattle_feed_deduction, other_deductions")
         .eq("farm_id", farmId)
@@ -137,7 +146,7 @@ export async function GET(request) {
         .order("created_at", { ascending: false })
     ]);
 
-    const firstError = [monthlyExpenses.error, financeExpenses.error, healthExpenses.error, settlementDeductions.error].find(Boolean);
+    const firstError = [monthlyExpenses.error, financeExpenses.error, healthExpenses.error, aiExpenses.error, settlementDeductions.error].find(Boolean);
 
     if (firstError) {
       throw firstError;
@@ -146,7 +155,8 @@ export async function GET(request) {
     const expenses = combineAccountingExpenses({
       monthlyExpenses: monthlyExpenses.data || [],
       financeRecords: financeExpenses.data || [],
-      healthRecords: healthExpenses.data || []
+      healthRecords: healthExpenses.data || [],
+      aiRecords: aiExpenses.data || []
     }).concat(buildSettlementDeductionExpenses(settlementDeductions.data || []));
     const summary = summarizeExpenses(expenses);
     const infoOnlyKhadyaTotal = expenses

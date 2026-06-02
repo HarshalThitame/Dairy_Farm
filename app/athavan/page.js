@@ -25,8 +25,7 @@ const typeFilters = [
   { value: "तपासणी", label: "तपासणी" },
   { value: "दूध बंद", label: "दूध बंद" },
   { value: "वासरी दूध कमी", label: "वासरी दूध" },
-  { value: "वासरी दूध बंद", label: "वासरी दूध बंद" },
-  { value: "देयक स्लिप", label: "देयक स्लिप" }
+  { value: "वासरी दूध बंद", label: "वासरी दूध बंद" }
 ];
 
 function filterByType(reminders, typeFilter) {

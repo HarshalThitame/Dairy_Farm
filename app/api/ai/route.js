@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -104,6 +105,10 @@ export async function POST(request) {
 
     if (error) {
       throw error;
+    }
+
+    if (Number(data.cost || 0) > 0) {
+      await refreshSummaryForDate(supabase, farmId, data.ai_date);
     }
 
     return NextResponse.json({ data }, { status: 201 });

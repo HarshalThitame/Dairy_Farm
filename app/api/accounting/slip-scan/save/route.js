@@ -10,6 +10,7 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
 import { calculateSettlementNetPayable, getSettlementDeductions } from "@/lib/settlementValidation";
+import { mergeSettlementRowsWithTrustedDailySlips } from "@/lib/settlementDailySlipMerge";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,31 @@ function normalizeTime(value) {
 
   const [, hour, minute, second = "00"] = match;
   return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:${second.padStart(2, "0")}`;
+}
+
+function normalizeSessionName(value) {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (
+    value === DAIRY_SESSION_EVENING ||
+    text.includes("evening") ||
+    text.includes("sandh") ||
+    text.includes("संध्या") ||
+    text.includes("सायं")
+  ) {
+    return DAIRY_SESSION_EVENING;
+  }
+
+  if (
+    value === DAIRY_SESSION_MORNING ||
+    text.includes("morning") ||
+    text.includes("sakal") ||
+    text.includes("सकाळ")
+  ) {
+    return DAIRY_SESSION_MORNING;
+  }
+
+  return null;
 }
 
 function dairyMemberCode(data) {
@@ -232,12 +258,16 @@ function settlementSessionRows(data = {}) {
   return rows
     .map((row) => ({
       date: cleanText(row?.date || row?.slip_date),
-      session: row?.session === DAIRY_SESSION_EVENING ? DAIRY_SESSION_EVENING : DAIRY_SESSION_MORNING,
+      session: normalizeSessionName(row?.session),
       liters: numberOrNull(row?.liters ?? row?.litre),
       fat_percentage: numberOrNull(row?.fat_percentage ?? row?.fat_percent ?? row?.fat),
       snf_percentage: numberOrNull(row?.snf_percentage ?? row?.snf_percent ?? row?.snf),
       rate_per_liter: numberOrNull(row?.rate_per_liter ?? row?.rate),
-      amount: numberOrNull(row?.amount ?? row?.total_amount)
+      amount: numberOrNull(row?.amount ?? row?.total_amount),
+      source: cleanText(row?.source) || "settlement_ocr",
+      source_label: cleanText(row?.source_label),
+      trusted_daily_slip_id: cleanText(row?.trusted_daily_slip_id),
+      missing_reason: cleanText(row?.missing_reason)
     }))
     .filter((row) => row.date && row.session && row.liters !== null && row.liters > 0 && row.rate_per_liter !== null && row.rate_per_liter > 0)
     .filter((row) => {
@@ -251,7 +281,12 @@ function settlementSessionRows(data = {}) {
 }
 
 function hasUnsafeSettlementRows(data = {}) {
-  const rows = settlementSessionRows(data);
+  const rows = settlementSyncCandidateRows(data);
+
+  if (!rows.length) {
+    return false;
+  }
+
   if (rows.some((row) => Number(row.liters) > 500)) {
     return true;
   }
@@ -271,7 +306,17 @@ function hasUnsafeSettlementRows(data = {}) {
   return Array.from(signatures.values()).some((count) => count >= 5);
 }
 
+function settlementSyncCandidateRows(data = {}) {
+  return settlementSessionRows(data).filter((row) => row.source !== "daily_slip");
+}
+
 function shouldSkipSettlementRowSync(data = {}) {
+  const rows = settlementSyncCandidateRows(data);
+
+  if (!rows.length) {
+    return false;
+  }
+
   const validation = data.settlement_validation || {};
   return Boolean(
     data.ocr_requires_manual_review ||
@@ -279,6 +324,33 @@ function shouldSkipSettlementRowSync(data = {}) {
       validation.errors?.length ||
       validation.warnings?.length ||
       hasUnsafeSettlementRows(data)
+  );
+}
+
+function readRawData(value) {
+  if (!value) {
+    return {};
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function isSettlementGeneratedSlip(row = {}) {
+  const rawData = readRawData(row.ai_raw_data);
+  const notes = String(row.notes || "");
+
+  return (
+    rawData.source === "settlement_slip" ||
+    notes.includes("१५ दिवसांच्या सेटलमेंट") ||
+    notes.includes("15 दिवसांच्या सेटलमेंट")
   );
 }
 
@@ -295,40 +367,68 @@ async function upsertSettlementRowsAsDairySlips({
     return [];
   }
 
-  const rows = settlementSessionRows(data);
+  const rows = settlementSyncCandidateRows(data);
 
   if (!rows.length) {
     return [];
   }
 
+  const dates = rows.map((row) => row.date).sort();
+  const { data: existingRows, error: existingError } = await supabase
+    .from("dairy_slips")
+    .select("id, slip_date, session, notes, ai_raw_data")
+    .eq("farm_id", farmId)
+    .gte("slip_date", dates[0])
+    .lte("slip_date", dates[dates.length - 1]);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const existingByKey = new Map((existingRows || []).map((row) => [`${row.slip_date}|${row.session}`, row]));
+
   const memberCode = cleanText(data.farmer_code || data.member_number || data.dairy_member_number || data.dairy_member_code);
   const milkType = normalizeMilkType(data.animal_type || data.milk_type);
-  const payloads = rows.map((row) => ({
-    farm_id: farmId,
-    slip_date: row.date,
-    session: row.session,
-    milk_type: milkType,
-    dairy_name: cleanText(data.dairy_name),
-    dairy_member_number: memberCode,
-    dairy_member_code: memberCode,
-    liters: money(row.liters),
-    fat_percentage: row.fat_percentage,
-    snf_percentage: row.snf_percentage,
-    rate_per_liter: money(row.rate_per_liter),
-    notes: "१५ दिवसांच्या सेटलमेंट स्लिपवरून आपोआप नोंद",
-    slip_image_url: upload.compressed_image_url,
-    ai_extracted: true,
-    ai_confidence: confidence,
-    ai_model_used: modelUsed,
-    ai_raw_data: {
-      source: "settlement_slip",
-      settlement_period_start: data.period_start,
-      settlement_period_end: data.period_end,
-      row
-    },
-    ocr_timestamp: timestamp,
-    updated_at: timestamp
-  }));
+  const payloads = rows
+    .filter((row) => {
+      const existing = existingByKey.get(`${row.date}|${row.session}`);
+      return !existing || isSettlementGeneratedSlip(existing);
+    })
+    .map((row) => {
+      const existing = existingByKey.get(`${row.date}|${row.session}`);
+
+      return {
+        ...(existing?.id ? { id: existing.id } : {}),
+        farm_id: farmId,
+        slip_date: row.date,
+        session: row.session,
+        milk_type: milkType,
+        dairy_name: cleanText(data.dairy_name),
+        dairy_member_number: memberCode,
+        dairy_member_code: memberCode,
+        liters: money(row.liters),
+        fat_percentage: row.fat_percentage,
+        snf_percentage: row.snf_percentage,
+        rate_per_liter: money(row.rate_per_liter),
+        notes: "१५ दिवसांच्या सेटलमेंट स्लिपवरून आपोआप नोंद",
+        slip_image_url: upload.compressed_image_url,
+        ai_extracted: true,
+        ai_confidence: confidence,
+        ai_model_used: modelUsed,
+        ai_raw_data: {
+          source: "settlement_slip",
+          settlement_period_start: data.period_start,
+          settlement_period_end: data.period_end,
+          row
+        },
+        ocr_timestamp: timestamp,
+        updated_at: timestamp
+      };
+    });
+
+  if (!payloads.length) {
+    return [];
+  }
 
   const { data: slips, error } = await supabase
     .from("dairy_slips")
@@ -396,7 +496,7 @@ export async function POST(request) {
     }
 
     const slipType = requestedSlipType || userEdits?.slip_type || extractedData?.slip_type || upload.slip_type;
-    const data = mergeData(upload.ai_raw_response, extractedData, userEdits);
+    let data = mergeData(upload.ai_raw_response, extractedData, userEdits);
     const confidence = numberOrNull(data.confidence_after_filling ?? data.confidence_score ?? upload.ai_confidence);
     const modelUsed = upload.ai_model_used || data.ai_model_used || null;
     const timestamp = new Date().toISOString();
@@ -513,6 +613,8 @@ export async function POST(request) {
     }
 
     if (slipType === "settlement") {
+      data = await mergeSettlementRowsWithTrustedDailySlips({ supabase, farmId, data });
+
       const validationError = validateSettlement(data);
       if (validationError) {
         return NextResponse.json({ error: validationError }, { status: 400 });
@@ -601,6 +703,7 @@ export async function POST(request) {
         .update({
           extraction_status: "saved",
           linked_settlement_id: matched.settlement.id,
+          ai_raw_response: normalizedSettlementRawData,
           slip_type: "settlement",
           updated_at: timestamp
         })
@@ -615,12 +718,15 @@ export async function POST(request) {
           settlement: matched.settlement,
           savedSessionSlipsCount: savedSessionSlips.length,
           rowSyncSkipped,
+          dailySlipMerge: data.daily_slip_merge || null,
           reconciliation: matched.reconciliation,
           summary,
           message: "सेटलमेंट स्लिप जतन झाली.",
           rowSyncMessage: rowSyncSkipped
             ? "AI rows संशयास्पद असल्यामुळे सकाळ/संध्याकाळ दूध नोंदी auto-save केल्या नाहीत."
-            : "सकाळ/संध्याकाळ दूध नोंदी settlement मधून sync झाल्या."
+            : savedSessionSlips.length
+              ? "ज्या तारखेला daily slip नव्हती त्या नोंदी settlement मधून sync झाल्या."
+              : "Existing daily slip नोंदी सुरक्षित ठेवल्या. कोणतीही जुनी daily slip overwrite केली नाही."
         }
       });
     }

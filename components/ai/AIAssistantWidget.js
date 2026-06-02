@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "majhi_dairy_ai_assistant_messages";
 const AI_LOGO_SRC = "/icons/ai logo.png";
+const AI_HISTORY_STATE_KEY = "__majhiDairyAiOpen";
 const suggestedQuestions = [
   "🥛 आजचे दूध?",
   "📅 या महिन्याचे दूध?",
@@ -118,6 +119,7 @@ export default function AIAssistantWidget() {
   const [error, setError] = useState("");
   const [lastQuestion, setLastQuestion] = useState("");
   const scrollerRef = useRef(null);
+  const aiHistoryPushedRef = useRef(false);
 
   useEffect(() => {
     setMessages(readStoredMessages());
@@ -130,6 +132,23 @@ export default function AIAssistantWidget() {
       behavior: "smooth"
     });
   }, [messages, loading, open]);
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handleBackButton() {
+      aiHistoryPushedRef.current = false;
+      setOpen(false);
+    }
+
+    window.addEventListener("popstate", handleBackButton);
+
+    return () => {
+      window.removeEventListener("popstate", handleBackButton);
+    };
+  }, [open]);
 
   const visibleHistory = useMemo(
     () =>
@@ -194,6 +213,43 @@ export default function AIAssistantWidget() {
     persistMessages(next);
   }
 
+  function openAssistant() {
+    if (typeof window !== "undefined" && !open) {
+      const currentState =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+
+      if (!currentState[AI_HISTORY_STATE_KEY]) {
+        window.history.pushState(
+          {
+            ...currentState,
+            [AI_HISTORY_STATE_KEY]: true
+          },
+          "",
+          window.location.href
+        );
+        aiHistoryPushedRef.current = true;
+      }
+    }
+
+    setOpen(true);
+  }
+
+  function closeAssistant() {
+    if (
+      typeof window !== "undefined" &&
+      aiHistoryPushedRef.current &&
+      window.history.state?.[AI_HISTORY_STATE_KEY]
+    ) {
+      aiHistoryPushedRef.current = false;
+      window.history.back();
+      return;
+    }
+
+    setOpen(false);
+  }
+
   return (
     <>
       {open ? (
@@ -226,7 +282,7 @@ export default function AIAssistantWidget() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={closeAssistant}
                   className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15 text-[20px] font-extrabold shadow-sm ring-1 ring-white/10 active:bg-white/25"
                   aria-label="बंद करा"
                 >
@@ -302,7 +358,7 @@ export default function AIAssistantWidget() {
       {!open ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openAssistant}
           className="fixed bottom-24 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-white p-1.5 shadow-[0_18px_45px_rgba(15,118,110,0.35)] ring-4 ring-emerald-100 transition active:scale-95 sm:right-6"
           aria-label="AI सहाय्यक"
         >

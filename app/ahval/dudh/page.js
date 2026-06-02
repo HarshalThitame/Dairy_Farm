@@ -144,10 +144,15 @@ export default function MilkReportPage() {
     () => (report?.dailyData || []).filter((record) => withinDateRange(record, fromDate, toDate)),
     [fromDate, report?.dailyData, toDate]
   );
-  const filteredTotal = filteredRecords.reduce((sum, record) => sum + Number(record.total || 0), 0);
-  const filteredRevenue = filteredRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
   const quality = report?.qualitySummary || {};
   const session = report?.sessionSummary || {};
+  const hasDateFilter = Boolean(fromDate || toDate);
+  const filteredTotal = hasDateFilter
+    ? filteredRecords.reduce((sum, record) => sum + Number(record.total || 0), 0)
+    : Number(session.totalLitres || report?.totalLitres || 0);
+  const filteredRevenue = hasDateFilter
+    ? filteredRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0)
+    : Number(session.totalAmount || 0);
   const settlementSessionAudits = report?.settlementSessionAudits || [];
   const missingRows = settlementSessionAudits.flatMap((audit) => [
     ...(audit.missingMorning || []),
@@ -261,8 +266,20 @@ export default function MilkReportPage() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <ReadingTile label="सकाळ दूध" value={formatLitres(session.morningLitres || 0)} suffix=" लि." tone="bg-blue-50 text-blue-900" />
               <ReadingTile label="संध्याकाळ दूध" value={formatLitres(session.eveningLitres || 0)} suffix=" लि." tone="bg-indigo-50 text-indigo-900" />
-              <ReadingTile label="सकाळ रक्कम" value={formatCurrency(session.morningAmount || 0)} tone="bg-green-50 text-green-900" />
-              <ReadingTile label="संध्याकाळ रक्कम" value={formatCurrency(session.eveningAmount || 0)} tone="bg-green-50 text-green-900" />
+              {session.source === "settlement_printed_totals" ? (
+                <div className="col-span-2 rounded-lg bg-green-50 p-3 text-green-900">
+                  <p className="text-[17px] font-extrabold opacity-80">दूध रक्कम</p>
+                  <p className="mt-1 text-[22px] font-extrabold">{formatCurrency(session.totalAmount || 0)}</p>
+                  <p className="mt-1 text-[15px] font-bold">
+                    सेटलमेंटमध्ये सकाळ/संध्याकाळ रक्कम वेगळी नसल्यामुळे total दूध उत्पन्न दाखवले आहे.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <ReadingTile label="सकाळ रक्कम" value={formatCurrency(session.morningAmount || 0)} tone="bg-green-50 text-green-900" />
+                  <ReadingTile label="संध्याकाळ रक्कम" value={formatCurrency(session.eveningAmount || 0)} tone="bg-green-50 text-green-900" />
+                </>
+              )}
             </div>
           </section>
 

@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [monthlyFinanceReport, setMonthlyFinanceReport] = useState(null);
   const [previousMonthlyMilkReport, setPreviousMonthlyMilkReport] = useState(null);
   const [previousMonthlyFinanceReport, setPreviousMonthlyFinanceReport] = useState(null);
+  const [pendingSettlementSlips, setPendingSettlementSlips] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -77,6 +78,7 @@ export default function DashboardPage() {
         setCalvesSummary(snapshot.calvesSummary || null);
         setMonthlyMilkReport(snapshot.monthlyMilkReport || null);
         setMonthlyFinanceReport(snapshot.monthlyFinanceReport || null);
+        setPendingSettlementSlips(snapshot.settlementSlipStatus || null);
         setPreviousMonthlyMilkReport(previousSnapshot?.monthlyMilkReport || null);
         setPreviousMonthlyFinanceReport(previousSnapshot?.monthlyFinanceReport || null);
         return;
@@ -119,6 +121,7 @@ export default function DashboardPage() {
       setCalvesSummary(null);
       setMonthlyMilkReport(null);
       setMonthlyFinanceReport(null);
+      setPendingSettlementSlips(null);
       setPreviousMonthlyMilkReport(null);
       setPreviousMonthlyFinanceReport(null);
     } catch (fetchError) {
@@ -156,6 +159,7 @@ export default function DashboardPage() {
     Number(reminderCounts.upcoming || 0);
   const todayReminderCount = Number(reminderCounts.today || 0);
   const monthlyNetProfit = Number(monthlyFinanceReport?.netProfit || 0);
+  const pendingSettlementSlipCount = Number(pendingSettlementSlips?.pendingCount || 0);
   const monthlyExpenseTotal =
     Number(monthlyFinanceReport?.totalExpense || 0) +
     Number(monthlyFinanceReport?.deductionsCountedInProfit || monthlyFinanceReport?.totalDeductions || 0);
@@ -424,6 +428,35 @@ export default function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      {pendingSettlementSlipCount > 0 ? (
+        <Link
+          href="/accounting/pending-slips"
+          className="dashboard-card dashboard-scan block rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-green-50 p-4 shadow-soft active:bg-amber-100"
+        >
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-[30px] text-amber-900 shadow-sm">
+              📋
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[23px] font-black leading-tight text-amber-950">
+                {toMarathiNumerals(pendingSettlementSlipCount)} देयक स्लिप अपलोड बाकी
+              </p>
+              <p className="mt-1 text-[16px] font-bold leading-snug text-amber-800">
+                कोणत्या महिन्याची १५ दिवसांची स्लिप राहिली आहे ते तपासा.
+              </p>
+              {pendingSettlementSlips?.periods?.[0] ? (
+                <p className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-amber-900 shadow-sm">
+                  पहिले बाकी: {pendingSettlementSlips.periods[0].period_label}
+                </p>
+              ) : null}
+            </div>
+            <span className="shrink-0 rounded-full bg-amber-600 px-3 py-2 text-[16px] font-extrabold text-white shadow-sm">
+              उघडा →
+            </span>
+          </div>
+        </Link>
+      ) : null}
 
       <section className="dashboard-stagger grid grid-cols-2 gap-3" aria-label="सारांश">
         {summaries.map((item) => {

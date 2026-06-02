@@ -1,6 +1,6 @@
 (function () {
   const DB_NAME = "goshala-local";
-  const DB_VERSION = 4;
+  const DB_VERSION = 6;
 
   function safeJsonParse(value) {
     try {
@@ -125,6 +125,13 @@
         if (!db.objectStoreNames.contains("expenses_cache")) {
           store = db.createObjectStore("expenses_cache", { keyPath: "id" });
           store.createIndex("expense_date", "expense_date");
+          store.createIndex("farm_id", "farm_id");
+        }
+
+        if (!db.objectStoreNames.contains("finance_cache")) {
+          store = db.createObjectStore("finance_cache", { keyPath: "id" });
+          store.createIndex("date", "date");
+          store.createIndex("type", "type");
           store.createIndex("farm_id", "farm_id");
         }
 

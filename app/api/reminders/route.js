@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
-import {
-  getMissingSettlementSlipReminders,
-  SETTLEMENT_SLIP_REMINDER_TYPE
-} from "@/lib/settlementReminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +14,7 @@ const allowedReminderTypes = new Set([
   "तपासणी",
   "दूध बंद",
   "वासरी दूध कमी",
-  "वासरी दूध बंद",
-  SETTLEMENT_SLIP_REMINDER_TYPE
+  "वासरी दूध बंद"
 ]);
 
 function monthRange(month, year) {
@@ -59,40 +54,6 @@ async function applyCommonFilters(request, query, searchParams) {
   }
 
   return query;
-}
-
-function shouldIncludeSettlementSlipReminders(searchParams) {
-  const cowId = searchParams.get("cow_id");
-  const type = searchParams.get("type");
-
-  if (cowId) {
-    return false;
-  }
-
-  return !type || type === "सर्व" || type === SETTLEMENT_SLIP_REMINDER_TYPE;
-}
-
-function dynamicReminderRange(filter, searchParams, today, tomorrow, weekEnd) {
-  if (filter === "today") {
-    return { from: today, to: today };
-  }
-
-  if (filter === "tomorrow") {
-    return { from: tomorrow, to: tomorrow };
-  }
-
-  if (filter === "week") {
-    return { from: today, to: weekEnd };
-  }
-
-  if (filter === "overdue") {
-    return { from: null, to: addDaysToISODate(today, -1) };
-  }
-
-  return {
-    from: searchParams.get("from") || today,
-    to: searchParams.get("to") || weekEnd
-  };
 }
 
 function sortReminderRows(reminders) {
@@ -204,16 +165,7 @@ export async function GET(request) {
       throw error;
     }
 
-    let dynamicReminders = [];
-
-    if (shouldIncludeSettlementSlipReminders(searchParams)) {
-      dynamicReminders = await getMissingSettlementSlipReminders(supabase, farmId, {
-        today,
-        ...dynamicReminderRange(filter, searchParams, today, tomorrow, weekEnd)
-      });
-    }
-
-    return NextResponse.json({ data: sortReminderRows([...(data || []), ...dynamicReminders]) });
+    return NextResponse.json({ data: sortReminderRows(data || []) });
   } catch (error) {
     return farmErrorResponse(error);
   }

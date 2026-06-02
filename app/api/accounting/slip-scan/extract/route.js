@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { extractTextWithGoogleVision } from "@/lib/googleVisionOCR";
 import { createOcrAuditLog } from "@/lib/ocrAudit";
+import { mergeSettlementRowsWithTrustedDailySlips } from "@/lib/settlementDailySlipMerge";
 import { fillSlipGaps } from "@/lib/slipGapFilling";
 import { structureSlipImageWithGPT, structureSlipTextWithGPT } from "@/lib/slipTextExtraction";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -43,6 +44,14 @@ function getImageMediaType(storagePath = "") {
 function cachedExtractionNeedsRefresh(uploadRecord) {
   const raw = uploadRecord?.ai_raw_response;
   return raw?.slip_type === "settlement" && !raw.settlement_validation;
+}
+
+function hasJsonChanged(before, after) {
+  try {
+    return JSON.stringify(before || null) !== JSON.stringify(after || null);
+  } catch {
+    return true;
+  }
 }
 
 function getCriticalMissingFields(data = {}) {
@@ -94,9 +103,13 @@ function getVisionFallbackDecision(data = {}) {
       "total_amount",
       "total_liters",
       "total_income",
+      "total_milk_income",
       "feed_deduction",
+      "cattle_feed_deduction",
       "other_deduction",
-      "net_amount"
+      "other_deductions",
+      "net_amount",
+      "net_payable"
     ].includes(field)
   );
   const severeWarnings = warnings.filter((warning) =>
@@ -215,9 +228,34 @@ export async function POST(request) {
       uploadRecord.ai_raw_response &&
       !cachedExtractionNeedsRefresh(uploadRecord)
     ) {
-      const gapResponse = gapFillingResponse(uploadRecord.ai_raw_response);
+      let cachedUpload = uploadRecord;
+      const mergedCachedData = await mergeSettlementRowsWithTrustedDailySlips({
+        supabase,
+        farmId,
+        data: uploadRecord.ai_raw_response
+      });
+
+      if (hasJsonChanged(uploadRecord.ai_raw_response, mergedCachedData)) {
+        const { data: refreshedUpload } = await supabase
+          .from("slip_uploads")
+          .update({
+            ai_raw_response: mergedCachedData,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", uploadId)
+          .eq("farm_id", farmId)
+          .select()
+          .single();
+
+        cachedUpload = refreshedUpload || {
+          ...uploadRecord,
+          ai_raw_response: mergedCachedData
+        };
+      }
+
+      const gapResponse = gapFillingResponse(cachedUpload.ai_raw_response);
       return NextResponse.json({
-        data: extractionResponse(uploadRecord, {
+        data: extractionResponse(cachedUpload, {
           ...gapResponse,
           message: gapResponse.gap_message || "डेटा आधीच वाचला आहे. कृपया तपासा आणि जतन करा.",
           cached: true
@@ -401,7 +439,7 @@ export async function POST(request) {
       validation: result.data?.validation || null
     });
 
-    const extractedData = {
+    const baseExtractedData = {
       ...result.data,
       ocr_audit_log_id: audit?.id || null,
       fallback_attempted: fallbackMeta.attempted,
@@ -410,6 +448,11 @@ export async function POST(request) {
       direct_vision_error: fallbackMeta.error || null,
       extraction_mode: result.extractionMode || "google_vision_text"
     };
+    const extractedData = await mergeSettlementRowsWithTrustedDailySlips({
+      supabase,
+      farmId,
+      data: baseExtractedData
+    });
 
     const { data: updatedUpload, error: updateError } = await supabase
       .from("slip_uploads")

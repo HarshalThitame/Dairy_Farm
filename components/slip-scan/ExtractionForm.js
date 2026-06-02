@@ -134,6 +134,8 @@ function sessionLine(label, row) {
     return `${label}: वाचता आले नाही`;
   }
 
+  const sourceSuffix = sourceLabel(row) ? ` · ${sourceLabel(row)}` : "";
+
   const hasAnyValue = [
     row.liters,
     row.fat_percent,
@@ -147,13 +149,29 @@ function sessionLine(label, row) {
   ].some((value) => value !== null && value !== undefined && value !== "");
 
   if (!hasAnyValue) {
-    return `${label}: वाचता आले नाही`;
+    return `${label}: वाचता आले नाही${row.missing_reason ? ` · ${row.missing_reason}` : sourceSuffix}`;
   }
 
   const liters = optionalNumber(row.liters);
   const amount = optionalNumber(row.amount ?? row.total_amount);
 
-  return `${label}: ${liters === null ? "वाचता आले नाही" : `${liters.toFixed(2)} लि.`} | फॅट ${row.fat_percent ?? row.fat_percentage ?? "वाचता आले नाही"} | SNF ${row.snf_percent ?? row.snf_percentage ?? "वाचता आले नाही"} | दर ${row.rate_per_liter ?? row.rate ?? "वाचता आले नाही"} | ${amount === null ? "रक्कम वाचता आली नाही" : toMarathiCurrency(amount)}`;
+  return `${label}: ${liters === null ? "वाचता आले नाही" : `${liters.toFixed(2)} लि.`} | फॅट ${row.fat_percent ?? row.fat_percentage ?? "वाचता आले नाही"} | SNF ${row.snf_percent ?? row.snf_percentage ?? "वाचता आले नाही"} | दर ${row.rate_per_liter ?? row.rate ?? "वाचता आले नाही"} | ${amount === null ? "रक्कम वाचता आली नाही" : toMarathiCurrency(amount)}${sourceSuffix}`;
+}
+
+function sourceLabel(row) {
+  if (!row) return "";
+  if (row.source_label) return row.source_label;
+  if (row.source === "daily_slip") return "दैनिक स्लिपवरून";
+  if (row.source === "settlement_ocr") return "सेटलमेंट OCR वरून";
+  if (row.source === "missing") return "नोंद नाही";
+  return "";
+}
+
+function sourceBadgeClass(row) {
+  if (row?.source === "daily_slip") return "border-green-200 bg-green-50 text-green-800";
+  if (row?.source === "settlement_ocr") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (row?.source === "missing") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 function isMissingField(missingFields, field) {
@@ -748,8 +766,21 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
               <h2 className="text-[22px] font-extrabold text-slate-950">दैनिक तक्ता</h2>
               <p className="mt-1 text-[17px] font-bold text-slate-600">
-                AI ने {form.daily_entries.length} दिवसांच्या नोंदी वाचल्या. प्रत्येक तारीख तपासा.
+                AI ने {form.daily_entries.length} दिवसांच्या नोंदी वाचल्या. ज्या दिवशी daily slip आहे तिथे तीच माहिती वापरली आहे.
               </p>
+              {extractedData?.daily_slip_merge?.applied ? (
+                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[15px] font-extrabold text-green-900">
+                  <p>
+                    Daily slip वरून {extractedData.daily_slip_merge.trusted_daily_slip_rows || 0} session rows वापरले.
+                    सेटलमेंट OCR rows {extractedData.daily_slip_merge.settlement_ocr_rows || 0}.
+                  </p>
+                  {(extractedData.daily_slip_merge.missing_rows || []).length ? (
+                    <p className="mt-1 text-amber-800">
+                      {(extractedData.daily_slip_merge.missing_rows || []).length} session rows सापडले नाहीत; खाली reason दाखवला आहे.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <p className="text-[15px] font-extrabold text-amber-800">🌅 सकाळचे एकूण दूध</p>
@@ -800,6 +831,23 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                       <div className="mt-2 space-y-1 text-[15px] text-slate-600">
                         <p>{morning}</p>
                         <p>{evening}</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {[entry.morning, entry.evening]
+                            .filter(Boolean)
+                            .map((row, rowIndex) => {
+                              const label = sourceLabel(row);
+                              if (!label) return null;
+
+                              return (
+                                <span
+                                  key={`${entry.date || index}-${row.session || rowIndex}-source`}
+                                  className={`rounded-full border px-2 py-1 text-[12px] font-extrabold ${sourceBadgeClass(row)}`}
+                                >
+                                  {row.session || (rowIndex === 0 ? "सकाळ" : "संध्याकाळ")}: {label}
+                                </span>
+                              );
+                            })}
+                        </div>
                         {suspicious ? <p className="font-extrabold text-red-900">⚠️ हा row अवास्तव वाटतो. सेव्ह करण्यापूर्वी तपासा.</p> : null}
                       </div>
                     </div>
@@ -807,8 +855,11 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                 })}
               </div>
               <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[18px] font-extrabold text-green-900">
-                एकूण: {form.daily_entries.reduce((sum, entry) => sum + entryLiters(entry), 0).toFixed(2)} लि. ·{" "}
+                दैनिक तक्त्याची बेरीज: {form.daily_entries.reduce((sum, entry) => sum + entryLiters(entry), 0).toFixed(2)} लि. ·{" "}
                 {toMarathiCurrency(form.daily_entries.reduce((sum, entry) => sum + entryAmount(entry), 0))}
+                <p className="mt-1 text-[13px] text-green-800">
+                  Final अहवालासाठी स्लिपवरील छापील सकाळ/संध्याकाळ total आणि settlement summary वापरले जातात.
+                </p>
               </div>
             </section>
           ) : null}
