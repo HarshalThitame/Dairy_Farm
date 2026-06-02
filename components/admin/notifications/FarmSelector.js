@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getSuperAdminAuthHeader } from "@/context/SuperAdminContext";
 
 export default function FarmSelector({ value = [], onChange }) {
@@ -9,28 +9,45 @@ export default function FarmSelector({ value = [], onChange }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const response = await fetch("/api/admin/farms?limit=100&status=all&sortBy=newest", {
-          cache: "no-store",
-          headers: getSuperAdminAuthHeader()
-        });
-        const result = await response.json();
-        if (response.ok) {
-          setFarms(result.farms || []);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      async function load() {
+        try {
+          const query = new URLSearchParams({
+            limit: "100",
+            status: "all",
+            sortBy: "newest",
+            search
+          });
+          const response = await fetch(`/api/admin/farms?${query.toString()}`, {
+            cache: "no-store",
+            headers: getSuperAdminAuthHeader(),
+            signal: controller.signal
+          });
+          const result = await response.json();
+          if (response.ok) {
+            setFarms(result.farms || []);
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            setFarms([]);
+          }
+        } finally {
+          if (!controller.signal.aborted) {
+            setLoading(false);
+          }
         }
-      } finally {
-        setLoading(false);
       }
-    }
-    load();
-  }, []);
 
-  const visible = useMemo(() => {
-    const text = search.trim().toLowerCase();
-    if (!text) return farms;
-    return farms.filter((farm) => `${farm.farm_name} ${farm.owner_name} ${farm.owner_mobile} ${farm.district_name}`.toLowerCase().includes(text));
-  }, [farms, search]);
+      load();
+    }, 250);
+
+    setLoading(true);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [search]);
 
   function toggle(farmId) {
     onChange(value.includes(farmId) ? value.filter((id) => id !== farmId) : [...value, farmId]);
@@ -49,7 +66,7 @@ export default function FarmSelector({ value = [], onChange }) {
       </div>
       {loading ? <p className="text-[15px] font-bold text-slate-500">Loading farms...</p> : null}
       <div className="max-h-64 space-y-2 overflow-y-auto">
-        {visible.map((farm) => (
+        {farms.map((farm) => (
           <label key={farm.id} className="flex items-start gap-3 rounded-lg bg-white px-3 py-2 text-[15px] ring-1 ring-slate-100">
             <input type="checkbox" checked={value.includes(farm.id)} onChange={() => toggle(farm.id)} className="mt-1" />
             <span>

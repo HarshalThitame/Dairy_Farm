@@ -99,6 +99,13 @@ export async function PUT(request, { params }) {
         status: "active"
       });
       if (scheduleError) {
+        await supabase
+          .from("notifications")
+          .update({
+            status: "failed",
+            failure_reason: scheduleError.message || "Schedule creation failed."
+          })
+          .eq("id", params.id);
         throw scheduleError;
       }
     }

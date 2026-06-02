@@ -15,6 +15,17 @@ export async function POST(request) {
     }
 
     const supabase = getSupabaseServerClient();
+    const { data: existing, error: fetchError } = await supabase
+      .from("notifications")
+      .select("id, status")
+      .eq("id", notificationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!["draft", "scheduled"].includes(existing.status)) {
+      throw new Error("Only draft or scheduled notifications can be cancelled.");
+    }
+
     const { data, error } = await supabase
       .from("notifications")
       .update({ status: "cancelled" })

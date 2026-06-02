@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getSuperAdminAuthHeader } from "@/context/SuperAdminContext";
 import DistrictSelector from "@/components/admin/notifications/DistrictSelector";
 import FarmSelector from "@/components/admin/notifications/FarmSelector";
@@ -21,26 +21,43 @@ const audienceOptions = [
 function UserSelector({ value = [], onChange }) {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      const response = await fetch("/api/admin/users?role=all", {
-        cache: "no-store",
-        headers: getSuperAdminAuthHeader()
-      });
-      const result = await response.json();
-      if (response.ok) {
-        setUsers(result.users || []);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      async function load() {
+        try {
+          const query = new URLSearchParams({ role: "all", search });
+          const response = await fetch(`/api/admin/users?${query.toString()}`, {
+            cache: "no-store",
+            headers: getSuperAdminAuthHeader(),
+            signal: controller.signal
+          });
+          const result = await response.json();
+          if (response.ok) {
+            setUsers(result.users || []);
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            setUsers([]);
+          }
+        } finally {
+          if (!controller.signal.aborted) {
+            setLoading(false);
+          }
+        }
       }
-    }
-    load();
-  }, []);
 
-  const visible = useMemo(() => {
-    const text = search.trim().toLowerCase();
-    if (!text) return users;
-    return users.filter((user) => `${user.name} ${user.mobile} ${user.farms?.farm_name}`.toLowerCase().includes(text));
-  }, [search, users]);
+      load();
+    }, 250);
+
+    setLoading(true);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [search]);
 
   function toggle(userId) {
     onChange(value.includes(userId) ? value.filter((id) => id !== userId) : [...value, userId]);
@@ -52,8 +69,9 @@ function UserSelector({ value = [], onChange }) {
         <p className="text-[17px] font-extrabold text-slate-800">Selected Users ({value.length})</p>
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search users" className="min-h-[42px] rounded-lg border border-slate-300 px-3 text-[16px]" />
       </div>
+      {loading ? <p className="mb-2 text-[15px] font-bold text-slate-500">Loading users...</p> : null}
       <div className="max-h-64 space-y-2 overflow-y-auto">
-        {visible.map((user) => (
+        {users.map((user) => (
           <label key={user.id} className="flex items-start gap-3 rounded-lg bg-white px-3 py-2 text-[15px] ring-1 ring-slate-100">
             <input type="checkbox" checked={value.includes(user.id)} onChange={() => toggle(user.id)} className="mt-1" />
             <span>

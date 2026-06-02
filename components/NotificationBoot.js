@@ -65,7 +65,7 @@ export default function NotificationBoot() {
 
           next.push(notification.id);
           enqueueNotificationSpeech({
-            id: `admin:${notification.id}`,
+            id: notification.id,
             title: notification.title,
             body: notification.message,
             tag: `admin:${notification.id}`

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { cacheNotifications, getCachedNotifications, updateCachedNotification } from "@/lib/localDB";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-import { requestAndRegisterPushSubscription } from "@/lib/pushClient";
+import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
 import { supabase } from "@/lib/supabase";
 
 const typeLabels = {
@@ -113,6 +113,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pushMessage, setPushMessage] = useState("");
+  const [pushStatus, setPushStatus] = useState(null);
   const [testingPush, setTestingPush] = useState(false);
 
   const load = useCallback(async () => {
@@ -148,6 +149,42 @@ export default function NotificationsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadPushStatus = useCallback(async () => {
+    if (!pushNotificationsSupported()) {
+      setPushStatus({ supported: false, permission: "unsupported", activeSubscriptions: 0 });
+      return;
+    }
+
+    const permission = getPushPermissionState();
+    const token = getAuthToken();
+    if (!token) {
+      setPushStatus({ supported: true, permission, activeSubscriptions: 0 });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/notifications/push-status", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json().catch(() => ({}));
+      setPushStatus({
+        supported: true,
+        permission,
+        activeSubscriptions: result.activeSubscriptions || 0,
+        vapidPublicKeyConfigured: Boolean(result.vapidPublicKeyConfigured),
+        vapidPrivateKeyConfigured: Boolean(result.vapidPrivateKeyConfigured),
+        latestSubscriptionSeenAt: result.latestSubscriptionSeenAt || null
+      });
+    } catch {
+      setPushStatus({ supported: true, permission, activeSubscriptions: 0, statusError: true });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPushStatus();
+  }, [loadPushStatus]);
 
   useEffect(() => {
     const claims = getTokenClaims();
@@ -228,11 +265,22 @@ export default function NotificationsPage() {
         throw new Error(result.error || "Test notification पाठवता आली नाही.");
       }
       setPushMessage(result.message || "Test notification पाठवली.");
+      loadPushStatus();
     } catch (pushError) {
       setPushMessage(pushError.message || "Test notification मध्ये अडचण आली.");
     } finally {
       setTestingPush(false);
     }
+  }
+
+  function getPushStatusText() {
+    if (!pushStatus) return "Mobile notification स्थिती तपासत आहे...";
+    if (!pushStatus.supported) return "या browser मध्ये mobile push notification support नाही.";
+    if (pushStatus.permission === "denied") return "Notification permission blocked आहे. Browser settings मधून allow करा.";
+    if (pushStatus.permission !== "granted") return "Notification permission अजून दिलेली नाही.";
+    if (!pushStatus.vapidPublicKeyConfigured || !pushStatus.vapidPrivateKeyConfigured) return "Push keys server वर configure नाहीत.";
+    if ((pushStatus.activeSubscriptions || 0) < 1) return "Permission आहे, पण हा phone server मध्ये जोडलेला नाही. Mobile test दाबा.";
+    return `Mobile notification active आहे. जोडलेले device: ${toMarathiNumerals(pushStatus.activeSubscriptions)}`;
   }
 
   return (
@@ -255,6 +303,9 @@ export default function NotificationsPage() {
           </div>
         </div>
         {pushMessage ? <p className="mt-3 rounded-lg bg-white px-3 py-2 text-[16px] font-bold text-slate-700">{pushMessage}</p> : null}
+        <p className="mt-3 rounded-lg bg-white/80 px-3 py-2 text-[15px] font-bold text-slate-700">
+          {getPushStatusText()}
+        </p>
       </section>
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-soft sm:grid-cols-3">

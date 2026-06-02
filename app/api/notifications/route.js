@@ -41,7 +41,7 @@ export async function GET(request) {
       query = query.not("opened_at", "is", null);
     }
 
-    const { data, error, count } = await query;
+    const { data, error } = await query;
     if (error) {
       throw error;
     }
@@ -84,9 +84,9 @@ export async function GET(request) {
         unread: !row.opened_at
       })),
       unreadCount,
-      total: filteredRows.length || count || 0,
+      total: filteredRows.length,
       page,
-      pages: Math.max(1, Math.ceil((filteredRows.length || count || 0) / limit))
+      pages: Math.max(1, Math.ceil(filteredRows.length / limit))
     });
   } catch (error) {
     return farmErrorResponse(error);

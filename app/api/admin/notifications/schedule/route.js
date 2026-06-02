@@ -16,6 +16,9 @@ export async function POST(request) {
     if (!notificationId || !scheduledAt) {
       throw new Error("Notification ID and schedule time are required.");
     }
+    if (Number.isNaN(new Date(scheduledAt).getTime())) {
+      throw new Error("Schedule time is invalid.");
+    }
     if (new Date(scheduledAt).getTime() < Date.now() - 60000) {
       throw new Error("Schedule time cannot be in the past.");
     }
@@ -55,6 +58,13 @@ export async function POST(request) {
       status: "active"
     });
     if (insertScheduleError) {
+      await supabase
+        .from("notifications")
+        .update({
+          status: "failed",
+          failure_reason: insertScheduleError.message || "Schedule creation failed."
+        })
+        .eq("id", notificationId);
       throw insertScheduleError;
     }
 
