@@ -5,7 +5,7 @@ import {
   checkAndFireTodayNotifications,
   scheduleUpcomingNotifications
 } from "@/lib/notifications";
-import { requestAndRegisterPushSubscription } from "@/lib/pushClient";
+import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
 import { useSpeechNotification } from "@/hooks/useSpeechNotification";
 import { enqueueNotificationSpeech } from "@/services/notificationSpeechQueue";
 
@@ -34,11 +34,28 @@ export default function NotificationBoot() {
   useSpeechNotification({ listenForPushMessages: true });
 
   useEffect(() => {
+    let registeringPush = false;
+
     async function registerPushSubscription() {
+      if (
+        !pushNotificationsSupported() ||
+        getPushPermissionState() !== "granted" ||
+        !getAuthToken() ||
+        registeringPush
+      ) {
+        return;
+      }
+
+      registeringPush = true;
       try {
-        await requestAndRegisterPushSubscription({ requestPermission: false });
+        const result = await requestAndRegisterPushSubscription({ requestPermission: false });
+        if (!result.success) {
+          console.warn("Push subscription registration skipped:", result.status, result.message);
+        }
       } catch (error) {
         console.error("Push subscription registration failed:", error);
+      } finally {
+        registeringPush = false;
       }
     }
 
@@ -86,6 +103,8 @@ export default function NotificationBoot() {
     }
 
     refreshNotifications();
+    window.setTimeout(registerPushSubscription, 800);
+    window.setTimeout(registerPushSubscription, 5000);
 
     const intervalId = window.setInterval(refreshNotifications, 30000);
     window.addEventListener("focus", refreshNotifications);
