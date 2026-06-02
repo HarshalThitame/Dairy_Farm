@@ -33,7 +33,7 @@ export async function GET(request) {
       .eq("channel", "in_app")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false, nullsFirst: false })
-      .range(from, to);
+      .range(0, Math.min(999, Math.max(to, page * limit * 5 - 1)));
 
     if (filter === "unread") {
       query = query.is("opened_at", null);
@@ -46,7 +46,7 @@ export async function GET(request) {
       throw error;
     }
 
-    const rows = (data || [])
+    const filteredRows = (data || [])
       .filter((row) => row.notifications && row.notifications.status === "sent" && !isExpired(row.notifications))
       .filter((row) => type === "all" || row.notifications.type === type)
       .filter((row) => {
@@ -54,6 +54,7 @@ export async function GET(request) {
         const value = search.trim().toLowerCase();
         return `${row.notifications.title || ""} ${row.notifications.message || ""}`.toLowerCase().includes(value);
       });
+    const rows = filteredRows.slice(from, to + 1);
 
     const unreadResponse = await supabase
       .from("notification_delivery_logs")
@@ -83,9 +84,9 @@ export async function GET(request) {
         unread: !row.opened_at
       })),
       unreadCount,
-      total: count || 0,
+      total: filteredRows.length || count || 0,
       page,
-      pages: Math.max(1, Math.ceil((count || 0) / limit))
+      pages: Math.max(1, Math.ceil((filteredRows.length || count || 0) / limit))
     });
   } catch (error) {
     return farmErrorResponse(error);

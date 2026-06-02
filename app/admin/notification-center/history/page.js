@@ -22,6 +22,7 @@ export default function NotificationHistoryPage() {
   const [meta, setMeta] = useState({ page: 1, pages: 1, total: 0 });
   const [filters, setFilters] = useState({ status: "all", type: "all", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
 
   const query = useMemo(() => new URLSearchParams({
@@ -60,31 +61,45 @@ export default function NotificationHistoryPage() {
   }
 
   async function postAction(endpoint, body) {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
-      body: JSON.stringify(body)
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      window.alert(result.error || "Action failed");
-      return;
+    setActionId(`${endpoint}:${body.notificationId || body.id}`);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        window.alert(result.error || "Action failed");
+        return;
+      }
+      await load();
+    } catch (actionError) {
+      window.alert(actionError.message || "Action failed");
+    } finally {
+      setActionId("");
     }
-    load();
   }
 
   async function deleteNotification(id) {
     if (!window.confirm("Delete/cancel this notification?")) return;
-    const response = await fetch(`/api/admin/notifications/${id}`, {
-      method: "DELETE",
-      headers: getSuperAdminAuthHeader()
-    });
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      window.alert(result.error || "Delete failed");
-      return;
+    setActionId(`delete:${id}`);
+    try {
+      const response = await fetch(`/api/admin/notifications/${id}`, {
+        method: "DELETE",
+        headers: getSuperAdminAuthHeader()
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        window.alert(result.error || "Delete failed");
+        return;
+      }
+      await load();
+    } catch (deleteError) {
+      window.alert(deleteError.message || "Delete failed");
+    } finally {
+      setActionId("");
     }
-    load();
   }
 
   return (
@@ -161,17 +176,17 @@ export default function NotificationHistoryPage() {
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-2">
                     {row.status === "draft" ? (
-                      <button type="button" onClick={() => postAction("/api/admin/notifications/send", { notificationId: row.id })} className="rounded-lg bg-green-600 px-3 py-2 text-[14px] font-bold text-white">
-                        Send
+                      <button type="button" disabled={Boolean(actionId)} onClick={() => postAction("/api/admin/notifications/send", { notificationId: row.id })} className="rounded-lg bg-green-600 px-3 py-2 text-[14px] font-bold text-white disabled:bg-slate-300">
+                        {actionId === `/api/admin/notifications/send:${row.id}` ? "Sending..." : "Send"}
                       </button>
                     ) : null}
                     {row.status === "scheduled" ? (
-                      <button type="button" onClick={() => postAction("/api/admin/notifications/cancel", { notificationId: row.id })} className="rounded-lg bg-orange-600 px-3 py-2 text-[14px] font-bold text-white">
-                        Cancel
+                      <button type="button" disabled={Boolean(actionId)} onClick={() => postAction("/api/admin/notifications/cancel", { notificationId: row.id })} className="rounded-lg bg-orange-600 px-3 py-2 text-[14px] font-bold text-white disabled:bg-slate-300">
+                        {actionId === `/api/admin/notifications/cancel:${row.id}` ? "Cancelling..." : "Cancel"}
                       </button>
                     ) : null}
-                    <button type="button" onClick={() => deleteNotification(row.id)} className="rounded-lg bg-red-600 px-3 py-2 text-[14px] font-bold text-white">
-                      Delete
+                    <button type="button" disabled={Boolean(actionId)} onClick={() => deleteNotification(row.id)} className="rounded-lg bg-red-600 px-3 py-2 text-[14px] font-bold text-white disabled:bg-slate-300">
+                      {actionId === `delete:${row.id}` ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 </td>

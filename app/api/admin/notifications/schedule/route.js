@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { getStoredScheduleConfig } from "@/lib/notificationCenter";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +16,23 @@ export async function POST(request) {
     if (!notificationId || !scheduledAt) {
       throw new Error("Notification ID and schedule time are required.");
     }
+    if (new Date(scheduledAt).getTime() < Date.now() - 60000) {
+      throw new Error("Schedule time cannot be in the past.");
+    }
 
     const supabase = getSupabaseServerClient();
+    const { data: existing, error: fetchError } = await supabase
+      .from("notifications")
+      .select("id, status")
+      .eq("id", notificationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (["sent", "sending", "cancelled"].includes(existing.status)) {
+      throw new Error("This notification cannot be scheduled.");
+    }
+
+    const scheduleConfig = getStoredScheduleConfig(body);
     const { data, error } = await supabase
       .from("notifications")
       .update({ status: "scheduled", scheduled_at: scheduledAt })
@@ -33,8 +49,8 @@ export async function POST(request) {
 
     const { error: insertScheduleError } = await supabase.from("scheduled_notifications").insert({
       notification_id: notificationId,
-      schedule_type: body.scheduleType || "once",
-      cron_expression: body.cronExpression || null,
+      schedule_type: scheduleConfig.schedule_type,
+      cron_expression: scheduleConfig.cron_expression,
       next_run_at: scheduledAt,
       status: "active"
     });

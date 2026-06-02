@@ -99,6 +99,10 @@ export async function DELETE(request, { params }) {
       .from("notification_delivery_logs")
       .update({ deleted_at: new Date().toISOString(), delivery_status: "deleted" })
       .eq("id", log.id);
+
+    const { refreshNotificationStats } = await import("@/lib/notificationCenter");
+    await refreshNotificationStats(supabase, params.id);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return farmErrorResponse(error);

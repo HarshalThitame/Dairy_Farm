@@ -36,6 +36,10 @@ export async function POST(request) {
         })),
         { onConflict: "notification_id,user_id" }
       );
+
+      const { refreshNotificationStats } = await import("@/lib/notificationCenter");
+      const notificationIds = [...new Set(logs.map((log) => log.notification_id).filter(Boolean))];
+      await Promise.all(notificationIds.map((notificationId) => refreshNotificationStats(supabase, notificationId)));
     }
 
     return NextResponse.json({ success: true, marked: (logs || []).length });

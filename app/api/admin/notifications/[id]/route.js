@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
-import { normalizeNotificationPayload } from "@/lib/notificationCenter";
+import { getStoredScheduleConfig, normalizeNotificationPayload } from "@/lib/notificationCenter";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,7 +57,7 @@ export async function PUT(request, { params }) {
       throw new Error("Sent notification cannot be edited.");
     }
 
-    const status = payload.saveAsDraft ? "draft" : payload.scheduleType === "later" || payload.scheduleType === "recurring" ? "scheduled" : existing.status;
+    const status = payload.saveAsDraft ? "draft" : payload.scheduleType === "later" || payload.scheduleType === "recurring" ? "scheduled" : "draft";
     const { data, error } = await supabase
       .from("notifications")
       .update({
@@ -90,10 +90,11 @@ export async function PUT(request, { params }) {
 
     await supabase.from("scheduled_notifications").delete().eq("notification_id", params.id);
     if (status === "scheduled") {
+      const scheduleConfig = getStoredScheduleConfig(payload);
       const { error: scheduleError } = await supabase.from("scheduled_notifications").insert({
         notification_id: params.id,
-        schedule_type: payload.scheduleType === "recurring" ? payload.recurrence || "daily" : "once",
-        cron_expression: payload.cronExpression,
+        schedule_type: scheduleConfig.schedule_type,
+        cron_expression: scheduleConfig.cron_expression,
         next_run_at: payload.scheduled_at,
         status: "active"
       });

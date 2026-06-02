@@ -291,12 +291,15 @@
   self.addEventListener("notificationclick", function (event) {
     event.notification.close();
     const targetUrl = event.notification.data?.url || "/";
+    const absoluteTargetUrl = new URL(targetUrl, self.location.origin).href;
 
     event.waitUntil(
       self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsList) => {
         const openClient = clientsList.find((client) => client.url.includes(self.location.origin));
         if (openClient) {
-          openClient.focus();
+          const focusOrNavigate = openClient.navigate && openClient.url !== absoluteTargetUrl
+            ? openClient.navigate(absoluteTargetUrl).then((client) => client?.focus())
+            : openClient.focus();
           openClient.postMessage({
             type: "MAJHI_DAIRY_PUSH_NOTIFICATION",
             notification: {
@@ -306,10 +309,10 @@
               tag: event.notification.tag
             }
           });
-          return;
+          return focusOrNavigate;
         }
 
-        return self.clients.openWindow(targetUrl);
+        return self.clients.openWindow(absoluteTargetUrl);
       })
     );
   });
