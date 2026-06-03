@@ -30,8 +30,10 @@ export async function GET(request) {
     }
 
     if (search.trim()) {
-      const value = search.trim().replaceAll("%", "");
-      query = query.or(`name.ilike.%${value}%,mobile.ilike.%${value}%`);
+      const value = search.trim().replace(/[%,()]/g, "");
+      if (value) {
+        query = query.or(`name.ilike.%${value}%,mobile.ilike.%${value}%`);
+      }
     }
 
     const { data, error } = await query.limit(300);

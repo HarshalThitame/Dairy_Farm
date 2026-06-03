@@ -44,7 +44,15 @@ const defaultForm = {
 
 function joinDateTime(date, time) {
   if (!date) return null;
-  return `${date}T${time || "09:00"}:00`;
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = String(time || "09:00").split(":").map(Number);
+  return new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0).toISOString();
+}
+
+function joinEndOfDate(date) {
+  if (!date) return null;
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
 }
 
 export default function NotificationForm({ initialForm }) {
@@ -83,7 +91,7 @@ export default function NotificationForm({ initialForm }) {
     scheduledAt: form.scheduleType === "now" ? null : joinDateTime(form.scheduleDate, form.scheduleTime),
     recurrence: form.recurrence,
     cronExpression: form.cronExpression,
-    expiresAt: form.expiryDate ? `${form.expiryDate}T23:59:59` : null,
+    expiresAt: joinEndOfDate(form.expiryDate),
     actionText: form.actionText,
     actionUrl: form.actionUrl,
     imageUrl: form.imageUrl,

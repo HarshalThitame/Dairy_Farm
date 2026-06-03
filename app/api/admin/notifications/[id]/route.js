@@ -53,8 +53,10 @@ export async function PUT(request, { params }) {
     if (fetchError) {
       throw fetchError;
     }
-    if (existing.status === "sent") {
-      throw new Error("Sent notification cannot be edited.");
+    if (["sent", "sending", "cancelled"].includes(existing.status)) {
+      const error = new Error("This notification cannot be edited.");
+      error.status = 400;
+      throw error;
     }
 
     const status = payload.saveAsDraft ? "draft" : payload.scheduleType === "later" || payload.scheduleType === "recurring" ? "scheduled" : "draft";

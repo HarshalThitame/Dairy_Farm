@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { checkGoalAchievementsForFarm } from "@/lib/goalTracking";
 import { pickMilkFields } from "@/lib/milkRecordFields";
 import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getTodayISODate } from "@/lib/reminderUtils";
@@ -64,7 +65,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "तारीख आवश्यक आहे." }, { status: 400 });
     }
 
-    const { farmId } = await verifyFarmAccess(request);
+    const { farmId, userId } = await verifyFarmAccess(request);
     const payload = {
       ...pickMilkFields(body),
       cow_id: null,
@@ -101,6 +102,7 @@ export async function POST(request) {
 
     await syncMilkRecordToDairySlips(supabase, farmId, data);
     await refreshSummaryForDate(supabase, farmId, data.date);
+    await checkGoalAchievementsForFarm(supabase, farmId, userId);
 
     return NextResponse.json({ data }, { status: existingRecord?.id ? 200 : 201 });
   } catch (error) {

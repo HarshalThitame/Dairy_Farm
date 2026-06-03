@@ -31,8 +31,10 @@ function applyFilters(query, params) {
   }
 
   if (search.trim()) {
-    const value = search.trim().replaceAll("%", "");
-    query = query.or(`farm_name.ilike.%${value}%,owner_name.ilike.%${value}%,owner_mobile.ilike.%${value}%`);
+    const value = search.trim().replace(/[%,()]/g, "");
+    if (value) {
+      query = query.or(`farm_name.ilike.%${value}%,owner_name.ilike.%${value}%,owner_mobile.ilike.%${value}%`);
+    }
   }
 
   return query;
@@ -43,8 +45,10 @@ export async function GET(request) {
     await verifySuperAdmin(request);
     const { searchParams } = new URL(request.url);
     const exportCsv = searchParams.get("export") === "csv";
-    const page = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || 50)));
+    const rawPage = Number.parseInt(searchParams.get("page") || "1", 10);
+    const rawLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+    const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 50;
     const sort = sortMap[searchParams.get("sortBy") || "newest"] || sortMap.newest;
     const supabase = getSupabaseServerClient();
 

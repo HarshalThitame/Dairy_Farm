@@ -29,6 +29,8 @@ export async function GET(request) {
       user: normalizeUser({
         ...auth.user,
         farm_id: auth.farmId,
+        profile_photo_url: auth.user.profilePhotoUrl,
+        profile_photo_storage_path: auth.user.profilePhotoStoragePath,
         is_farm_owner: auth.user.isFarmOwner
       }),
       farm: normalizeFarm(farm)

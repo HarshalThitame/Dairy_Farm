@@ -21,7 +21,9 @@ async function fetchType(supabase, farmId, type) {
   if (type === "users") {
     return supabase.from("users").select("id, mobile, name, role, is_active, is_farm_owner, last_login").eq("farm_id", farmId);
   }
-  return { data: null, error: new Error("Invalid data type") };
+  const error = new Error("Invalid data type");
+  error.status = 400;
+  return { data: null, error };
 }
 
 export async function GET(request, { params }) {
@@ -49,6 +51,18 @@ export async function GET(request, { params }) {
         fetchType(supabase, params.id, "health"),
         fetchType(supabase, params.id, "users")
       ]);
+      const failed = [
+        ["cows", cows.error],
+        ["milk", milk.error],
+        ["ai", ai.error],
+        ["health", health.error],
+        ["users", users.error]
+      ].find(([, error]) => error);
+      if (failed) {
+        const error = new Error(`${failed[0]} data load failed: ${failed[1].message}`);
+        error.status = failed[1].status || 500;
+        throw error;
+      }
       await logAdminAction(request, adminId, "viewed_data", params.id, { type });
       return NextResponse.json({
         cows: cows.data || [],

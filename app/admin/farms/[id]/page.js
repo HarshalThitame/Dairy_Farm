@@ -8,6 +8,24 @@ import { getSuperAdminAuthHeader } from "@/context/SuperAdminContext";
 
 const tabs = ["overview", "data", "users", "activity", "notes"];
 
+function dateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function buildSubscriptionForm(farm = {}) {
+  return {
+    subscription_status: farm.subscription_status || "trial",
+    trial_ends_at: dateInputValue(farm.trial_ends_at),
+    subscription_started_at: dateInputValue(farm.subscription_started_at),
+    subscription_ends_at: dateInputValue(farm.subscription_ends_at),
+    is_active: farm.is_active !== false,
+    suspended_reason: farm.suspended_reason || ""
+  };
+}
+
 export default function AdminFarmDetailPage({ params }) {
   const [data, setData] = useState(null);
   const [farmData, setFarmData] = useState(null);
@@ -16,6 +34,7 @@ export default function AdminFarmDetailPage({ params }) {
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
   const [notes, setNotes] = useState("");
+  const [subscriptionForm, setSubscriptionForm] = useState(buildSubscriptionForm());
   const [error, setError] = useState("");
 
   const loadFarm = useCallback(async () => {
@@ -30,6 +49,7 @@ export default function AdminFarmDetailPage({ params }) {
       if (!response.ok) throw new Error(result.error || "Failed to load farm");
       setData(result);
       setNotes(result.farm?.admin_notes || "");
+      setSubscriptionForm(buildSubscriptionForm(result.farm || {}));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -112,6 +132,18 @@ export default function AdminFarmDetailPage({ params }) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveSubscriptionControl() {
+    const statusText = subscriptionForm.is_active ? subscriptionForm.subscription_status : "suspended";
+    if (!window.confirm(`${farm.farm_name} साठी subscription status "${statusText}" set करायचा आहे का? User ला notification जाईल.`)) {
+      return;
+    }
+    await patchFarm("update_subscription", subscriptionForm);
+  }
+
+  function updateSubscriptionForm(key, value) {
+    setSubscriptionForm((current) => ({ ...current, [key]: value }));
   }
 
   async function resetPin(user) {
@@ -210,6 +242,94 @@ export default function AdminFarmDetailPage({ params }) {
               ["Suspended reason", farm.suspended_reason || "-"],
               ["Created", farm.created_at ? new Date(farm.created_at).toLocaleString() : "-"]
             ]} />
+          </section>
+
+          <section className="rounded-xl border border-green-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[24px] font-extrabold text-slate-950">Subscription Control</h2>
+                <p className="mt-1 text-[16px] font-semibold text-slate-500">
+                  Trial कमी/जास्त करा, subscription dates बदला, किंवा account active/suspended करा.
+                </p>
+              </div>
+              <span className="rounded-full bg-green-50 px-3 py-1 text-[14px] font-extrabold text-green-800">
+                Full admin control
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <label className="grid gap-2 text-[16px] font-bold text-slate-700">
+                Subscription Status
+                <select
+                  value={subscriptionForm.subscription_status}
+                  onChange={(event) => updateSubscriptionForm("subscription_status", event.target.value)}
+                  className="min-h-[52px] rounded-lg border border-slate-300 px-4 text-[17px]"
+                >
+                  <option value="trial">Trial</option>
+                  <option value="active">Active</option>
+                  <option value="expired">Expired</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-[16px] font-bold text-slate-700">
+                Trial Ends
+                <input
+                  type="date"
+                  value={subscriptionForm.trial_ends_at}
+                  onChange={(event) => updateSubscriptionForm("trial_ends_at", event.target.value)}
+                  className="min-h-[52px] rounded-lg border border-slate-300 px-4 text-[17px]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-[16px] font-bold text-slate-700">
+                Subscription Starts
+                <input
+                  type="date"
+                  value={subscriptionForm.subscription_started_at}
+                  onChange={(event) => updateSubscriptionForm("subscription_started_at", event.target.value)}
+                  className="min-h-[52px] rounded-lg border border-slate-300 px-4 text-[17px]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-[16px] font-bold text-slate-700">
+                Subscription Ends
+                <input
+                  type="date"
+                  value={subscriptionForm.subscription_ends_at}
+                  onChange={(event) => updateSubscriptionForm("subscription_ends_at", event.target.value)}
+                  className="min-h-[52px] rounded-lg border border-slate-300 px-4 text-[17px]"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-[220px_1fr_auto]">
+              <label className="flex min-h-[52px] items-center gap-3 rounded-lg border border-slate-300 px-4 text-[17px] font-extrabold text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={subscriptionForm.is_active}
+                  onChange={(event) => updateSubscriptionForm("is_active", event.target.checked)}
+                  className="h-5 w-5"
+                />
+                Account Active
+              </label>
+
+              <input
+                value={subscriptionForm.suspended_reason}
+                onChange={(event) => updateSubscriptionForm("suspended_reason", event.target.value)}
+                placeholder="Suspension reason, जर account inactive केला असेल"
+                className="min-h-[52px] rounded-lg border border-slate-300 px-4 text-[17px]"
+              />
+
+              <button
+                type="button"
+                onClick={saveSubscriptionControl}
+                disabled={saving}
+                className="min-h-[52px] rounded-lg bg-green-600 px-5 text-[17px] font-extrabold text-white disabled:bg-slate-300"
+              >
+                {actionLoading === "update_subscription" ? "Saving..." : "Save Subscription"}
+              </button>
+            </div>
           </section>
         </div>
       ) : null}

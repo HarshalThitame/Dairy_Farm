@@ -25,6 +25,7 @@ const editableFarmFields = [
   "vet_name",
   "vet_mobile",
   "subscription_status",
+  "trial_ends_at",
   "subscription_started_at",
   "subscription_ends_at",
   "total_cows",
@@ -35,6 +36,118 @@ const editableFarmFields = [
   "low_milk_alert_litres",
   "admin_notes"
 ];
+const allowedSubscriptionStatuses = new Set(["trial", "active", "expired", "cancelled"]);
+
+function parsePositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeFarmUpdatePayload(payload) {
+  const next = { ...payload };
+
+  if (next.subscription_status !== undefined && !allowedSubscriptionStatuses.has(String(next.subscription_status))) {
+    const error = new Error("Invalid subscription status.");
+    error.status = 400;
+    throw error;
+  }
+
+  for (const field of ["total_cows", "milk_rate_default", "low_milk_alert_litres"]) {
+    if (next[field] !== undefined && next[field] !== null && next[field] !== "") {
+      const numberValue = Number(next[field]);
+      if (!Number.isFinite(numberValue) || numberValue < 0) {
+        const error = new Error(`${field} must be a valid positive number.`);
+        error.status = 400;
+        throw error;
+      }
+      next[field] = numberValue;
+    }
+  }
+
+  for (const field of ["trial_ends_at", "subscription_started_at", "subscription_ends_at"]) {
+    if (next[field] !== undefined) {
+      next[field] = normalizeDateTime(next[field], field, field !== "subscription_started_at");
+    }
+  }
+
+  return next;
+}
+
+function normalizeDateTime(value, field, endOfDay = false) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const text = String(value).trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text)
+    ? new Date(`${text}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}+05:30`)
+    : new Date(text);
+
+  if (Number.isNaN(date.getTime())) {
+    const error = new Error(`${field} must be a valid date.`);
+    error.status = 400;
+    throw error;
+  }
+
+  return date.toISOString();
+}
+
+function normalizeBoolean(value, fallback = true) {
+  if (value === true || value === "true" || value === "1") return true;
+  if (value === false || value === "false" || value === "0") return false;
+  return fallback;
+}
+
+function buildSubscriptionPayload(body = {}) {
+  const status = String(body.subscription_status || body.subscriptionStatus || "").trim();
+
+  if (!allowedSubscriptionStatuses.has(status)) {
+    const error = new Error("Invalid subscription status.");
+    error.status = 400;
+    throw error;
+  }
+
+  const payload = {
+    is_active: normalizeBoolean(body.is_active ?? body.isActive, true),
+    subscription_status: status,
+    trial_ends_at: normalizeDateTime(body.trial_ends_at ?? body.trialEndsAt, "trial_ends_at", true),
+    subscription_started_at: normalizeDateTime(body.subscription_started_at ?? body.subscriptionStartedAt, "subscription_started_at", false),
+    subscription_ends_at: normalizeDateTime(body.subscription_ends_at ?? body.subscriptionEndsAt, "subscription_ends_at", true),
+    updated_at: new Date().toISOString()
+  };
+
+  if (payload.subscription_started_at && payload.subscription_ends_at) {
+    const start = new Date(payload.subscription_started_at).getTime();
+    const end = new Date(payload.subscription_ends_at).getTime();
+    if (end < start) {
+      const error = new Error("Subscription end date must be after start date.");
+      error.status = 400;
+      throw error;
+    }
+  }
+
+  if (payload.subscription_status === "trial" && !payload.trial_ends_at) {
+    const error = new Error("Trial end date is required for trial status.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (payload.subscription_status === "active" && !payload.subscription_ends_at) {
+    const error = new Error("Subscription end date is required for active status.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (!payload.is_active) {
+    payload.suspended_reason = String(body.suspended_reason || body.reason || "Subscription controlled by admin").trim();
+    payload.suspended_at = new Date().toISOString();
+  } else {
+    payload.suspended_reason = null;
+    payload.suspended_at = null;
+  }
+
+  return payload;
+}
 
 async function countRows(supabase, table, farmId) {
   const { count, error } = await supabase
@@ -170,6 +283,24 @@ function buildFarmActionNotification(action, farm, context = {}) {
     };
   }
 
+  if (action === "update_subscription") {
+    const statusLabel = {
+      trial: "Trial",
+      active: "Subscription",
+      expired: "Subscription",
+      cancelled: "Subscription"
+    }[farm.subscription_status] || "Subscription";
+
+    return {
+      type: farm.is_active ? "subscription_reminder" : "critical",
+      priority: "high",
+      title: "Subscription माहिती अपडेट झाली",
+      message: `${farmName} चे ${statusLabel} तपशील admin ने update केले आहेत. Status: ${farm.is_active ? farm.subscription_status : "suspended"}. Trial शेवट: ${formatDateForMessage(farm.trial_ends_at) || "-"}. Subscription शेवट: ${formatDateForMessage(farm.subscription_ends_at) || "-"}.`,
+      actionText: "तपशील बघा",
+      actionUrl: "/profile"
+    };
+  }
+
   return null;
 }
 
@@ -218,7 +349,7 @@ export async function PUT(request, { params }) {
   try {
     const { adminId } = await verifySuperAdmin(request);
     const body = await request.json();
-    const payload = editableFarmFields.reduce((current, field) => {
+    let payload = editableFarmFields.reduce((current, field) => {
       if (body[field] !== undefined) {
         current[field] = body[field];
       }
@@ -229,6 +360,7 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
+    payload = normalizeFarmUpdatePayload(payload);
     payload.updated_at = new Date().toISOString();
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
@@ -272,7 +404,7 @@ export async function PATCH(request, { params }) {
         updated_at: new Date().toISOString()
       };
     } else if (action === "extend_trial") {
-      const days = Math.max(1, Number(body.days || 30));
+      const days = parsePositiveInteger(body.days, 30);
       const { data: farm, error: farmError } = await supabase
         .from("farms")
         .select("trial_ends_at")
@@ -300,6 +432,8 @@ export async function PATCH(request, { params }) {
         subscription_ends_at: ends.toISOString(),
         updated_at: new Date().toISOString()
       };
+    } else if (action === "update_subscription") {
+      payload = buildSubscriptionPayload(body);
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }

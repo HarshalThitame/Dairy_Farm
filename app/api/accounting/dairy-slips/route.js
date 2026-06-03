@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { checkGoalAchievementsForFarm } from "@/lib/goalTracking";
 import {
   DAIRY_SESSION_EVENING,
   DAIRY_SESSION_MORNING,
@@ -190,7 +191,7 @@ export async function POST(request) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const { farmId } = await verifyFarmAccess(request);
+    const { farmId, userId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const farmInfo = await getFarmDairyInfo(supabase, farmId);
     const payload = {
@@ -227,6 +228,7 @@ export async function POST(request) {
 
     await recomputeMilkRecordFromDairySlips(supabase, farmId, data.slip_date);
     const summary = await refreshSummaryForDate(supabase, farmId, data.slip_date);
+    await checkGoalAchievementsForFarm(supabase, farmId, userId);
 
     return NextResponse.json({ data: { success: true, slip: data, summary } }, { status: 201 });
   } catch (error) {

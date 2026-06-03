@@ -408,3 +408,94 @@ input::placeholder {
     transform: none;
   }
 }
+
+html.majhi-font-small body {
+  font-size: 16px;
+}
+
+html.majhi-font-large body {
+  font-size: 20px;
+}
+
+html.majhi-compact .app-shell {
+  padding-top: 0.75rem;
+}
+
+html.majhi-compact .app-shell :where(.rounded-xl, .rounded-lg) {
+  border-radius: 0.75rem;
+}
+
+html.majhi-compact .app-shell :where(section, article, form, header) {
+  --tw-space-y-reverse: 0;
+}
+
+html.majhi-large-touch .app-shell :where(button, a, input, select, textarea) {
+  min-height: max(48px, var(--majhi-touch-size, 0px));
+}
+
+html.majhi-high-contrast body {
+  color: #020617;
+}
+
+html.majhi-high-contrast .app-shell :where(input, select, textarea) {
+  border-color: #0f172a;
+}
+
+html.majhi-high-contrast .app-shell :where(.text-slate-500, .text-slate-600) {
+  color: #334155;
+}
+
+html.majhi-theme-dark {
+  color-scheme: dark;
+  background: #020617;
+}
+
+html.majhi-theme-dark body {
+  background:
+    linear-gradient(180deg, rgba(22, 163, 74, 0.12) 0%, rgba(2, 6, 23, 0) 18rem),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    #020617;
+  color: #e2e8f0;
+}
+
+html.majhi-theme-dark .app-shell::before {
+  background:
+    linear-gradient(135deg, rgba(22, 163, 74, 0.16), transparent 34%),
+    linear-gradient(225deg, rgba(14, 165, 233, 0.12), transparent 30%);
+}
+
+html.majhi-theme-dark .app-shell :where(.bg-white, .bg-white\/90, .bg-white\/95, .bg-white\/80, .bg-white\/70) {
+  background-color: rgba(15, 23, 42, 0.9);
+}
+
+html.majhi-theme-dark .app-shell :where(.bg-slate-50, .bg-green-50, .bg-yellow-50, .bg-blue-50, .bg-sky-50, .bg-purple-50) {
+  background-color: rgba(30, 41, 59, 0.82);
+}
+
+html.majhi-theme-dark .app-shell :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700) {
+  color: #f8fafc;
+}
+
+html.majhi-theme-dark .app-shell :where(.text-slate-600, .text-slate-500) {
+  color: #cbd5e1;
+}
+
+html.majhi-theme-dark .app-shell :where(input, select, textarea) {
+  background-color: rgba(15, 23, 42, 0.95);
+  border-color: rgba(148, 163, 184, 0.42);
+  color: #f8fafc;
+}
+
+html.majhi-theme-dark .app-shell :where(.border-slate-100, .border-slate-200, .border-white\/80, .border-white\/70) {
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+html.majhi-reduce-motion *,
+html.majhi-reduce-motion *::before,
+html.majhi-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}

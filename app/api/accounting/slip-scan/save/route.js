@@ -7,6 +7,7 @@ import {
   refreshSummaryForDate
 } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { checkGoalAchievementsForFarm } from "@/lib/goalTracking";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
 import { calculateSettlementNetPayable, getSettlementDeductions } from "@/lib/settlementValidation";
@@ -480,7 +481,7 @@ async function getMilkRecordByDate(supabase, farmId, date) {
 
 export async function POST(request) {
   try {
-    const { farmId } = await verifyFarmAccess(request);
+    const { farmId, userId } = await verifyFarmAccess(request);
     const body = await request.json();
     const { uploadId, slip_type: requestedSlipType, extractedData, userEdits } = body;
 
@@ -585,6 +586,7 @@ export async function POST(request) {
       }
 
       const summary = await refreshSummaryForDate(supabase, farmId, slip.slip_date);
+      await checkGoalAchievementsForFarm(supabase, farmId, userId);
       await supabase
         .from("slip_uploads")
         .update({
@@ -698,6 +700,7 @@ export async function POST(request) {
       });
       const matched = await matchSettlementToSlips(supabase, farmId, settlement);
       const summary = await refreshSettlementSummaries(supabase, farmId, settlement);
+      await checkGoalAchievementsForFarm(supabase, farmId, userId);
       await supabase
         .from("slip_uploads")
         .update({

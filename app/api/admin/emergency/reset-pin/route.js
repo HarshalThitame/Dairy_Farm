@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
+import { logAdminAction, maskMobile, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +43,7 @@ export async function POST(request) {
     await logAdminAction(request, adminId, "reset_user_pin", user.farm_id, {
       userId,
       userName: user.name,
-      mobile: user.mobile
+      mobile_masked: maskMobile(user.mobile)
     });
 
     return NextResponse.json({ success: true, newPin });

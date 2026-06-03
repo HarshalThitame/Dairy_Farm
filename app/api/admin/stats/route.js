@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   logAdminAction,
+  maskMobile,
   superAdminErrorResponse,
   verifySuperAdmin
 } from "@/lib/superAdminGuard";
@@ -40,6 +41,7 @@ async function getDashboardStats(supabase) {
     totalUsers,
     totalMilkRecords,
     newSignupsToday,
+    allFarmsResult,
     farmsResult,
     recentResult,
     expiringResult,
@@ -48,10 +50,11 @@ async function getDashboardStats(supabase) {
   ] = await Promise.all([
     countRows(supabase, "farms"),
     countRows(supabase, "farms", (query) => query.eq("is_active", true).eq("subscription_status", "active")),
-    countRows(supabase, "farms", (query) => query.eq("subscription_status", "trial")),
+    countRows(supabase, "farms", (query) => query.eq("is_active", true).eq("subscription_status", "trial")),
     countRows(supabase, "users"),
     countRows(supabase, "milk_records"),
     countRows(supabase, "farms", (query) => query.gte("created_at", `${today}T00:00:00.000Z`)),
+    supabase.from("farms").select("id, total_cows, is_active, created_at"),
     supabase.from("farms").select("id, total_cows, created_at, is_active, subscription_status").gte("created_at", last30),
     supabase
       .from("farms")
@@ -70,7 +73,7 @@ async function getDashboardStats(supabase) {
       .from("farms")
       .select("id, farm_name, owner_name, last_activity_at")
       .eq("is_active", true)
-      .lt("last_activity_at", isoDaysAgo(14))
+      .or(`last_activity_at.is.null,last_activity_at.lt.${isoDaysAgo(14)}`)
       .order("last_activity_at", { ascending: true })
       .limit(10),
     supabase
@@ -81,8 +84,12 @@ async function getDashboardStats(supabase) {
       .limit(10)
   ]);
 
+  if (allFarmsResult.error) throw allFarmsResult.error;
+  const allFarms = allFarmsResult.data || [];
   const farms = farmsResult.data || [];
-  const totalCows = farms.reduce((sum, farm) => sum + Number(farm.total_cows || 0), 0);
+  const totalCows = allFarms
+    .filter((farm) => farm.is_active)
+    .reduce((sum, farm) => sum + Number(farm.total_cows || 0), 0);
   const dailyMap = new Map();
 
   for (let index = 29; index >= 0; index -= 1) {
@@ -98,10 +105,17 @@ async function getDashboardStats(supabase) {
     }
   });
 
-  const activity = Array.from(dailyMap.values()).map((item, index) => ({
-    ...item,
-    active: Math.max(0, activeSubscriptions - (29 - index))
-  }));
+  const activity = Array.from(dailyMap.entries()).map(([key, item]) => {
+    const dayEnd = new Date(`${key}T23:59:59.999Z`).getTime();
+    return {
+      ...item,
+      active: allFarms.filter((farm) => (
+        farm.is_active &&
+        farm.created_at &&
+        new Date(farm.created_at).getTime() <= dayEnd
+      )).length
+    };
+  });
 
   return {
     stats: {
@@ -113,7 +127,10 @@ async function getDashboardStats(supabase) {
       totalMilkRecords,
       newSignupsToday
     },
-    recentSignups: recentResult.data || [],
+    recentSignups: (recentResult.data || []).map((farm) => ({
+      ...farm,
+      owner_mobile_masked: maskMobile(farm.owner_mobile)
+    })),
     activity,
     alerts: {
       expiringTrials: expiringResult.data || [],

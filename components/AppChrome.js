@@ -12,6 +12,7 @@ import TopHeader from "@/components/TopHeader";
 
 const InstallBanner = dynamic(() => import("@/components/InstallBanner"), { ssr: false });
 const NotificationBoot = dynamic(() => import("@/components/NotificationBoot"), { ssr: false });
+const AppearanceBoot = dynamic(() => import("@/components/settings/AppearanceBoot"), { ssr: false });
 const AIAssistantWidget = dynamic(() => import("@/components/ai/AIAssistantWidget"), { ssr: false });
 
 function isAdminRoute(pathname) {
@@ -44,6 +45,7 @@ export default function AppChrome({ children }) {
         </AuthRequired>
       </main>
       <AppFooter />
+      <AppearanceBoot />
       <NotificationBoot />
       <InstallBanner />
       <ToastContainer />

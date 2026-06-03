@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { logUserSettingsAction } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ function validPin(pin) {
 
 export async function PATCH(request) {
   try {
-    const { userId } = await verifyFarmAccess(request);
+    const { userId, farmId } = await verifyFarmAccess(request);
     const body = await request.json();
     const currentPin = String(body.currentPin || "");
     const newPin = String(body.newPin || "");
@@ -73,6 +74,8 @@ export async function PATCH(request) {
     if (error) {
       throw error;
     }
+
+    await logUserSettingsAction(supabase, request, userId, farmId, "pin_changed");
 
     return NextResponse.json({
       success: true,

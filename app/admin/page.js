@@ -117,7 +117,7 @@ export default function SuperAdminDashboard() {
                 <tr key={farm.id}>
                   <td className="px-4 py-4 font-extrabold">{farm.farm_name}</td>
                   <td className="px-4 py-4">{farm.owner_name}</td>
-                  <td className="px-4 py-4">{farm.owner_mobile}</td>
+                  <td className="px-4 py-4">{farm.owner_mobile_masked || farm.owner_mobile}</td>
                   <td className="px-4 py-4">{farm.district_name || "-"}</td>
                   <td className="px-4 py-4">{farm.total_cows || 0}</td>
                   <td className="px-4 py-4">{farm.is_active ? farm.subscription_status : "suspended"}</td>

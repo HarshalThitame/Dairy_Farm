@@ -6,12 +6,33 @@ import {
   signFarmToken
 } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { getRequestIp, parseDevice } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function publicUserSelect() {
-  return "id, farm_id, mobile, email, name, role, is_active, is_farm_owner, pin_hash";
+  return "id, farm_id, mobile, email, name, role, is_active, is_farm_owner, pin_hash, profile_photo_url, profile_photo_storage_path";
+}
+
+async function logLoginAttempt(supabase, request, payload) {
+  try {
+    const device = parseDevice(request.headers.get("user-agent") || "");
+    await supabase.from("user_login_history").insert({
+      user_id: payload.userId || null,
+      farm_id: payload.farmId || null,
+      mobile: payload.mobile || null,
+      status: payload.status,
+      failure_reason: payload.failureReason || null,
+      device_name: device.deviceName,
+      browser: device.browser,
+      os: device.os,
+      ip_address: getRequestIp(request),
+      user_agent: request.headers.get("user-agent") || ""
+    });
+  } catch {
+    // Login should not fail because history logging failed.
+  }
 }
 
 export async function POST(request) {
@@ -22,6 +43,11 @@ export async function POST(request) {
     const supabase = getSupabaseServerClient();
 
     if (!/^\d{10}$/.test(mobile) || !/^\d{4}$/.test(pin)) {
+      await logLoginAttempt(supabase, request, {
+        mobile,
+        status: "failed",
+        failureReason: "invalid_input"
+      });
       return NextResponse.json({ error: "मोबाइल नंबर आणि PIN तपासा." }, { status: 400 });
     }
 
@@ -32,10 +58,22 @@ export async function POST(request) {
       .single();
 
     if (error || !user) {
+      await logLoginAttempt(supabase, request, {
+        mobile,
+        status: "failed",
+        failureReason: "user_not_found"
+      });
       return NextResponse.json({ error: "खाते सापडले नाही." }, { status: 401 });
     }
 
     if (!user.is_active) {
+      await logLoginAttempt(supabase, request, {
+        userId: user.id,
+        farmId: user.farm_id,
+        mobile,
+        status: "failed",
+        failureReason: "user_inactive"
+      });
       return NextResponse.json(
         { error: "हे खाते बंद केले आहे. मालकाशी संपर्क करा." },
         { status: 403 }
@@ -45,6 +83,13 @@ export async function POST(request) {
     const valid = Boolean(user.pin_hash) && (await bcrypt.compare(pin, user.pin_hash));
 
     if (!valid) {
+      await logLoginAttempt(supabase, request, {
+        userId: user.id,
+        farmId: user.farm_id,
+        mobile,
+        status: "failed",
+        failureReason: "wrong_pin"
+      });
       return NextResponse.json({ error: "चुकीचा PIN. पुन्हा प्रयत्न करा." }, { status: 401 });
     }
 
@@ -55,10 +100,24 @@ export async function POST(request) {
       .single();
 
     if (farmError || !farm) {
+      await logLoginAttempt(supabase, request, {
+        userId: user.id,
+        farmId: user.farm_id,
+        mobile,
+        status: "failed",
+        failureReason: "farm_not_found"
+      });
       return NextResponse.json({ error: "डेअरी सापडली नाही." }, { status: 403 });
     }
 
     if (!farm.is_active) {
+      await logLoginAttempt(supabase, request, {
+        userId: user.id,
+        farmId: user.farm_id,
+        mobile,
+        status: "failed",
+        failureReason: "farm_suspended"
+      });
       return NextResponse.json(
         {
           error: `तुमचे खाते स्थगित केले आहे. ${
@@ -74,7 +133,35 @@ export async function POST(request) {
       .update({ last_login: new Date().toISOString() })
       .eq("id", user.id);
 
-    const token = signFarmToken(user, farm);
+    const device = parseDevice(request.headers.get("user-agent") || "");
+    let session = null;
+    try {
+      const { data: createdSession } = await supabase
+        .from("user_sessions")
+        .insert({
+          user_id: user.id,
+          farm_id: user.farm_id,
+          device_name: device.deviceName,
+          browser: device.browser,
+          os: device.os,
+          ip_address: getRequestIp(request),
+          user_agent: request.headers.get("user-agent") || ""
+        })
+        .select("id")
+        .maybeSingle();
+      session = createdSession;
+    } catch {
+      session = null;
+    }
+
+    await logLoginAttempt(supabase, request, {
+      userId: user.id,
+      farmId: user.farm_id,
+      mobile,
+      status: "success"
+    });
+
+    const token = signFarmToken(user, farm, session?.id || null);
 
     return NextResponse.json({
       token,

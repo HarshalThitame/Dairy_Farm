@@ -33,8 +33,10 @@ export async function GET(request) {
       query = query.eq("type", type);
     }
     if (search.trim()) {
-      const value = search.trim().replaceAll("%", "");
-      query = query.or(`title.ilike.%${value}%,message.ilike.%${value}%`);
+      const value = search.trim().replace(/[%,()]/g, "");
+      if (value) {
+        query = query.or(`title.ilike.%${value}%,message.ilike.%${value}%`);
+      }
     }
 
     const { data, error, count } = await query;

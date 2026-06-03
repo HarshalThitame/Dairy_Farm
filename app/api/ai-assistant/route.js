@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  getOrCreateAiAssistantPreferences,
+  getToolPermissionError,
+  normalizeAiAssistantPreferences
+} from "@/lib/aiAssistantSettings";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -30,7 +35,7 @@ function getFunctionCalls(response) {
   return (response?.output || []).filter((item) => item?.type === "function_call");
 }
 
-async function executeToolCall({ call, supabase, farmId }) {
+async function executeToolCall({ call, supabase, farmId, preferences }) {
   const handler = aiAssistantToolHandlers[call.name];
 
   if (!handler) {
@@ -41,6 +46,16 @@ async function executeToolCall({ call, supabase, farmId }) {
   }
 
   const args = safeJsonParse(call.arguments, {});
+  const permissionError = getToolPermissionError(call.name, preferences);
+  if (permissionError) {
+    return {
+      name: call.name,
+      arguments: args,
+      executionMs: 0,
+      data: permissionError
+    };
+  }
+
   const startedAt = Date.now();
   const data = await handler({ supabase, farmId, args });
 
@@ -70,9 +85,15 @@ function looksLikeAnalyticsQuestion(message) {
 
 async function writeAssistantLog(supabase, payload) {
   try {
-    await supabase.from("ai_assistant_logs").insert(payload);
+    const { data } = await supabase
+      .from("ai_assistant_logs")
+      .insert(payload)
+      .select("id")
+      .maybeSingle();
+    return data?.id || null;
   } catch {
     // Logging must never break the user-facing assistant.
+    return null;
   }
 }
 
@@ -90,8 +111,18 @@ export async function POST(request) {
     }
 
     const supabase = getSupabaseServerClient();
+    const preferencesRow = await getOrCreateAiAssistantPreferences(supabase, userId, farmId);
+    const preferences = normalizeAiAssistantPreferences(preferencesRow);
+
+    if (!preferences.enabled) {
+      return NextResponse.json(
+        { error: "दुग्धमित्र AI सध्या बंद आहे. Settings > AI मधून सुरू करा." },
+        { status: 403 }
+      );
+    }
+
     const client = getOpenAIClient();
-    const instructions = buildAssistantInstructions();
+    const instructions = buildAssistantInstructions({ responseStyle: preferences.response_style });
     let input = buildInputMessages(body.messages || [], message);
     let response = await client.responses.create({
       model: AI_ASSISTANT_MODEL,
@@ -114,7 +145,7 @@ export async function POST(request) {
       const outputs = [];
 
       for (const call of functionCalls) {
-        const result = await executeToolCall({ call, supabase, farmId });
+        const result = await executeToolCall({ call, supabase, farmId, preferences });
         toolResults.push(result);
         outputs.push({
           type: "function_call_output",
@@ -156,11 +187,12 @@ export async function POST(request) {
       response: answer,
       error: null
     };
-    await writeAssistantLog(supabase, logPayload);
+    const logId = await writeAssistantLog(supabase, logPayload);
 
     return NextResponse.json({
       data: {
         answer,
+        logId,
         toolsUsed: logPayload.tools_used,
         executionMs
       }

@@ -5,6 +5,24 @@ import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function startOfIstDate(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
+    const error = new Error("Invalid from date.");
+    error.status = 400;
+    throw error;
+  }
+  return new Date(`${date}T00:00:00+05:30`).toISOString();
+}
+
+function endOfIstDate(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
+    const error = new Error("Invalid to date.");
+    error.status = 400;
+    throw error;
+  }
+  return new Date(`${date}T23:59:59.999+05:30`).toISOString();
+}
+
 export async function GET(request) {
   try {
     await verifySuperAdmin(request);
@@ -17,10 +35,10 @@ export async function GET(request) {
       .limit(300);
 
     if (searchParams.get("from_date")) {
-      query = query.gte("created_at", searchParams.get("from_date"));
+      query = query.gte("created_at", startOfIstDate(searchParams.get("from_date")));
     }
     if (searchParams.get("to_date")) {
-      query = query.lte("created_at", searchParams.get("to_date"));
+      query = query.lte("created_at", endOfIstDate(searchParams.get("to_date")));
     }
     if (searchParams.get("action")) {
       query = query.eq("action", searchParams.get("action"));

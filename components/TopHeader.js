@@ -51,10 +51,15 @@ export default function TopHeader() {
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="dashboard-card flex min-h-[52px] min-w-[52px] items-center justify-center rounded-full border border-green-100 bg-gradient-to-br from-green-50 to-white text-[24px] shadow-sm active:bg-green-100"
+            className="dashboard-card flex min-h-[52px] min-w-[52px] items-center justify-center overflow-hidden rounded-full border border-green-100 bg-gradient-to-br from-green-50 to-white text-[24px] shadow-sm active:bg-green-100"
             aria-label="खाते"
           >
-            👤
+            {user?.profilePhotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.profilePhotoUrl} alt={user?.name || "Profile"} className="h-[52px] w-[52px] object-cover" />
+            ) : (
+              "👤"
+            )}
           </button>
 
           {open ? (
@@ -78,6 +83,13 @@ export default function TopHeader() {
                 className="mt-1 flex min-h-[52px] items-center rounded-lg px-3 text-[18px] font-extrabold text-slate-800 active:bg-slate-100"
               >
                 🔑 PIN बदला
+              </Link>
+              <Link
+                href="/settings"
+                onClick={() => setOpen(false)}
+                className="mt-1 flex min-h-[52px] items-center rounded-lg px-3 text-[18px] font-extrabold text-slate-800 active:bg-green-50"
+              >
+                ⚙️ सेटिंग्ज
               </Link>
               <Link
                 href="/notifications"

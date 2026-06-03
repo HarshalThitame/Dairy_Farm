@@ -72,7 +72,7 @@ function messageId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function Bubble({ message }) {
+function Bubble({ message, onFeedback }) {
   const isUser = message.role === "user";
 
   return (
@@ -90,6 +90,28 @@ function Bubble({ message }) {
         }`}
       >
         {message.content}
+        {!isUser && message.logId ? (
+          <div className="mt-3 flex gap-2 border-t border-emerald-50 pt-2">
+            <button
+              type="button"
+              onClick={() => onFeedback?.(message.logId, "useful")}
+              className={`rounded-full px-3 py-1 text-[13px] font-black ${
+                message.feedback === "useful" ? "bg-green-600 text-white" : "bg-green-50 text-green-800"
+              }`}
+            >
+              👍 उपयोगी
+            </button>
+            <button
+              type="button"
+              onClick={() => onFeedback?.(message.logId, "not_useful")}
+              className={`rounded-full px-3 py-1 text-[13px] font-black ${
+                message.feedback === "not_useful" ? "bg-red-600 text-white" : "bg-red-50 text-red-800"
+              }`}
+            >
+              👎 नाही
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -118,6 +140,11 @@ export default function AIAssistantWidget() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastQuestion, setLastQuestion] = useState("");
+  const [assistantSettings, setAssistantSettings] = useState({
+    enabled: true,
+    suggested_questions_enabled: true
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const scrollerRef = useRef(null);
   const dialogRef = useRef(null);
   const inputRef = useRef(null);
@@ -126,6 +153,35 @@ export default function AIAssistantWidget() {
 
   useEffect(() => {
     setMessages(readStoredMessages());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = getAuthToken();
+
+    if (!token || typeof navigator !== "undefined" && !navigator.onLine) {
+      setSettingsLoaded(true);
+      return undefined;
+    }
+
+    fetch("/api/settings/ai", {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
+      .then(({ ok, json }) => {
+        if (!cancelled && ok && json.preferences) {
+          setAssistantSettings(json.preferences);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSettingsLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -267,13 +323,35 @@ export default function AIAssistantWidget() {
         {
           id: messageId("assistant"),
           role: "assistant",
-          content: result.data?.answer || "या प्रश्नासाठी माहिती उपलब्ध नाही."
+          content: result.data?.answer || "या प्रश्नासाठी माहिती उपलब्ध नाही.",
+          logId: result.data?.logId || null
         }
       ]);
     } catch (requestError) {
       setError(requestError.message || "सध्या सहाय्यक उपलब्ध नाही. कृपया पुन्हा प्रयत्न करा.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveFeedback(logId, feedback) {
+    if (!logId) return;
+
+    setMessages((current) =>
+      current.map((message) => (message.logId === logId ? { ...message, feedback } : message))
+    );
+
+    try {
+      await fetch("/api/settings/ai/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({ logId, feedback })
+      });
+    } catch {
+      // Feedback is best-effort and should not interrupt chat.
     }
   }
 
@@ -380,7 +458,7 @@ export default function AIAssistantWidget() {
 
           <div ref={scrollerRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
             {messages.map((message) => (
-              <Bubble key={message.id} message={message} />
+              <Bubble key={message.id} message={message} onFeedback={saveFeedback} />
             ))}
             {loading ? <TypingIndicator /> : null}
           </div>
@@ -401,6 +479,7 @@ export default function AIAssistantWidget() {
           ) : null}
 
           <div className="border-t border-emerald-100 bg-white/95 px-3 py-3 shadow-[0_-12px_28px_rgba(15,118,110,0.08)] backdrop-blur">
+            {assistantSettings.suggested_questions_enabled ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
               {suggestedQuestions.map((question) => (
                 <button
@@ -414,6 +493,7 @@ export default function AIAssistantWidget() {
                 </button>
               ))}
             </div>
+            ) : null}
             <form
               className="flex items-end gap-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2 shadow-inner"
               onSubmit={(event) => {
@@ -443,7 +523,7 @@ export default function AIAssistantWidget() {
         </div>
       ) : null}
 
-      {!open ? (
+      {!open && settingsLoaded && assistantSettings.enabled ? (
         <button
           type="button"
           onClick={openAssistant}
