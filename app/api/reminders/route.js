@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,11 @@ async function applyCommonFilters(request, query, searchParams) {
   const type = searchParams.get("type");
 
   if (cowId) {
+    if (!isUuid(cowId)) {
+      const error = new Error("गाय क्रमांक चुकीचा आहे.");
+      error.status = 400;
+      throw error;
+    }
     await verifyFarmAccess(request, cowId);
     query = query.eq("cow_id", cowId);
   }
@@ -105,6 +111,9 @@ export async function GET(request) {
     const supabase = getSupabaseServerClient();
 
     if (id) {
+      if (!isUuid(id)) {
+        return NextResponse.json({ error: "आठवण क्रमांक चुकीचा आहे." }, { status: 400 });
+      }
       const { data, error } = await supabase
         .from("reminders")
         .select("*, cows(id, name, breed, date_of_birth, status, color)")
@@ -196,9 +205,9 @@ async function updateReminder(supabase, farmId, id, payload, fallbackPayload) {
 export async function PATCH(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
-    if (!body.id) {
+    if (!isUuid(body.id)) {
       return NextResponse.json({ error: "आठवणीचा आयडी आवश्यक आहे." }, { status: 400 });
     }
 
@@ -274,7 +283,7 @@ export async function PATCH(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     if (!body.reminder_date || !body.type || !body.message) {
       return NextResponse.json({ error: "तारीख, प्रकार आणि संदेश आवश्यक आहे." }, { status: 400 });
@@ -282,6 +291,12 @@ export async function POST(request) {
 
     if (!allowedReminderTypes.has(body.type)) {
       return NextResponse.json({ error: "आठवणीचा प्रकार चुकीचा आहे." }, { status: 400 });
+    }
+    if (body.cow_id && !isUuid(body.cow_id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
+    if (body.related_record_id && !isUuid(body.related_record_id)) {
+      return NextResponse.json({ error: "संबंधित नोंद क्रमांक चुकीचा आहे." }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmAccess(request, body.cow_id || null);

@@ -6,6 +6,7 @@ import {
   verifySuperAdmin
 } from "@/lib/superAdminGuard";
 import { createAdminNotification, sendNotificationNow } from "@/lib/notificationCenter";
+import { badRequest, isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -335,6 +336,9 @@ async function notifyFarmUsersForAdminAction(supabase, adminId, farmId, action, 
 
 export async function GET(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Farm ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
     const supabase = getSupabaseServerClient();
     const data = await getFarmDetails(supabase, params.id);
@@ -347,8 +351,11 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Farm ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     let payload = editableFarmFields.reduce((current, field) => {
       if (body[field] !== undefined) {
         current[field] = body[field];
@@ -383,8 +390,11 @@ export async function PUT(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Farm ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const action = body.action;
     const supabase = getSupabaseServerClient();
     let payload = {};

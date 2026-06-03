@@ -164,6 +164,7 @@ export async function GET(request) {
       calvesResult,
       monthlySummaryResult,
       monthlyIncomeRecordsResult,
+      dailyGoalSettingsResult,
       pendingSettlementSlipPeriodsResult
     ] = await Promise.all([
       supabase
@@ -173,7 +174,7 @@ export async function GET(request) {
         .eq("is_active", true),
       supabase
         .from("milk_records")
-        .select("id, date, morning_litres, evening_litres, total_litres")
+        .select("id, date, morning_litres, evening_litres, total_litres, total_amount")
         .eq("farm_id", farmId)
         .is("cow_id", null)
         .eq("date", today),
@@ -220,6 +221,11 @@ export async function GET(request) {
         .eq("farm_id", farmId)
         .gte("date", monthRange.start)
         .lt("date", monthRange.end),
+      supabase
+        .from("farm_goal_settings")
+        .select("daily_milk_goal, enabled")
+        .eq("farm_id", farmId)
+        .maybeSingle(),
       getMissingSettlementSlipPeriods(supabase, farmId, { today })
     ]);
 
@@ -236,6 +242,13 @@ export async function GET(request) {
       (total, record) => total + getRecordMilkTotal(record),
       0
     );
+    const todayIncomeTotal = todayMilkRecords.reduce(
+      (total, record) => total + getRecordMilkAmount(record),
+      0
+    );
+    const dailyGoalRow = dailyGoalSettingsResult.error ? null : dailyGoalSettingsResult.data;
+    const dailyGoalTarget = Number(dailyGoalRow?.daily_milk_goal || 300);
+    const dailyGoalEnabled = dailyGoalRow?.enabled !== false;
     let monthlyLitres = Number(monthlySummary?.total_liters || 0);
     let monthlyFinanceReport = monthlySummary
       ? buildFinanceSummaryFromMonthlySummary(monthlySummary, monthlyIncomeRecords)
@@ -319,6 +332,14 @@ export async function GET(request) {
         todayMilk: {
           records: todayMilkRecords,
           totalLitres: roundMoney(todayMilkTotal)
+        },
+        todayIncome: roundMoney(todayIncomeTotal),
+        dailyGoal: {
+          enabled: dailyGoalEnabled,
+          targetLiters: roundMoney(dailyGoalTarget),
+          currentLiters: roundMoney(todayMilkTotal),
+          percentage: roundMoney(dailyGoalTarget > 0 ? Math.min((todayMilkTotal / dailyGoalTarget) * 100, 100) : 0),
+          completed: dailyGoalEnabled && dailyGoalTarget > 0 && todayMilkTotal >= dailyGoalTarget
         },
         reminders: {
           today: todayReminders,

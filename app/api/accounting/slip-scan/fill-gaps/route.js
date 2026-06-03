@@ -5,10 +5,21 @@ import { fillSlipGaps } from "@/lib/slipGapFilling";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 export async function POST(request) {
   try {
     await verifyFarmAccess(request);
-    const { extractedData, slip_type: slipType } = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
+    const { extractedData, slip_type: slipType } = body;
 
     if (!extractedData) {
       return NextResponse.json({ error: "स्लिप डेटा आवश्यक आहे." }, { status: 400 });

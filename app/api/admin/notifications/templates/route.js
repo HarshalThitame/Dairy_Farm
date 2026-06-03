@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 import { notificationPriorities, notificationTypes } from "@/lib/notificationCenter";
+import { badRequest, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,13 +32,13 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const name = cleanText(body.name);
     const title = cleanText(body.title);
     const message = cleanText(body.message);
 
     if (!name || !title || !message) {
-      throw new Error("Template name, title, and message are required.");
+      throw badRequest("Template name, title आणि message आवश्यक आहेत.");
     }
 
     const supabase = getSupabaseServerClient();

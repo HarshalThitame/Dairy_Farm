@@ -10,6 +10,13 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function extractionResponse(upload, extra = {}) {
   return {
     success: upload.extraction_status === "success" || upload.extraction_status === "saved",
@@ -204,10 +211,20 @@ function gapFillingResponse(extractedData) {
 export async function POST(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
-    const { uploadId, force = false } = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
+    const { uploadId, force = false } = body;
 
     if (!uploadId) {
       return NextResponse.json({ error: "स्लिप फोटो ID आवश्यक आहे." }, { status: 400 });
+    }
+
+    if (!UUID_PATTERN.test(String(uploadId))) {
+      return NextResponse.json({ error: "स्लिप फोटो ID चुकीचा आहे." }, { status: 400 });
     }
 
     const supabase = getSupabaseServerClient();

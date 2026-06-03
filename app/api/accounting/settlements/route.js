@@ -29,6 +29,11 @@ const settlementFields = [
   "settlement_image_url"
 ];
 
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanOptional(value) {
   const text = String(value || "").trim();
   return text || null;
@@ -166,7 +171,12 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const validationError = validateSettlement(body);
 
     if (validationError) {

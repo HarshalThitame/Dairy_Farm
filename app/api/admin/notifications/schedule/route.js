@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { getStoredScheduleConfig } from "@/lib/notificationCenter";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
+import { badRequest, isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,18 +10,21 @@ export const runtime = "nodejs";
 export async function POST(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const notificationId = body.notificationId || body.id;
     const scheduledAt = body.scheduledAt || body.scheduled_at;
 
     if (!notificationId || !scheduledAt) {
-      throw new Error("Notification ID and schedule time are required.");
+      throw badRequest("Notification ID आणि schedule time आवश्यक आहे.");
+    }
+    if (!isUuid(notificationId)) {
+      throw badRequest("Notification ID चुकीचा आहे.");
     }
     if (Number.isNaN(new Date(scheduledAt).getTime())) {
-      throw new Error("Schedule time is invalid.");
+      throw badRequest("Schedule time चुकीचा आहे.");
     }
     if (new Date(scheduledAt).getTime() < Date.now() - 60000) {
-      throw new Error("Schedule time cannot be in the past.");
+      throw badRequest("Schedule time मागच्या वेळेत ठेवू शकत नाही.");
     }
 
     const supabase = getSupabaseServerClient();
@@ -32,7 +36,7 @@ export async function POST(request) {
 
     if (fetchError) throw fetchError;
     if (["sent", "sending", "cancelled"].includes(existing.status)) {
-      throw new Error("This notification cannot be scheduled.");
+      throw badRequest("ही notification schedule करता येणार नाही.");
     }
 
     const scheduleConfig = getStoredScheduleConfig(body);

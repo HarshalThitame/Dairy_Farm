@@ -7,6 +7,7 @@ import {
 } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { getRequestIp, parseDevice } from "@/lib/userSettings";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,7 +38,7 @@ async function logLoginAttempt(supabase, request, payload) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const mobile = String(body.mobile || "").replace(/\D/g, "");
     const pin = String(body.pin || "").trim();
     const supabase = getSupabaseServerClient();

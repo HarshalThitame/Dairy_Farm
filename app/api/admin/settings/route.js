@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,7 +35,7 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const supabase = getSupabaseServerClient();
 
     if (body.profile) {

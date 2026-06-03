@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, signSuperAdminToken } from "@/lib/superAdminGuard";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,7 +11,7 @@ const LOCK_MINUTES = 15;
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
 
@@ -80,7 +81,7 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json(
       { error: error.message || "Login failed" },
-      { status: 500 }
+      { status: error.status || 500 }
     );
   }
 }

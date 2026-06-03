@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isSupportedImageType } from "@/lib/imageCompression";
 
 function getAuthHeader() {
@@ -17,6 +17,10 @@ export default function ProfilePhotoUploader({ value, name, onUploaded, onRemove
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setPreview(value || "");
+  }, [value]);
 
   async function upload(file) {
     if (!file) return;
@@ -50,6 +54,7 @@ export default function ProfilePhotoUploader({ value, name, onUploaded, onRemove
       setMessage("फोटो जतन झाला.");
       onUploaded?.(result.photoUrl);
     } catch (uploadError) {
+      URL.revokeObjectURL(localUrl);
       setPreview(value || "");
       setError(uploadError.message || "फोटो अपलोड झाला नाही.");
       setMessage("");
@@ -82,9 +87,9 @@ export default function ProfilePhotoUploader({ value, name, onUploaded, onRemove
   }
 
   return (
-    <section className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-soft backdrop-blur">
-      <div className="flex items-center gap-4">
-        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-green-100 bg-gradient-to-br from-green-100 to-sky-100">
+    <section className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-soft backdrop-blur sm:p-5">
+      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+        <div className="h-28 w-28 shrink-0 overflow-hidden rounded-3xl border-2 border-green-100 bg-gradient-to-br from-green-100 to-sky-100 shadow-sm sm:h-24 sm:w-24 sm:rounded-2xl">
           {preview ? (
             <img src={preview} alt={name || "Profile"} className="h-full w-full object-cover" />
           ) : (

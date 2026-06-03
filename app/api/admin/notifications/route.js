@@ -6,6 +6,7 @@ import {
   getPagination,
   sendNotificationNow
 } from "@/lib/notificationCenter";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -58,7 +59,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const supabase = getSupabaseServerClient();
     const created = await createAdminNotification(supabase, adminId, body);
     let sent = null;

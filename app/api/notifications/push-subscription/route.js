@@ -8,13 +8,14 @@ export const runtime = "nodejs";
 export async function POST(request) {
   try {
     const { userId, farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
-    const subscription = body.subscription || body;
+    const body = await request.json().catch(() => ({}));
+    const safeBody = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+    const subscription = safeBody.subscription || safeBody;
     const endpoint = subscription?.endpoint;
     const keys = subscription?.keys || {};
 
     if (!endpoint || !keys.p256dh || !keys.auth) {
-      throw new Error("Push subscription अपूर्ण आहे.");
+      return NextResponse.json({ error: "Push subscription अपूर्ण आहे." }, { status: 400 });
     }
 
     const supabase = getSupabaseServerClient();

@@ -22,62 +22,90 @@ function latestByService(rows = []) {
   return Array.from(map.values());
 }
 
+async function safeSupportQuery(query, fallback = []) {
+  const { data, error } = await query;
+
+  if (!error) {
+    return data || fallback;
+  }
+
+  if (["42P01", "42703", "PGRST200", "PGRST201"].includes(error.code)) {
+    return fallback;
+  }
+
+  throw error;
+}
+
 export async function GET(request) {
   try {
     const auth = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
 
-    const [ticketsResult, faqResult, tutorialsResult, featuresResult, votesResult, statusResult] = await Promise.all([
-      supabase
-        .from("support_tickets")
-        .select("*, super_admins(id, name)")
-        .eq("farm_id", auth.farmId)
-        .order("updated_at", { ascending: false })
-        .limit(6),
-      supabase
-        .from("faq_articles")
-        .select("*")
-        .eq("is_published", true)
-        .order("views_count", { ascending: false })
-        .limit(5),
-      supabase
-        .from("tutorials")
-        .select("*")
-        .eq("is_published", true)
-        .order("views_count", { ascending: false })
-        .limit(4),
-      supabase
-        .from("feature_requests")
-        .select("*")
-        .eq("farm_id", auth.farmId)
-        .order("votes_count", { ascending: false })
-        .limit(5),
-      supabase
-        .from("feature_votes")
-        .select("feature_request_id")
-        .eq("farm_id", auth.farmId)
-        .eq("user_id", auth.userId),
-      supabase
-        .from("system_status_logs")
-        .select("*")
-        .order("checked_at", { ascending: false })
-        .limit(20)
+    const [recentTickets, statsTickets, faqRows, tutorialRows, featureRows, voteRows, statusRows] = await Promise.all([
+      safeSupportQuery(
+        supabase
+          .from("support_tickets")
+          .select("*")
+          .eq("farm_id", auth.farmId)
+          .order("updated_at", { ascending: false })
+          .limit(6)
+      ),
+      safeSupportQuery(
+        supabase
+          .from("support_tickets")
+          .select("id, status, priority")
+          .eq("farm_id", auth.farmId)
+          .limit(1000)
+      ),
+      safeSupportQuery(
+        supabase
+          .from("faq_articles")
+          .select("*")
+          .eq("is_published", true)
+          .order("views_count", { ascending: false })
+          .limit(5)
+      ),
+      safeSupportQuery(
+        supabase
+          .from("tutorials")
+          .select("*")
+          .eq("is_published", true)
+          .order("views_count", { ascending: false })
+          .limit(4)
+      ),
+      safeSupportQuery(
+        supabase
+          .from("feature_requests")
+          .select("*")
+          .eq("farm_id", auth.farmId)
+          .order("votes_count", { ascending: false })
+          .limit(5)
+      ),
+      safeSupportQuery(
+        supabase
+          .from("feature_votes")
+          .select("feature_request_id")
+          .eq("farm_id", auth.farmId)
+          .eq("user_id", auth.userId)
+      ),
+      safeSupportQuery(
+        supabase
+          .from("system_status_logs")
+          .select("*")
+          .order("checked_at", { ascending: false })
+          .limit(20)
+      )
     ]);
 
-    [ticketsResult, faqResult, tutorialsResult, featuresResult, votesResult, statusResult].forEach((result) => {
-      if (result.error) throw result.error;
-    });
-
-    const tickets = ticketsResult.data || [];
-    const votedIds = new Set((votesResult.data || []).map((row) => row.feature_request_id));
+    const votedIds = new Set((voteRows || []).map((row) => row.feature_request_id));
 
     return NextResponse.json({
-      stats: ticketSummaryStats(tickets),
-      recentTickets: tickets.map(normalizeTicket),
-      topFaq: (faqResult.data || []).map(normalizeFaq),
-      tutorials: (tutorialsResult.data || []).map(normalizeTutorial),
-      featureRequests: (featuresResult.data || []).map((row) => normalizeFeature(row, votedIds)),
-      status: latestByService(statusResult.data || []),
+      stats: ticketSummaryStats(statsTickets || []),
+      recentTickets: (recentTickets || []).map(normalizeTicket),
+      topFaq: (faqRows || []).map(normalizeFaq),
+      tutorials: (tutorialRows || []).map(normalizeTutorial),
+      featureRequests: (featureRows || []).map((row) => normalizeFeature(row, votedIds)),
+      status: latestByService(statusRows || []),
       quickActions: [
         { title: "FAQ", href: "/support/faq", icon: "❓" },
         { title: "Ticket तयार करा", href: "/support/tickets", icon: "🎫" },
@@ -89,4 +117,3 @@ export async function GET(request) {
     return farmErrorResponse(error);
   }
 }
-

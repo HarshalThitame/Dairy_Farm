@@ -8,6 +8,7 @@ import {
 } from "@/lib/feedExpenseSections";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -318,7 +319,7 @@ export async function POST(request) {
   let financeRecord = null;
 
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const { farmId } = await verifyFarmAccess(request);
     const section = normalizeText(body.section);
     const murghasDetails = section === "मुरघास" ? getMurghasDetails(body) : null;

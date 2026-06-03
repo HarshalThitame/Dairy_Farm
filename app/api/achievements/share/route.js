@@ -9,17 +9,30 @@ export const runtime = "nodejs";
 
 function createPdfBuffer(draw) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 48 });
+    const fontCandidates = [
+      path.join(process.cwd(), "public", "fonts", "NotoSansDevanagari-Regular.ttf"),
+      "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf"
+    ];
+    const devanagariFont = fontCandidates.find((candidate) => fs.existsSync(candidate));
+    if (!devanagariFont) {
+      reject(new Error("PDF साठी Marathi font सापडला नाही."));
+      return;
+    }
+
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 48,
+      autoFirstPage: false,
+      font: devanagariFont
+    });
     const chunks = [];
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const fontPath = path.join(process.cwd(), "public", "fonts", "NotoSansDevanagari-Regular.ttf");
-    if (fs.existsSync(fontPath)) {
-      doc.registerFont("NotoSansDevanagari", fontPath);
-      doc.font("NotoSansDevanagari");
-    }
+    doc.registerFont("NotoSansDevanagari", devanagariFont);
+    doc.addPage();
+    doc.font("NotoSansDevanagari");
 
     draw(doc);
     doc.end();
@@ -73,4 +86,3 @@ export async function POST(request) {
     return farmErrorResponse(error);
   }
 }
-

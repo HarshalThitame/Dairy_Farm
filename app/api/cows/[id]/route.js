@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,9 @@ async function updateFarmCowCount(supabase, farmId) {
 
 export async function GET(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const { data: cow, error: cowError } = await supabase
@@ -141,8 +145,11 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
     const { farmId } = await verifyFarmOwner(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const payload = pickFields(body);
 
     if (Object.keys(payload).length === 0) {
@@ -188,6 +195,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
     const { farmId } = await verifyFarmOwner(request);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase

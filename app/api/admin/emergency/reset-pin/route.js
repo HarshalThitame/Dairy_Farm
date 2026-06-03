@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, maskMobile, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,11 +10,11 @@ export const runtime = "nodejs";
 export async function POST(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const userId = body.userId;
     const newPin = String(body.newPin || "").trim();
 
-    if (!userId || !/^\d{4}$/.test(newPin)) {
+    if (!isUuid(userId) || !/^\d{4}$/.test(newPin)) {
       return NextResponse.json({ error: "Valid userId and 4 digit PIN are required" }, { status: 400 });
     }
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logUserSettingsAction } from "@/lib/userSettings";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,7 +30,7 @@ function validPin(pin) {
 export async function PATCH(request) {
   try {
     const { userId, farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const currentPin = String(body.currentPin || "");
     const newPin = String(body.newPin || "");
 

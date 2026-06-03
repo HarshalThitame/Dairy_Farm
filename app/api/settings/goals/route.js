@@ -7,7 +7,8 @@ import {
   getOrCreateGoalSettings,
   notifyGoalAchievements,
   sanitizeGoalSettings,
-  upsertGoalHistory
+  upsertGoalHistory,
+  validateGoalInput
 } from "@/lib/goalTracking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logUserSettingsAction } from "@/lib/userSettings";
@@ -50,7 +51,12 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const validationMessage = validateGoalInput(body);
+    if (validationMessage) {
+      return NextResponse.json({ error: validationMessage }, { status: 400 });
+    }
+
     const supabase = getSupabaseServerClient();
     const current = await getOrCreateGoalSettings(supabase, auth.farmId, auth.userId);
     const next = sanitizeGoalSettings(body, current);

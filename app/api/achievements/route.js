@@ -10,7 +10,9 @@ export async function GET(request) {
   try {
     const auth = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
-    const result = await evaluateAchievements(supabase, auth, { notify: true });
+    const { searchParams } = new URL(request.url);
+    const notify = !["false", "0", "no"].includes(String(searchParams.get("notify") || "").toLowerCase());
+    const result = await evaluateAchievements(supabase, auth, { notify });
     return NextResponse.json(result);
   } catch (error) {
     return farmErrorResponse(error);
@@ -40,4 +42,3 @@ export async function POST(request) {
     return farmErrorResponse(error);
   }
 }
-

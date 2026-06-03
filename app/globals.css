@@ -13,6 +13,7 @@
 html {
   min-height: 100%;
   background: #f8fafc;
+  --majhi-font-scale: 1;
 }
 
 body {
@@ -200,7 +201,7 @@ input::placeholder {
 
 @media (hover: hover) {
   .dashboard-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
   }
 }
@@ -330,6 +331,216 @@ input::placeholder {
   animation: dashboardBreath 2.8s ease-in-out infinite;
 }
 
+.milk-wave-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.milk-wave-card::before {
+  position: absolute;
+  right: -2.5rem;
+  bottom: -2.8rem;
+  width: 8rem;
+  height: 8rem;
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.16), transparent 68%);
+}
+
+.milk-wave-bottle {
+  position: relative;
+  width: 5.25rem;
+  height: 6.75rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 3px solid rgba(37, 99, 235, 0.62);
+  border-radius: 1.4rem 1.4rem 1rem 1rem;
+  background:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.1) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(219, 234, 254, 0.96), rgba(147, 197, 253, 0.54));
+  background-size: 1rem 100%, auto;
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 255, 255, 0.52),
+    inset 0 -18px 28px rgba(37, 99, 235, 0.12),
+    0 14px 30px rgba(14, 165, 233, 0.2);
+}
+
+.milk-wave-bottle::before {
+  position: absolute;
+  inset: 0.55rem 0.7rem;
+  z-index: 1;
+  content: "";
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to top,
+      transparent 0,
+      transparent 0.82rem,
+      rgba(30, 64, 175, 0.2) 0.86rem,
+      rgba(30, 64, 175, 0.2) 0.92rem
+    );
+  opacity: 0.55;
+}
+
+.milk-wave-fill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-height: 0.5rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98) 54%, rgba(219, 234, 254, 0.98));
+  box-shadow:
+    0 -8px 18px rgba(37, 99, 235, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: height 720ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.milk-wave-surface {
+  position: absolute;
+  top: -0.65rem;
+  left: -35%;
+  width: 170%;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  opacity: 0.95;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.18);
+  animation: milkWaveDrift 2.6s ease-in-out infinite;
+}
+
+.milk-wave-surface-two {
+  top: -0.45rem;
+  left: -55%;
+  background: rgba(224, 242, 254, 0.82);
+  animation-delay: 360ms;
+}
+
+.milk-bubble {
+  position: absolute;
+  bottom: 0.75rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  animation: milkBubbleRise 2.8s ease-in-out infinite;
+}
+
+.milk-bubble-one {
+  left: 32%;
+}
+
+.milk-bubble-two {
+  left: 62%;
+  animation-delay: 720ms;
+}
+
+.milk-wave-percent {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e3a8a;
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.dairy-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.dairy-confetti span {
+  position: absolute;
+  top: -1.25rem;
+  left: var(--confetti-left);
+  font-size: 1.2rem;
+  animation: dairyConfettiFall 2.4s ease-out var(--confetti-delay) both;
+}
+
+.notification-bell-shake {
+  animation: notificationBellShake 650ms ease-in-out both;
+}
+
+.ai-home-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-home-card::after {
+  position: absolute;
+  right: -4rem;
+  top: -4rem;
+  width: 10rem;
+  height: 10rem;
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.18), transparent 70%);
+}
+
+.ai-mascot-home {
+  position: relative;
+  animation:
+    aiMascotFloat 4.8s ease-in-out infinite,
+    aiMascotBreath 3.2s ease-in-out infinite;
+}
+
+.ai-mascot-eye {
+  position: absolute;
+  top: 38%;
+  width: 0.28rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  animation: aiMascotBlink 5.4s ease-in-out infinite;
+}
+
+.ai-mascot-eye-left {
+  left: 38%;
+}
+
+.ai-mascot-eye-right {
+  right: 38%;
+}
+
+.activity-fade-list > * {
+  animation: activityFadeIn 440ms ease-out both;
+}
+
+.activity-fade-list > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.activity-fade-list > *:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.activity-fade-list > *:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.activity-fade-list > *:nth-child(5) {
+  animation-delay: 280ms;
+}
+
+.home-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 50%, #e2e8f0 100%);
+  background-size: 220% 100%;
+  animation: homeSkeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.empty-state-soft {
+  animation: activityFadeIn 420ms ease-out both;
+}
+
 @keyframes dashboardFadeUp {
   from {
     opacity: 0;
@@ -377,6 +588,129 @@ input::placeholder {
   }
 }
 
+@keyframes milkWaveDrift {
+  0%,
+  100% {
+    transform: translateX(-4%);
+  }
+
+  50% {
+    transform: translateX(8%);
+  }
+}
+
+@keyframes milkBubbleRise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.85);
+  }
+
+  18%,
+  72% {
+    opacity: 0.75;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-3.6rem) scale(1.15);
+  }
+}
+
+@keyframes dairyConfettiFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -1rem, 0) rotate(0deg) scale(0.85);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-drift), 12rem, 0) rotate(260deg) scale(1);
+  }
+}
+
+@keyframes notificationBellShake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  15% {
+    transform: rotate(-12deg);
+  }
+
+  30% {
+    transform: rotate(10deg);
+  }
+
+  45% {
+    transform: rotate(-8deg);
+  }
+
+  60% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes aiMascotFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes aiMascotBreath {
+  0%,
+  100% {
+    box-shadow: 0 12px 28px rgba(16, 185, 129, 0.13);
+  }
+
+  50% {
+    box-shadow: 0 16px 36px rgba(16, 185, 129, 0.22);
+  }
+}
+
+@keyframes aiMascotBlink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes activityFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes homeSkeletonShimmer {
+  0% {
+    background-position: 160% 0;
+  }
+
+  100% {
+    background-position: -80% 0;
+  }
+}
+
 @media (max-width: 640px) {
   .dashboard-hero::before,
   .dashboard-scan::after,
@@ -398,7 +732,16 @@ input::placeholder {
   .dashboard-stagger > *,
   .dashboard-hero::before,
   .dashboard-scan::after,
-  .dashboard-scan-icon {
+  .dashboard-scan-icon,
+  .milk-wave-surface,
+  .milk-bubble,
+  .dairy-confetti span,
+  .notification-bell-shake,
+  .ai-mascot-home,
+  .ai-mascot-eye,
+  .activity-fade-list > *,
+  .home-skeleton,
+  .empty-state-soft {
     animation: none;
   }
 
@@ -415,6 +758,160 @@ html.majhi-font-small body {
 
 html.majhi-font-large body {
   font-size: 20px;
+}
+
+html.majhi-font-small {
+  --majhi-font-scale: 0.92;
+}
+
+html.majhi-font-large {
+  --majhi-font-scale: 1.12;
+}
+
+html .text-\[11px\] {
+  font-size: calc(11px * var(--majhi-font-scale));
+}
+
+html .text-\[12px\] {
+  font-size: calc(12px * var(--majhi-font-scale));
+}
+
+html .text-\[13px\] {
+  font-size: calc(13px * var(--majhi-font-scale));
+}
+
+html .text-\[14px\] {
+  font-size: calc(14px * var(--majhi-font-scale));
+}
+
+html .text-\[15px\] {
+  font-size: calc(15px * var(--majhi-font-scale));
+}
+
+html .text-\[16px\] {
+  font-size: calc(16px * var(--majhi-font-scale));
+}
+
+html .text-\[17px\] {
+  font-size: calc(17px * var(--majhi-font-scale));
+}
+
+html .text-\[18px\] {
+  font-size: calc(18px * var(--majhi-font-scale));
+}
+
+html .text-\[19px\] {
+  font-size: calc(19px * var(--majhi-font-scale));
+}
+
+html .text-\[20px\] {
+  font-size: calc(20px * var(--majhi-font-scale));
+}
+
+html .text-\[21px\] {
+  font-size: calc(21px * var(--majhi-font-scale));
+}
+
+html .text-\[22px\] {
+  font-size: calc(22px * var(--majhi-font-scale));
+}
+
+html .text-\[23px\] {
+  font-size: calc(23px * var(--majhi-font-scale));
+}
+
+html .text-\[24px\] {
+  font-size: calc(24px * var(--majhi-font-scale));
+}
+
+html .text-\[25px\] {
+  font-size: calc(25px * var(--majhi-font-scale));
+}
+
+html .text-\[26px\] {
+  font-size: calc(26px * var(--majhi-font-scale));
+}
+
+html .text-\[27px\] {
+  font-size: calc(27px * var(--majhi-font-scale));
+}
+
+html .text-\[28px\] {
+  font-size: calc(28px * var(--majhi-font-scale));
+}
+
+html .text-\[30px\] {
+  font-size: calc(30px * var(--majhi-font-scale));
+}
+
+html .text-\[31px\] {
+  font-size: calc(31px * var(--majhi-font-scale));
+}
+
+html .text-\[32px\] {
+  font-size: calc(32px * var(--majhi-font-scale));
+}
+
+html .text-\[34px\] {
+  font-size: calc(34px * var(--majhi-font-scale));
+}
+
+html .text-\[36px\] {
+  font-size: calc(36px * var(--majhi-font-scale));
+}
+
+html .text-\[38px\] {
+  font-size: calc(38px * var(--majhi-font-scale));
+}
+
+html .text-\[42px\] {
+  font-size: calc(42px * var(--majhi-font-scale));
+}
+
+html .text-\[44px\] {
+  font-size: calc(44px * var(--majhi-font-scale));
+}
+
+html .text-\[48px\] {
+  font-size: calc(48px * var(--majhi-font-scale));
+}
+
+html .text-\[54px\] {
+  font-size: calc(54px * var(--majhi-font-scale));
+}
+
+html .text-\[56px\] {
+  font-size: calc(56px * var(--majhi-font-scale));
+}
+
+html .text-\[72px\] {
+  font-size: calc(72px * var(--majhi-font-scale));
+}
+
+@media (min-width: 640px) {
+  html .sm\:text-\[14px\] {
+    font-size: calc(14px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[16px\] {
+    font-size: calc(16px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[18px\] {
+    font-size: calc(18px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[25px\] {
+    font-size: calc(25px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[32px\] {
+    font-size: calc(32px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[34px\] {
+    font-size: calc(34px * var(--majhi-font-scale));
+  }
 }
 
 html.majhi-compact .app-shell {
@@ -489,6 +986,254 @@ html.majhi-theme-dark .app-shell :where(input, select, textarea) {
 
 html.majhi-theme-dark .app-shell :where(.border-slate-100, .border-slate-200, .border-white\/80, .border-white\/70) {
   border-color: rgba(148, 163, 184, 0.25);
+}
+
+html.majhi-theme-dark :where(
+  .bg-white,
+  .bg-white\/95,
+  .bg-white\/90,
+  .bg-white\/80,
+  .bg-white\/70,
+  .bg-white\/60
+) {
+  background-color: rgba(15, 23, 42, 0.92);
+}
+
+html.majhi-theme-dark :where(
+  .bg-slate-50,
+  .bg-slate-100,
+  .bg-slate-200,
+  .bg-slate-300
+) {
+  background-color: rgba(30, 41, 59, 0.88);
+}
+
+html.majhi-theme-dark :where(
+  .bg-green-50,
+  .bg-green-100,
+  .bg-emerald-50,
+  .bg-emerald-100
+) {
+  background-color: rgba(20, 83, 45, 0.52);
+}
+
+html.majhi-theme-dark :where(.bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100) {
+  background-color: rgba(127, 29, 29, 0.52);
+}
+
+html.majhi-theme-dark :where(.bg-yellow-50, .bg-yellow-100, .bg-amber-50, .bg-amber-100, .bg-orange-50, .bg-orange-100) {
+  background-color: rgba(113, 63, 18, 0.52);
+}
+
+html.majhi-theme-dark :where(.bg-blue-50, .bg-blue-100, .bg-sky-50, .bg-sky-100, .bg-cyan-50, .bg-cyan-100, .bg-indigo-50, .bg-indigo-100) {
+  background-color: rgba(30, 64, 175, 0.42);
+}
+
+html.majhi-theme-dark :where(.bg-purple-50, .bg-purple-100, .bg-violet-50, .bg-violet-100, .bg-pink-50, .bg-pink-100) {
+  background-color: rgba(88, 28, 135, 0.45);
+}
+
+html.majhi-theme-dark :where(
+  .text-black,
+  .text-slate-950,
+  .text-slate-900,
+  .text-slate-800,
+  .text-slate-700
+) {
+  color: #f8fafc;
+}
+
+html.majhi-theme-dark :where(.text-slate-600, .text-slate-500, .text-slate-400) {
+  color: #cbd5e1;
+}
+
+html.majhi-theme-dark :where(.text-sheti, .text-green-950, .text-green-900, .text-green-800, .text-green-700, .text-emerald-950, .text-emerald-900, .text-emerald-800) {
+  color: #bbf7d0;
+}
+
+html.majhi-theme-dark :where(.text-red-950, .text-red-900, .text-red-800, .text-red-700, .text-tatkal, .text-rose-950, .text-rose-900, .text-rose-800) {
+  color: #fecaca;
+}
+
+html.majhi-theme-dark :where(.text-yellow-950, .text-yellow-900, .text-yellow-800, .text-amber-950, .text-amber-900, .text-amber-800, .text-orange-950, .text-orange-900, .text-orange-800) {
+  color: #fde68a;
+}
+
+html.majhi-theme-dark :where(.text-blue-950, .text-blue-900, .text-blue-800, .text-sky-950, .text-sky-900, .text-sky-800, .text-cyan-950, .text-cyan-900, .text-cyan-800, .text-indigo-950, .text-indigo-900, .text-indigo-800) {
+  color: #bfdbfe;
+}
+
+html.majhi-theme-dark :where(.text-purple-950, .text-purple-900, .text-purple-800, .text-violet-950, .text-violet-900, .text-violet-800, .text-pink-950, .text-pink-900, .text-pink-800) {
+  color: #e9d5ff;
+}
+
+html.majhi-theme-dark :where(
+  .border-white,
+  .border-white\/80,
+  .border-white\/70,
+  .border-white\/60,
+  .border-slate-100,
+  .border-slate-200,
+  .border-slate-300
+) {
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+html.majhi-theme-dark :where(.border-green-100, .border-green-200, .border-green-300, .border-emerald-100, .border-emerald-200, .border-emerald-300) {
+  border-color: rgba(74, 222, 128, 0.34);
+}
+
+html.majhi-theme-dark :where(.border-red-100, .border-red-200, .border-red-300, .border-rose-100, .border-rose-200, .border-rose-300) {
+  border-color: rgba(248, 113, 113, 0.34);
+}
+
+html.majhi-theme-dark :where(.border-yellow-100, .border-yellow-200, .border-yellow-300, .border-amber-100, .border-amber-200, .border-amber-300, .border-orange-100, .border-orange-200, .border-orange-300) {
+  border-color: rgba(250, 204, 21, 0.34);
+}
+
+html.majhi-theme-dark :where(.border-blue-100, .border-blue-200, .border-blue-300, .border-sky-100, .border-sky-200, .border-sky-300, .border-cyan-100, .border-cyan-200, .border-cyan-300, .border-indigo-100, .border-indigo-200, .border-indigo-300, .border-violet-100, .border-violet-200, .border-violet-300, .border-purple-100, .border-purple-200, .border-purple-300, .border-pink-100, .border-pink-200, .border-pink-300) {
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+html.majhi-theme-dark :where(.ring-white, .ring-white\/70, .ring-white\/60, .ring-slate-100, .ring-slate-200) {
+  --tw-ring-color: rgba(148, 163, 184, 0.28);
+}
+
+html.majhi-theme-dark :where(.ring-green-100, .ring-green-200, .ring-emerald-100, .ring-emerald-200) {
+  --tw-ring-color: rgba(74, 222, 128, 0.28);
+}
+
+html.majhi-theme-dark :where(.ring-red-100, .ring-red-200) {
+  --tw-ring-color: rgba(248, 113, 113, 0.28);
+}
+
+html.majhi-theme-dark :where(.ring-yellow-100, .ring-yellow-200, .ring-amber-100, .ring-amber-200, .ring-orange-100, .ring-orange-200) {
+  --tw-ring-color: rgba(250, 204, 21, 0.28);
+}
+
+html.majhi-theme-dark :where(input, select, textarea) {
+  background-color: rgba(15, 23, 42, 0.96);
+  border-color: rgba(148, 163, 184, 0.42);
+  color: #f8fafc;
+}
+
+html.majhi-theme-dark :where(input::placeholder, textarea::placeholder) {
+  color: #94a3b8;
+}
+
+html.majhi-theme-dark :where(option) {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+html.majhi-theme-dark :where(
+  .from-slate-50,
+  .from-slate-100,
+  .from-white,
+  .from-green-50,
+  .from-green-100,
+  .from-emerald-50,
+  .from-red-50,
+  .from-rose-50,
+  .from-yellow-50,
+  .from-amber-50,
+  .from-orange-50,
+  .from-blue-50,
+  .from-sky-50,
+  .from-cyan-50,
+  .from-indigo-50,
+  .from-purple-50,
+  .from-violet-50,
+  .from-pink-50
+) {
+  --tw-gradient-from: rgba(30, 41, 59, 0.94) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgba(30, 41, 59, 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+html.majhi-theme-dark :where(
+  .via-white,
+  .via-slate-50,
+  .via-green-50,
+  .via-emerald-50,
+  .via-red-50,
+  .via-rose-50,
+  .via-yellow-50,
+  .via-orange-50,
+  .via-blue-50,
+  .via-sky-50,
+  .via-cyan-50,
+  .via-indigo-50,
+  .via-purple-50,
+  .via-violet-50,
+  .via-pink-50
+) {
+  --tw-gradient-to: rgba(15, 23, 42, 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), rgba(15, 23, 42, 0.9) var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+html.majhi-theme-dark :where(
+  .to-white,
+  .to-slate-50,
+  .to-green-50,
+  .to-emerald-50,
+  .to-red-50,
+  .to-rose-50,
+  .to-yellow-50,
+  .to-orange-50,
+  .to-blue-50,
+  .to-sky-50,
+  .to-cyan-50,
+  .to-indigo-50,
+  .to-purple-50,
+  .to-violet-50,
+  .to-pink-50
+) {
+  --tw-gradient-to: rgba(2, 6, 23, 0.86) var(--tw-gradient-to-position);
+}
+
+html.majhi-theme-dark :where(.shadow-soft) {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+}
+
+html.majhi-theme-dark :where(.home-skeleton) {
+  background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+  background-size: 220% 100%;
+}
+
+html.majhi-theme-dark :where(.milk-wave-bottle) {
+  border-color: rgba(147, 197, 253, 0.38);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(30, 64, 175, 0.36));
+}
+
+html.majhi-theme-dark :where(.milk-wave-percent) {
+  color: #f8fafc;
+  text-shadow: 0 1px 0 rgba(2, 6, 23, 0.9);
+}
+
+html.majhi-theme-dark :where(.backdrop-blur, .backdrop-blur-xl) {
+  backdrop-filter: blur(16px);
+}
+
+html.majhi-theme-dark.majhi-high-contrast body {
+  background: #000;
+  color: #fff;
+}
+
+html.majhi-theme-dark.majhi-high-contrast :where(.text-slate-600, .text-slate-500, .text-slate-400) {
+  color: #e2e8f0;
+}
+
+html.majhi-theme-dark.majhi-high-contrast :where(
+  .border-white,
+  .border-white\/80,
+  .border-slate-100,
+  .border-slate-200,
+  input,
+  select,
+  textarea
+) {
+  border-color: rgba(226, 232, 240, 0.62);
 }
 
 html.majhi-reduce-motion *,

@@ -11,6 +11,32 @@ const notoSansDevanagari = Noto_Sans_Devanagari({
   weight: ["400", "600", "700", "800"]
 });
 
+const appearanceInitScript = `
+(function () {
+  try {
+    var raw = localStorage.getItem("majhi_dairy_appearance");
+    var prefs = raw ? JSON.parse(raw) : {};
+    var theme = prefs.theme_mode || "light";
+    var fontSize = prefs.font_size || "medium";
+    var fontScale = fontSize === "large" ? "1.12" : fontSize === "small" ? "0.92" : "1";
+    var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var dark = theme === "dark" || (theme === "system" && prefersDark);
+    var root = document.documentElement;
+    root.classList.toggle("majhi-theme-dark", dark);
+    root.dataset.theme = dark ? "dark" : "light";
+    root.style.colorScheme = dark ? "dark" : "light";
+    root.style.setProperty("--majhi-font-scale", fontScale);
+    if (document.body) document.body.classList.toggle("majhi-theme-dark", dark);
+    root.classList.toggle("majhi-font-small", prefs.font_size === "small");
+    root.classList.toggle("majhi-font-large", prefs.font_size === "large");
+    root.classList.toggle("majhi-compact", !!prefs.compact_mode);
+    root.classList.toggle("majhi-high-contrast", !!prefs.high_contrast);
+    root.classList.toggle("majhi-large-touch", prefs.large_touch_targets !== false);
+    root.classList.toggle("majhi-reduce-motion", !!prefs.reduce_animations);
+  } catch (error) {}
+}());
+`;
+
 export const metadata = {
   applicationName: APP_NAME,
   title: {
@@ -56,8 +82,9 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="mr" className={notoSansDevanagari.variable}>
+    <html lang="mr" className={notoSansDevanagari.variable} suppressHydrationWarning>
       <body className="font-devanagari">
+        <script dangerouslySetInnerHTML={{ __html: appearanceInitScript }} />
         <AuthProvider>
           <AppChrome>{children}</AppChrome>
         </AuthProvider>

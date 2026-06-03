@@ -28,12 +28,13 @@ function getToken() {
   return localStorage.getItem(TOKEN_KEY) || "";
 }
 
-function ToggleRow({ title, subtitle, checked, onChange }) {
+function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`flex min-h-[78px] w-full items-center justify-between gap-4 rounded-xl border p-4 text-left shadow-sm ${
+      className={`flex min-h-[78px] w-full items-center justify-between gap-4 rounded-xl border p-4 text-left shadow-sm disabled:opacity-60 ${
         checked ? "border-green-200 bg-green-50" : "border-slate-200 bg-white"
       }`}
     >
@@ -50,7 +51,9 @@ function ToggleRow({ title, subtitle, checked, onChange }) {
 
 function formatDate(value) {
   if (!value) return "-";
-  return toMarathiNumerals(new Date(value).toLocaleString("mr-IN", {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return toMarathiNumerals(date.toLocaleString("mr-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -63,7 +66,7 @@ function formatMs(value) {
   const ms = Number(value || 0);
   if (ms <= 0) return "-";
   if (ms < 1000) return `${toMarathiNumerals(ms)} ms`;
-  return `${toMarathiNumerals((ms / 1000).toFixed(1))} sec`;
+  return `${toMarathiNumerals((ms / 1000).toFixed(1))} सेकंद`;
 }
 
 function StatCard({ title, value, icon, subtext }) {
@@ -87,8 +90,15 @@ export default function AiSettingsPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState("success");
+  const [feedbackSavingId, setFeedbackSavingId] = useState("");
 
   const filteredHistory = useMemo(() => history, [history]);
+
+  function showMessage(text, tone = "success") {
+    setMessage(text);
+    setMessageTone(tone);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,7 +114,7 @@ export default function AiSettingsPage() {
       setStats(result.stats);
       setHistory(result.history || []);
     } catch (loadError) {
-      setError(loadError.message);
+      setError(loadError.message || "AI सेटिंग्ज मिळाल्या नाहीत.");
     } finally {
       setLoading(false);
     }
@@ -121,7 +131,7 @@ export default function AiSettingsPage() {
       if (!response.ok) throw new Error(result.error || "AI history मिळाली नाही.");
       setHistory(result.history || []);
     } catch (loadError) {
-      setMessage(loadError.message);
+      showMessage(loadError.message || "AI history मिळाली नाही.", "error");
     } finally {
       setHistoryLoading(false);
     }
@@ -133,7 +143,7 @@ export default function AiSettingsPage() {
 
   function update(key, value) {
     setPreferences((current) => ({ ...current, [key]: value }));
-    setMessage("");
+    showMessage("");
   }
 
   function updatePermission(key, value) {
@@ -144,12 +154,13 @@ export default function AiSettingsPage() {
         [key]: value
       }
     }));
-    setMessage("");
+    showMessage("");
   }
 
   async function save() {
+    if (saving || !preferences) return;
     setSaving(true);
-    setMessage("");
+    showMessage("");
     try {
       const response = await fetch("/api/settings/ai", {
         method: "PATCH",
@@ -159,21 +170,22 @@ export default function AiSettingsPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "AI सेटिंग्ज जतन झाल्या नाहीत.");
       setPreferences(result.preferences);
-      setMessage(result.message || "AI सेटिंग्ज जतन झाल्या.");
+      showMessage(result.message || "AI सेटिंग्ज जतन झाल्या.", "success");
     } catch (saveError) {
-      setMessage(saveError.message);
+      showMessage(saveError.message || "AI सेटिंग्ज जतन झाल्या नाहीत.", "error");
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteHistory(id = "") {
+    if (historyLoading) return;
     const all = !id;
     if (!window.confirm(all ? "संपूर्ण AI chat history delete करायची आहे का?" : "ही AI history delete करायची आहे का?")) {
       return;
     }
     setHistoryLoading(true);
-    setMessage("");
+    showMessage("");
     try {
       const query = all ? "all=true" : `id=${id}`;
       const response = await fetch(`/api/settings/ai/history?${query}`, {
@@ -183,15 +195,19 @@ export default function AiSettingsPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "History delete झाली नाही.");
       setHistory((current) => (all ? [] : current.filter((item) => item.id !== id)));
-      setMessage(all ? "संपूर्ण AI history delete झाली." : "AI history delete झाली.");
+      showMessage(all ? "संपूर्ण AI history delete झाली." : "AI history delete झाली.", "success");
+      load();
     } catch (deleteError) {
-      setMessage(deleteError.message);
+      showMessage(deleteError.message || "History delete झाली नाही.", "error");
     } finally {
       setHistoryLoading(false);
     }
   }
 
   async function sendFeedback(logId, feedback) {
+    if (feedbackSavingId) return;
+    const previous = history.find((item) => item.id === logId)?.feedback || null;
+    setFeedbackSavingId(logId);
     setHistory((current) => current.map((item) => (item.id === logId ? { ...item, feedback } : item)));
     try {
       const response = await fetch("/api/settings/ai/feedback", {
@@ -201,9 +217,12 @@ export default function AiSettingsPage() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Feedback जतन झाला नाही.");
-      setMessage("Feedback जतन झाला.");
+      showMessage("Feedback जतन झाला.", "success");
     } catch (feedbackError) {
-      setMessage(feedbackError.message);
+      setHistory((current) => current.map((item) => (item.id === logId ? { ...item, feedback: previous } : item)));
+      showMessage(feedbackError.message || "Feedback जतन झाला नाही.", "error");
+    } finally {
+      setFeedbackSavingId("");
     }
   }
 
@@ -215,19 +234,24 @@ export default function AiSettingsPage() {
       <PageHeader title="🤖 दुग्धमित्र AI सेटिंग्ज" subtitle="AI सहाय्यक कसा वागेल आणि कोणता data वापरेल ते ठरवा." />
 
       {message ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-[18px] font-extrabold text-green-900 shadow-sm">
+        <div className={`rounded-xl border p-4 text-[18px] font-extrabold shadow-sm ${
+          messageTone === "error"
+            ? "border-red-200 bg-red-50 text-red-900"
+            : "border-green-200 bg-green-50 text-green-900"
+        }`}>
           {message}
         </div>
       ) : null}
 
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
-        <h2 className="text-[24px] font-black text-slate-950">AI Assistant</h2>
+        <h2 className="text-[24px] font-black text-slate-950">AI सहाय्यक</h2>
         <div className="mt-4">
           <ToggleRow
             title="दुग्धमित्र AI सुरू ठेवा"
             subtitle="बंद केल्यास app मध्ये AI bot दिसणार नाही आणि प्रश्न विचारता येणार नाहीत."
             checked={Boolean(preferences?.enabled)}
             onChange={(value) => update("enabled", value)}
+            disabled={saving}
           />
         </div>
       </section>
@@ -239,8 +263,9 @@ export default function AiSettingsPage() {
             <button
               key={value}
               type="button"
+              disabled={saving}
               onClick={() => update("response_style", value)}
-              className={`rounded-xl border p-4 text-left shadow-sm ${
+              className={`rounded-xl border p-4 text-left shadow-sm disabled:opacity-60 ${
                 preferences?.response_style === value ? "border-green-500 bg-green-50 ring-2 ring-green-100" : "border-slate-200 bg-white"
               }`}
             >
@@ -254,13 +279,14 @@ export default function AiSettingsPage() {
       </section>
 
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
-        <h2 className="text-[24px] font-black text-slate-950">Suggested Questions</h2>
+        <h2 className="text-[24px] font-black text-slate-950">झटपट प्रश्न</h2>
         <div className="mt-4">
           <ToggleRow
             title="झटपट प्रश्न दाखवा"
             subtitle="AI box मध्ये वापरायला सोपे प्रश्न chips म्हणून दिसतील."
             checked={Boolean(preferences?.suggested_questions_enabled)}
             onChange={(value) => update("suggested_questions_enabled", value)}
+            disabled={saving}
           />
         </div>
         {preferences?.suggested_questions_enabled ? (
@@ -275,7 +301,7 @@ export default function AiSettingsPage() {
       </section>
 
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
-        <h2 className="text-[24px] font-black text-slate-950">Data Permissions</h2>
+        <h2 className="text-[24px] font-black text-slate-950">डेटा परवानग्या</h2>
         <p className="mt-1 text-[16px] font-bold text-slate-600">AI फक्त तुम्ही परवानगी दिलेला data वापरेल.</p>
         <div className="mt-4 grid gap-3">
           {dataPermissionRows.map(([key, title, subtitle]) => (
@@ -285,6 +311,7 @@ export default function AiSettingsPage() {
               subtitle={subtitle}
               checked={Boolean(preferences?.data_permissions?.[key])}
               onChange={(value) => updatePermission(key, value)}
+              disabled={saving}
             />
           ))}
         </div>
@@ -304,7 +331,7 @@ export default function AiSettingsPage() {
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-[24px] font-black text-slate-950">AI Chat History</h2>
+            <h2 className="text-[24px] font-black text-slate-950">AI प्रश्न इतिहास</h2>
             <p className="mt-1 text-[15px] font-bold text-slate-600">प्रश्न, उत्तर, feedback आणि delete control.</p>
           </div>
           <button type="button" onClick={() => deleteHistory()} disabled={historyLoading || !history.length} className="min-h-[46px] rounded-lg bg-red-600 px-4 text-[16px] font-black text-white disabled:opacity-50">
@@ -328,7 +355,26 @@ export default function AiSettingsPage() {
           <button type="submit" disabled={historyLoading} className="min-h-[52px] rounded-xl bg-slate-950 px-4 text-[16px] font-black text-white disabled:opacity-60">
             शोधा
           </button>
+          {search ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                loadHistory("");
+              }}
+              disabled={historyLoading}
+              className="min-h-[52px] rounded-xl border border-slate-200 bg-white px-4 text-[16px] font-black text-slate-700 disabled:opacity-60"
+            >
+              साफ
+            </button>
+          ) : null}
         </form>
+
+        {historyLoading ? (
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-[16px] font-black text-slate-600">
+            AI history अपडेट होत आहे...
+          </p>
+        ) : null}
 
         <div className="mt-4 grid gap-3">
           {filteredHistory.length ? filteredHistory.map((item) => (
@@ -340,23 +386,25 @@ export default function AiSettingsPage() {
                   <p className="mt-2 text-[16px] font-bold leading-relaxed text-slate-700">उत्तर: {item.response || "उत्तर नाही"}</p>
                 </div>
                 <button type="button" onClick={() => deleteHistory(item.id)} disabled={historyLoading} className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-2 text-[14px] font-black text-red-700 disabled:opacity-50">
-                  Delete
+                  काढा
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
                 <button
                   type="button"
                   onClick={() => sendFeedback(item.id, "useful")}
+                  disabled={feedbackSavingId === item.id}
                   className={`rounded-full px-3 py-2 text-[14px] font-black ${item.feedback === "useful" ? "bg-green-600 text-white" : "bg-white text-green-800 ring-1 ring-green-200"}`}
                 >
-                  👍 Useful
+                  👍 उपयोगी
                 </button>
                 <button
                   type="button"
                   onClick={() => sendFeedback(item.id, "not_useful")}
+                  disabled={feedbackSavingId === item.id}
                   className={`rounded-full px-3 py-2 text-[14px] font-black ${item.feedback === "not_useful" ? "bg-red-600 text-white" : "bg-white text-red-800 ring-1 ring-red-200"}`}
                 >
-                  👎 Not Useful
+                  👎 उपयोगी नाही
                 </button>
               </div>
             </article>

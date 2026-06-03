@@ -4,6 +4,7 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { extractTextWithGoogleVision } from "@/lib/googleVisionOCR";
 import { structureSlipImageWithGPT, structureSlipTextWithGPT } from "@/lib/slipTextExtraction";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ function getImageMediaType(imageBase64 = "") {
 export async function POST(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
-    const { imageBase64, rawText, imageUrl, uploadId } = await request.json();
+    const { imageBase64, rawText, imageUrl, uploadId } = await readJsonBody(request);
 
     if (!imageBase64 && !rawText) {
       return NextResponse.json({ error: "फोटो किंवा OCR text आवश्यक आहे." }, { status: 400 });

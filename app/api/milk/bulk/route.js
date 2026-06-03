@@ -4,6 +4,7 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { pickMilkFields } from "@/lib/milkRecordFields";
 import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,7 @@ function aggregateDateRecords(records) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const inputRecords = Array.isArray(body) ? body : body.records;
 
     if (!Array.isArray(inputRecords) || inputRecords.length === 0) {

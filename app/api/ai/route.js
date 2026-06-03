@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,9 @@ export async function GET(request) {
       .order("created_at", { ascending: false });
 
     if (cowId) {
+      if (!isUuid(cowId)) {
+        return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+      }
       await verifyFarmAccess(request, cowId);
       query = query.eq("cow_id", cowId);
     }
@@ -62,10 +66,13 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     if (!body.cow_id || !body.ai_date) {
       return NextResponse.json({ error: "गाय आणि रेतन तारीख आवश्यक आहे." }, { status: 400 });
+    }
+    if (!isUuid(body.cow_id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
     }
 
     if (

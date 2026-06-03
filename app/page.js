@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
-import LoadingState from "@/components/LoadingState";
+import AnimatedNumber from "@/components/home/AnimatedNumber";
+import HomeSkeleton from "@/components/home/HomeSkeleton";
+import MilkWaveProgress from "@/components/home/MilkWaveProgress";
 import ReminderCard from "@/components/ReminderCard";
 import TrialBanner from "@/components/TrialBanner";
 import { useAuth } from "@/context/AuthContext";
@@ -40,6 +42,8 @@ export default function DashboardPage() {
   const [previousMonthlyMilkReport, setPreviousMonthlyMilkReport] = useState(null);
   const [previousMonthlyFinanceReport, setPreviousMonthlyFinanceReport] = useState(null);
   const [pendingSettlementSlips, setPendingSettlementSlips] = useState(null);
+  const [dailyGoal, setDailyGoal] = useState(null);
+  const [todayIncome, setTodayIncome] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -78,6 +82,8 @@ export default function DashboardPage() {
         setMonthlyMilkReport(snapshot.monthlyMilkReport || null);
         setMonthlyFinanceReport(snapshot.monthlyFinanceReport || null);
         setPendingSettlementSlips(snapshot.settlementSlipStatus || null);
+        setDailyGoal(snapshot.dailyGoal || null);
+        setTodayIncome(snapshot.todayIncome || 0);
         setPreviousMonthlyMilkReport(previousSnapshot?.monthlyMilkReport || null);
         setPreviousMonthlyFinanceReport(previousSnapshot?.monthlyFinanceReport || null);
         return;
@@ -121,6 +127,8 @@ export default function DashboardPage() {
       setMonthlyMilkReport(null);
       setMonthlyFinanceReport(null);
       setPendingSettlementSlips(null);
+      setDailyGoal(null);
+      setTodayIncome(0);
       setPreviousMonthlyMilkReport(null);
       setPreviousMonthlyFinanceReport(null);
     } catch (fetchError) {
@@ -172,6 +180,8 @@ export default function DashboardPage() {
   const farmName = farm?.farmName || APP_NAME;
   const monthlyQuery = `month=${currentMonth.month}&year=${currentMonth.year}`;
   const today = getTodayISODate();
+  const goalCurrentLiters = dailyGoal?.currentLiters ?? todayMilkTotal;
+  const goalTargetLiters = dailyGoal?.targetLiters || 300;
 
   const summaryTone = {
     blue: {
@@ -204,15 +214,18 @@ export default function DashboardPage() {
   const heroStats = [
     {
       label: "सकाळचे दूध",
-      value: `${formatLitres(todayMorningMilkTotal)} लि.`
+      value: todayMorningMilkTotal,
+      formatter: (value) => `${formatLitres(value)} लि.`
     },
     {
       label: "आठवणी",
-      value: toMarathiNumerals(pendingReminderCount)
+      value: pendingReminderCount,
+      formatter: (value) => toMarathiNumerals(Math.round(value))
     },
     {
       label: "संध्याकाळचे दूध",
-      value: `${formatLitres(todayEveningMilkTotal)} लि.`
+      value: todayEveningMilkTotal,
+      formatter: (value) => `${formatLitres(value)} लि.`
     }
   ];
 
@@ -248,6 +261,8 @@ export default function DashboardPage() {
       emoji: "🐄",
       label: "एकूण गायी",
       value: toMarathiNumerals(farm?.totalCows ?? cowsSummary.total ?? cows.length),
+      numericValue: farm?.totalCows ?? cowsSummary.total ?? cows.length,
+      formatter: (value) => toMarathiNumerals(Math.round(value)),
       href: "/gayi",
       tone: "green"
     },
@@ -255,13 +270,26 @@ export default function DashboardPage() {
       emoji: "🥛",
       label: "आज दूध",
       value: `${formatLitres(todayMilkTotal)} लिटर`,
+      numericValue: todayMilkTotal,
+      formatter: (value) => `${formatLitres(value)} लिटर`,
       href: `/nondi/dudh?date=${today}`,
       tone: "blue"
+    },
+    {
+      emoji: "💰",
+      label: "आजचे उत्पन्न",
+      value: formatCurrency(todayIncome),
+      numericValue: todayIncome,
+      formatter: (value) => formatCurrency(value),
+      href: `/ahval/utpanna?${monthlyQuery}`,
+      tone: "green"
     },
     {
       emoji: "🔔",
       label: "आजच्या आठवणी",
       value: toMarathiNumerals(todayReminderCount),
+      numericValue: todayReminderCount,
+      formatter: (value) => toMarathiNumerals(Math.round(value)),
       href: "/athavan",
       tone: todayReminderCount > 0 ? "red" : "amber"
     },
@@ -269,6 +297,8 @@ export default function DashboardPage() {
       emoji: "🐄",
       label: "गाभण गायी",
       value: toMarathiNumerals(pregnantCount),
+      numericValue: pregnantCount,
+      formatter: (value) => toMarathiNumerals(Math.round(value)),
       href: "/nondi/vyayan",
       tone: "purple"
     },
@@ -276,10 +306,78 @@ export default function DashboardPage() {
       emoji: "🐮",
       label: "वासरे",
       value: toMarathiNumerals(calvesSummary?.active || 0),
+      numericValue: calvesSummary?.active || 0,
+      formatter: (value) => toMarathiNumerals(Math.round(value)),
       href: "/vasare",
       tone: "amber"
     }
   ];
+
+  const recentActivities = useMemo(() => {
+    const activities = [];
+
+    if (todayMilkTotal > 0) {
+      activities.push({
+        icon: "🥛",
+        title: "आजची दूध नोंद अपडेट झाली",
+        detail: `${formatLitres(todayMorningMilkTotal)} लि. सकाळ + ${formatLitres(todayEveningMilkTotal)} लि. संध्याकाळ`
+      });
+    }
+
+    if (todayIncome > 0) {
+      activities.push({
+        icon: "💰",
+        title: "आजचे उत्पन्न तयार झाले",
+        detail: formatCurrency(todayIncome)
+      });
+    }
+
+    if (pendingSettlementSlipCount > 0) {
+      activities.push({
+        icon: "📋",
+        title: "देयक स्लिप अपलोड बाकी",
+        detail: `${toMarathiNumerals(pendingSettlementSlipCount)} स्लिप तपासायच्या आहेत`
+      });
+    }
+
+    if (todayReminderCount > 0) {
+      activities.push({
+        icon: "🔔",
+        title: "आजच्या आठवणी तयार आहेत",
+        detail: `${toMarathiNumerals(todayReminderCount)} कामे बाकी`
+      });
+    }
+
+    if (monthlyMilkReport?.totalLitres > 0) {
+      activities.push({
+        icon: "📊",
+        title: "मासिक दूध सारांश अपडेट",
+        detail: `${formatLitres(monthlyMilkReport.totalLitres)} लिटर`
+      });
+    }
+
+    return activities.slice(0, 5);
+  }, [
+    monthlyMilkReport?.totalLitres,
+    pendingSettlementSlipCount,
+    todayEveningMilkTotal,
+    todayIncome,
+    todayMilkTotal,
+    todayMorningMilkTotal,
+    todayReminderCount
+  ]);
+
+  function openAiAssistant(question = "") {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("majhi-open-ai-assistant", {
+        detail: { question }
+      })
+    );
+  }
 
   async function markReminderDone(reminder) {
     try {
@@ -337,7 +435,7 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return <LoadingState />;
+    return <HomeSkeleton />;
   }
 
   if (error) {
@@ -383,7 +481,7 @@ export default function DashboardPage() {
                   {stat.label}
                 </p>
                 <p className="mt-1 truncate text-[18px] font-extrabold leading-tight text-white">
-                  {stat.value}
+                  <AnimatedNumber value={stat.value} formatter={stat.formatter} />
                 </p>
               </div>
             ))}
@@ -456,6 +554,53 @@ export default function DashboardPage() {
         </Link>
       ) : null}
 
+      <MilkWaveProgress
+        current={goalCurrentLiters}
+        target={goalTargetLiters}
+        enabled={dailyGoal?.enabled !== false}
+      />
+
+      <section className="dashboard-card ai-home-card rounded-lg border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-4 shadow-soft">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => openAiAssistant()}
+            className="ai-mascot-home flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-white p-1.5 shadow-lg shadow-emerald-900/10"
+            aria-label="AI सहाय्यक उघडा"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/ai logo.png" alt="दुग्धमित्र AI" className="h-full w-full rounded-full object-cover" />
+            <span className="ai-mascot-eye ai-mascot-eye-left" aria-hidden="true" />
+            <span className="ai-mascot-eye ai-mascot-eye-right" aria-hidden="true" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-extrabold text-emerald-700">दुग्धमित्र AI</p>
+            <h2 className="mt-1 text-[24px] font-black leading-tight text-slate-950">
+              आज मी तुमची कशी मदत करू?
+            </h2>
+            <button
+              type="button"
+              onClick={() => openAiAssistant()}
+              className="mt-3 rounded-full bg-emerald-600 px-4 py-2 text-[16px] font-extrabold text-white shadow-sm active:bg-emerald-700"
+            >
+              AI उघडा →
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {["आजचे दूध?", "या महिन्याचे उत्पन्न?", "सरासरी फॅट?", "आजच्या आठवणी?"].map((question) => (
+            <button
+              key={question}
+              type="button"
+              onClick={() => openAiAssistant(question)}
+              className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-2 text-[14px] font-extrabold text-emerald-800 shadow-sm active:bg-emerald-50"
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="dashboard-stagger grid grid-cols-2 gap-3" aria-label="सारांश">
         {summaries.map((item) => {
           const tone = summaryTone[item.tone] || summaryTone.green;
@@ -477,7 +622,11 @@ export default function DashboardPage() {
                 {item.label}
               </h2>
               <p className="mt-2 text-[26px] font-extrabold leading-none text-slate-950">
-                {item.value}
+                {item.numericValue !== undefined ? (
+                  <AnimatedNumber value={item.numericValue} formatter={item.formatter} />
+                ) : (
+                  item.value
+                )}
               </p>
             </Link>
           );
@@ -585,7 +734,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-[16px] font-extrabold opacity-75">शुद्ध नफा / तोटा</p>
               <p className="mt-1 text-[30px] font-extrabold leading-tight">
-                {formatCurrency(monthlyNetProfit)}
+                <AnimatedNumber value={monthlyNetProfit} formatter={(value) => formatCurrency(value)} />
               </p>
             </div>
             <span className="rounded-full bg-white px-4 py-2 text-[17px] font-extrabold shadow-sm">
@@ -594,10 +743,10 @@ export default function DashboardPage() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-extrabold leading-snug">
             <p className="min-w-0 break-words rounded-lg bg-white/70 px-3 py-2 text-green-800">
-              उत्पन्न: {formatCurrency(monthlyIncomeTotal)}
+              उत्पन्न: <AnimatedNumber value={monthlyIncomeTotal} formatter={(value) => formatCurrency(value)} />
             </p>
             <p className="min-w-0 break-words rounded-lg bg-white/70 px-3 py-2 text-red-800">
-              खर्च: {formatCurrency(monthlyExpenseTotal)}
+              खर्च: <AnimatedNumber value={monthlyExpenseTotal} formatter={(value) => formatCurrency(value)} />
             </p>
           </div>
         </Link>
@@ -609,7 +758,7 @@ export default function DashboardPage() {
           >
             <p className="text-[18px] font-extrabold">🥛 दूध</p>
             <p className="mt-1 text-[22px] font-extrabold">
-              {formatLitres(monthlyMilkReport?.totalLitres || 0)} लिटर
+              <AnimatedNumber value={monthlyMilkReport?.totalLitres || 0} formatter={(value) => `${formatLitres(value)} लिटर`} />
             </p>
           </Link>
           <Link
@@ -618,7 +767,7 @@ export default function DashboardPage() {
           >
             <p className="text-[18px] font-extrabold">💰 उत्पन्न</p>
             <p className="mt-1 text-[22px] font-extrabold">
-              {formatCurrency(monthlyFinanceReport?.totalIncome || 0)}
+              <AnimatedNumber value={monthlyFinanceReport?.totalIncome || 0} formatter={(value) => formatCurrency(value)} />
             </p>
           </Link>
           <Link
@@ -627,7 +776,7 @@ export default function DashboardPage() {
           >
             <p className="text-[18px] font-extrabold">💸 मासिक खर्च</p>
             <p className="mt-1 text-[22px] font-extrabold">
-              {formatCurrency(monthlyExpenseTotal)}
+              <AnimatedNumber value={monthlyExpenseTotal} formatter={(value) => formatCurrency(value)} />
             </p>
             <p className="mt-1 text-[15px] font-bold leading-snug text-red-800">
               डेअरी खाद्य कपात + इतर
@@ -643,10 +792,42 @@ export default function DashboardPage() {
           >
             <p className="text-[18px] font-extrabold">📈 मासिक नफा</p>
             <p className="mt-1 text-[22px] font-extrabold">
-              {formatCurrency(monthlyNetProfit)}
+              <AnimatedNumber value={monthlyNetProfit} formatter={(value) => formatCurrency(value)} />
             </p>
           </Link>
         </div>
+
+        <section className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[15px] font-extrabold text-slate-500">अलीकडील हालचाल</p>
+              <h3 className="text-[21px] font-extrabold text-slate-950">आजचे अपडेट</h3>
+            </div>
+            <span className="rounded-full bg-green-50 px-3 py-1 text-[14px] font-extrabold text-green-800">
+              Live
+            </span>
+          </div>
+          {recentActivities.length > 0 ? (
+            <div className="activity-fade-list mt-3 space-y-2">
+              {recentActivities.map((activity) => (
+                <div key={`${activity.title}-${activity.detail}`} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[22px] shadow-sm">
+                    {activity.icon}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[16px] font-extrabold text-slate-950">{activity.title}</p>
+                    <p className="truncate text-[14px] font-bold text-slate-600">{activity.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state-soft mt-3 rounded-lg border-2 border-dashed border-green-200 bg-green-50 p-4 text-center">
+              <p className="text-[28px]" aria-hidden="true">🎉</p>
+              <p className="mt-1 text-[17px] font-extrabold text-green-900">आज नवीन हालचाल नाही.</p>
+            </div>
+          )}
+        </section>
 
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center justify-between gap-3">

@@ -27,16 +27,31 @@ function topicFromQuestion(question = "") {
 
 async function getUsageStats(supabase, farmId, userId) {
   const monthStart = monthStartISO();
-  const { data, error } = await supabase
-    .from("ai_assistant_logs")
-    .select("question, execution_ms, created_at")
-    .eq("farm_id", farmId)
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  const [totalResult, monthResult, sampleResult] = await Promise.all([
+    supabase
+      .from("ai_assistant_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("farm_id", farmId)
+      .eq("user_id", userId)
+      .is("deleted_at", null),
+    supabase
+      .from("ai_assistant_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("farm_id", farmId)
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .gte("created_at", monthStart),
+    supabase
+      .from("ai_assistant_logs")
+      .select("question, execution_ms, created_at")
+      .eq("farm_id", farmId)
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1000)
+  ]);
 
-  if (error) {
+  if (totalResult.error || monthResult.error || sampleResult.error) {
     return {
       totalQuestions: 0,
       questionsThisMonth: 0,
@@ -45,7 +60,7 @@ async function getUsageStats(supabase, farmId, userId) {
     };
   }
 
-  const rows = data || [];
+  const rows = sampleResult.data || [];
   const topicCounts = rows.reduce((map, row) => {
     const topic = topicFromQuestion(row.question);
     map.set(topic, (map.get(topic) || 0) + 1);
@@ -55,8 +70,8 @@ async function getUsageStats(supabase, farmId, userId) {
   const executionValues = rows.map((row) => Number(row.execution_ms || 0)).filter((value) => value > 0);
 
   return {
-    totalQuestions: rows.length,
-    questionsThisMonth: rows.filter((row) => String(row.created_at || "") >= monthStart).length,
+    totalQuestions: totalResult.count || 0,
+    questionsThisMonth: monthResult.count || 0,
     mostAskedTopic,
     averageResponseTime: executionValues.length
       ? Math.round(executionValues.reduce((sum, value) => sum + value, 0) / executionValues.length)
@@ -101,7 +116,7 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const supabase = getSupabaseServerClient();
     const current = await getOrCreateAiAssistantPreferences(supabase, auth.userId, auth.farmId);
     const next = sanitizeAiAssistantPreferences(body, current);

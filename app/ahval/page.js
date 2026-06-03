@@ -84,6 +84,60 @@ const reportLinks = [
   }
 ];
 
+const accountingLinks = [
+  {
+    href: "/accounting/slip-scan",
+    title: "स्लिप स्कॅन",
+    description: "फोटोवरून दूध किंवा सेटलमेंट नोंद",
+    emoji: "📷",
+    badge: "AI स्कॅन",
+    color: "border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-green-50 text-emerald-950",
+    accent: "from-emerald-500 to-green-400"
+  },
+  {
+    href: "/nondi/dudh?date=today",
+    title: "दूध नोंद",
+    description: "स्कॅन न करता स्वतः दूध भरा",
+    emoji: "🥛",
+    badge: "हाताने नोंद",
+    color: "border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 text-blue-950",
+    accent: "from-blue-500 to-cyan-400"
+  },
+  {
+    href: "/accounting/settlements/new",
+    title: "१५ दिवसांचे पेमेंट",
+    description: "स्कॅन न करता सेटलमेंट भरा",
+    emoji: "📋",
+    badge: "हाताने नोंद",
+    color: "border-amber-100 bg-gradient-to-br from-amber-50 via-white to-yellow-50 text-amber-950",
+    accent: "from-amber-500 to-yellow-400"
+  },
+  {
+    href: "/accounting/dairy-slips",
+    title: "दूध रेकॉर्ड्स",
+    description: "या महिन्याच्या सर्व दूध नोंदी",
+    emoji: "📊",
+    color: "border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 text-sky-950",
+    accent: "from-sky-500 to-blue-400"
+  },
+  {
+    href: "/accounting/settlements",
+    title: "सेटलमेंट्स",
+    description: "१५ दिवसांचे पेमेंट रेकॉर्ड्स",
+    emoji: "🧾",
+    color: "border-violet-100 bg-gradient-to-br from-violet-50 via-white to-purple-50 text-violet-950",
+    accent: "from-violet-500 to-purple-400"
+  },
+  {
+    href: "/accounting/profit",
+    title: "नफा/तोटा",
+    description: "महिन्याचा हिशोब आणि analysis",
+    emoji: "📈",
+    color: "border-purple-100 bg-gradient-to-br from-purple-50 via-white to-pink-50 text-purple-950",
+    accent: "from-purple-500 to-pink-400"
+  }
+];
+
 function MetricCard({ href, emoji, title, value, subtext, tone = "green" }) {
   const tones = {
     green: "border-green-100 bg-gradient-to-br from-green-50 via-white to-emerald-50 text-green-950",
@@ -114,7 +168,7 @@ function MetricCard({ href, emoji, title, value, subtext, tone = "green" }) {
 function ReportTile({ item, linkQuery }) {
   return (
     <Link
-      href={`${item.href}${linkQuery}`}
+      href={`${item.href}${item.keepQuery === false ? "" : linkQuery}`}
       className={`dashboard-card dashboard-action-tile relative flex min-h-[118px] items-center gap-4 overflow-hidden rounded-lg border p-4 shadow-soft ${item.color}`}
     >
       <span className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${item.accent}`} aria-hidden="true" />
@@ -124,6 +178,34 @@ function ReportTile({ item, linkQuery }) {
       <span className="min-w-0 flex-1">
         <span className="block text-[21px] font-extrabold leading-tight">{item.title}</span>
         <span className="mt-1 block text-[16px] font-bold leading-snug opacity-75">{item.description}</span>
+      </span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[20px] font-extrabold text-white">
+        →
+      </span>
+    </Link>
+  );
+}
+
+function AccountingTile({ item }) {
+  return (
+    <Link
+      href={item.href}
+      className={`dashboard-card dashboard-action-tile relative flex min-h-[112px] items-center gap-4 overflow-hidden rounded-lg border p-4 shadow-soft ${item.color}`}
+    >
+      <span className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${item.accent}`} aria-hidden="true" />
+      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white/85 text-[31px] shadow-sm ring-1 ring-white/70" aria-hidden="true">
+        {item.emoji}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="block text-[20px] font-extrabold leading-tight">{item.title}</span>
+          {item.badge ? (
+            <span className="rounded-full bg-white/90 px-2.5 py-1 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-white/70">
+              {item.badge}
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-1 block text-[15px] font-bold leading-snug opacity-75">{item.description}</span>
       </span>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[20px] font-extrabold text-white">
         →
@@ -222,57 +304,69 @@ export default function AhvalPage() {
       {error ? <ErrorState message={error} onRetry={fetchReports} /> : null}
 
       {!loading && !error ? (
-        <>
-          <section className="grid grid-cols-2 gap-3" aria-label="मासिक सारांश">
-            <MetricCard
-              href={`/ahval/dudh${linkQuery}`}
-              emoji="🥛"
-              title="एकूण दूध उत्पादन"
-              value={`${formatLitres(milkReport?.totalLitres || 0)} लिटर`}
-              subtext={`दररोज सरासरी ${formatLitres(milkReport?.dailyAverage || 0)} लिटर`}
-              tone="blue"
-            />
-            <MetricCard
-              href={`/ahval/utpanna${linkQuery}`}
-              emoji="💰"
-              title="एकूण उत्पन्न"
-              value={formatCurrency(financeReport?.totalIncome || 0)}
-              subtext="दूध विक्री + इतर उत्पन्न"
-              tone="green"
-            />
-            <MetricCard
-              href={`/ahval/kharch${linkQuery}`}
-              emoji="💸"
-              title="मासिक खर्च"
-              value={formatCurrency(monthlyExpenseTotal)}
-              subtext="खाद्य कपात + इतर खर्च"
-              tone="red"
-            />
-            <MetricCard
-              href={`/ahval/nafa${linkQuery}`}
-              emoji={netProfit >= 0 ? "📈" : "📉"}
-              title={netProfit >= 0 ? "मासिक नफा" : "मासिक तोटा"}
-              value={formatCurrency(Math.abs(netProfit))}
-              subtext="महिन्याचा अंतिम हिशोब"
-              tone={netProfit >= 0 ? "green" : "red"}
-            />
-          </section>
-
-          <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <div className="relative z-10 mb-4">
-              <h2 className="text-[24px] font-extrabold text-slate-950">सविस्तर अहवाल</h2>
-              <p className="mt-1 text-[17px] font-bold text-slate-500">
-                शेतकऱ्याला पटकन समजेल अशा प्रकारे विभागलेले अहवाल
-              </p>
-            </div>
-            <div className="relative z-10 space-y-3">
-            {reportLinks.map((item) => (
-              <ReportTile key={item.href} item={item} linkQuery={linkQuery} />
-            ))}
-            </div>
-          </section>
-        </>
+        <section className="grid grid-cols-2 gap-3" aria-label="मासिक सारांश">
+          <MetricCard
+            href={`/ahval/dudh${linkQuery}`}
+            emoji="🥛"
+            title="एकूण दूध उत्पादन"
+            value={`${formatLitres(milkReport?.totalLitres || 0)} लिटर`}
+            subtext={`दररोज सरासरी ${formatLitres(milkReport?.dailyAverage || 0)} लिटर`}
+            tone="blue"
+          />
+          <MetricCard
+            href={`/ahval/utpanna${linkQuery}`}
+            emoji="💰"
+            title="एकूण उत्पन्न"
+            value={formatCurrency(financeReport?.totalIncome || 0)}
+            subtext="दूध विक्री + इतर उत्पन्न"
+            tone="green"
+          />
+          <MetricCard
+            href={`/ahval/kharch${linkQuery}`}
+            emoji="💸"
+            title="मासिक खर्च"
+            value={formatCurrency(monthlyExpenseTotal)}
+            subtext="खाद्य कपात + इतर खर्च"
+            tone="red"
+          />
+          <MetricCard
+            href={`/ahval/nafa${linkQuery}`}
+            emoji={netProfit >= 0 ? "📈" : "📉"}
+            title={netProfit >= 0 ? "मासिक नफा" : "मासिक तोटा"}
+            value={formatCurrency(Math.abs(netProfit))}
+            subtext="महिन्याचा अंतिम हिशोब"
+            tone={netProfit >= 0 ? "green" : "red"}
+          />
+        </section>
       ) : null}
+
+      <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="relative z-10 mb-4">
+          <h2 className="text-[24px] font-extrabold text-slate-950">सविस्तर अहवाल</h2>
+          <p className="mt-1 text-[17px] font-bold text-slate-500">
+            शेतकऱ्याला पटकन समजेल अशा प्रकारे विभागलेले अहवाल
+          </p>
+        </div>
+        <div className="relative z-10 space-y-3">
+          {reportLinks.map((item) => (
+            <ReportTile key={item.href} item={item} linkQuery={linkQuery} />
+          ))}
+        </div>
+      </section>
+
+      <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="relative z-10 mb-4">
+          <h2 className="text-[24px] font-extrabold text-slate-950">हिशोब कामे</h2>
+          <p className="mt-1 text-[17px] font-bold leading-snug text-slate-500">
+            स्कॅन, हाताने नोंद आणि पेमेंट रेकॉर्ड्स इथून उघडा
+          </p>
+        </div>
+        <div className="relative z-10 space-y-3">
+          {accountingLinks.map((item) => (
+            <AccountingTile key={item.href} item={item} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "@/lib/aiAssistantOpenAI";
 import { aiAssistantToolHandlers } from "@/lib/aiAssistantTools";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -103,7 +104,7 @@ export async function POST(request) {
 
   try {
     const { farmId, userId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const message = String(body.message || "").trim();
 
     if (!message) {

@@ -3,6 +3,7 @@ import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { displayFinanceCategory, expenseCategories, incomeCategories } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,39 @@ const allowedCategories = new Set([
   ...expenseCategories,
   "AI खर्च"
 ]);
+const digitMap = {
+  "०": "0",
+  "१": "1",
+  "२": "2",
+  "३": "3",
+  "४": "4",
+  "५": "5",
+  "६": "6",
+  "७": "7",
+  "८": "8",
+  "९": "9",
+  "٠": "0",
+  "١": "1",
+  "٢": "2",
+  "٣": "3",
+  "٤": "4",
+  "٥": "5",
+  "٦": "6",
+  "٧": "7",
+  "٨": "8",
+  "٩": "9"
+};
+
+function parseFinanceAmount(value) {
+  if (value === null || value === undefined || value === "") {
+    return Number.NaN;
+  }
+  const normalized = String(value)
+    .replace(/[०-९٠-٩]/g, (digit) => digitMap[digit] || digit)
+    .replace(/[₹,\s]/g, "")
+    .replace(/O/gi, "0");
+  return Number(normalized);
+}
 
 function isFinanceCategorySchemaError(error) {
   return error?.code === "23514" && String(error?.message || "").includes("finance_records_category_check");
@@ -65,7 +99,7 @@ function validateFinancePayload(payload, { requireBasics = false } = {}) {
   }
 
   if (payload.amount !== undefined) {
-    const amount = Number(payload.amount);
+    const amount = parseFinanceAmount(payload.amount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return "रक्कम शून्यापेक्षा जास्त असावी.";
@@ -96,7 +130,7 @@ function normalizeFinancePayload(payload) {
   const normalized = { ...payload };
 
   if (normalized.amount !== undefined) {
-    normalized.amount = Number(normalized.amount);
+    normalized.amount = parseFinanceAmount(normalized.amount);
   }
 
   if (normalized.cow_id !== undefined) {
@@ -193,7 +227,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     const validationError = validateFinancePayload(body, { requireBasics: true });
 
@@ -202,6 +236,9 @@ export async function POST(request) {
     }
 
     const { farmId } = await verifyFarmOwner(request);
+    if (body.cow_id && !isUuid(body.cow_id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
     if (body.cow_id) {
       await verifyFarmAccess(request, body.cow_id);
     }
@@ -236,13 +273,16 @@ export async function POST(request) {
 
 export async function PUT(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
-    if (!body.id) {
+    if (!isUuid(body.id)) {
       return NextResponse.json({ error: "व्यवहार क्रमांक आवश्यक आहे." }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmOwner(request);
+    if (body.cow_id && !isUuid(body.cow_id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
     if (body.cow_id) {
       await verifyFarmAccess(request, body.cow_id);
     }
@@ -311,7 +351,7 @@ export async function DELETE(request) {
       id = body.id;
     }
 
-    if (!id) {
+    if (!isUuid(id)) {
       return NextResponse.json({ error: "व्यवहार क्रमांक आवश्यक आहे." }, { status: 400 });
     }
 

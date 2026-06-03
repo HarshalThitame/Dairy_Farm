@@ -9,13 +9,16 @@ const tabs = [
   { href: "/gayi", icon: "🐄", label: "गायी" },
   { href: "/nondi", icon: "📋", label: "नोंदी" },
   { href: "/athavan", icon: "🔔", label: "आठवण" },
-  { href: "/ahval", icon: "📊", label: "अहवाल" },
-  { href: "/accounting", icon: "💰", label: "हिशोब" }
+  { href: "/ahval", icon: "📊", label: "अहवाल" }
 ];
 
 function isActive(pathname, href) {
   if (href === "/") {
     return pathname === "/";
+  }
+
+  if (href === "/ahval" && pathname.startsWith("/accounting")) {
+    return true;
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -39,7 +42,7 @@ export default function BottomNav() {
 
   return (
     <nav className="bottom-nav-padding pointer-events-none fixed inset-x-0 bottom-0 z-40 bg-transparent px-2 pb-2">
-      <div className="pointer-events-auto mx-auto grid min-h-[82px] max-w-3xl grid-cols-6 gap-1 rounded-lg border border-white/80 bg-white/90 p-1.5 shadow-[0_-14px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+      <div className="pointer-events-auto mx-auto grid min-h-[82px] max-w-3xl grid-cols-5 gap-1 rounded-lg border border-white/80 bg-white/90 p-1.5 shadow-[0_-14px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
         {tabs.map((tab) => {
           const active = isActive(pathname, tab.href);
 

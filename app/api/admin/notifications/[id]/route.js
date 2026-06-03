@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 import { getStoredScheduleConfig, normalizeNotificationPayload } from "@/lib/notificationCenter";
+import { badRequest, isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Notification ID चुकीचा आहे.");
+    }
     await verifySuperAdmin(request);
     const supabase = getSupabaseServerClient();
     const { data: notification, error } = await supabase
@@ -39,8 +43,11 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Notification ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const payload = normalizeNotificationPayload(body);
     const supabase = getSupabaseServerClient();
 
@@ -122,6 +129,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Notification ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
     const supabase = getSupabaseServerClient();
     const { data: existing, error: fetchError } = await supabase

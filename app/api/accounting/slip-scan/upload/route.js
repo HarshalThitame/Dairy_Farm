@@ -7,6 +7,8 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function uploadError(message, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -124,6 +126,10 @@ export async function GET(request) {
     const supabase = getSupabaseServerClient();
 
     if (id) {
+      if (!UUID_PATTERN.test(String(id))) {
+        return uploadError("स्लिप फोटो ID चुकीचा आहे.", 400);
+      }
+
       const { data, error } = await supabase
         .from("slip_uploads")
         .select("*")

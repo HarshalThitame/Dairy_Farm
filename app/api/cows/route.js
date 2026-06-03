@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { farmId } = await verifyFarmOwner(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     if (!body.name || !body.name.trim()) {
       return NextResponse.json({ error: "गायीचे नाव आवश्यक आहे." }, { status: 400 });

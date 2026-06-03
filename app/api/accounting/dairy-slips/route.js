@@ -33,6 +33,11 @@ const slipFields = [
   "slip_image_url"
 ];
 
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanOptional(value) {
   const text = String(value || "").trim();
   return text || null;
@@ -43,7 +48,13 @@ function optionalNumber(value) {
     return null;
   }
 
-  const numberValue = Number(value);
+  const numberValue = Number(
+    String(value)
+      .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(/[,₹\s]/g, "")
+      .replace(/[Oo]/g, "0")
+  );
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
@@ -76,8 +87,8 @@ function pickSlipFields(body) {
 }
 
 function validateSlip(body) {
-  const liters = Number(body.liters);
-  const rate = Number(body.rate_per_liter);
+  const liters = optionalNumber(body.liters);
+  const rate = optionalNumber(body.rate_per_liter);
 
   if (!body.slip_date) {
     return "तारीख आवश्यक आहे.";
@@ -91,11 +102,11 @@ function validateSlip(body) {
     return "दुधाचा प्रकार गाय किंवा म्हैस असावा.";
   }
 
-  if (!Number.isFinite(liters) || liters <= 0) {
+  if (liters === null || liters <= 0) {
     return "दूधाचे लिटर शून्यापेक्षा जास्त असावे.";
   }
 
-  if (!Number.isFinite(rate) || rate <= 0) {
+  if (rate === null || rate <= 0) {
     return "दर शून्यापेक्षा जास्त असावा.";
   }
 
@@ -184,7 +195,12 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const validationError = validateSlip(body);
 
     if (validationError) {
@@ -202,12 +218,12 @@ export async function POST(request) {
       dairy_name: cleanOptional(body.dairy_name) || farmInfo.dairy_name || null,
       dairy_member_number: cleanOptional(body.dairy_member_number || body.dairy_member_code) || farmInfo.dairy_member_number || null,
       dairy_member_code: cleanOptional(body.dairy_member_code || body.dairy_member_number) || farmInfo.dairy_member_number || null,
-      liters: Number(body.liters),
+      liters: optionalNumber(body.liters),
       fat_percentage: optionalNumber(body.fat_percentage),
       snf_percentage: optionalNumber(body.snf_percentage),
       clr_degree: optionalNumber(body.clr_score ?? body.clr_degree),
       clr_score: optionalNumber(body.clr_score ?? body.clr_degree),
-      rate_per_liter: Number(body.rate_per_liter),
+      rate_per_liter: optionalNumber(body.rate_per_liter),
       notes: cleanOptional(body.notes),
       slip_image_url: cleanOptional(body.slip_image_url)
     };

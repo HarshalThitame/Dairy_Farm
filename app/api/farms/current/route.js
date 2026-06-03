@@ -6,6 +6,7 @@ import {
   verifyFarmOwner
 } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -86,7 +87,7 @@ export async function GET(request) {
 export async function PUT(request) {
   try {
     const { farmId } = await verifyFarmOwner(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     delete body.owner_mobile;
     delete body.ownerMobile;
     delete body.owner_email;

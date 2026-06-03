@@ -12,14 +12,18 @@ import {
   renderExportFile,
   resolveExportDateRange,
   restoreBackup,
-  updateAutoBackupSettings
+  updateAutoBackupSettings,
+  validateExportFormat
 } from "@/lib/exportBackup";
+import { refreshMonthlySummary } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logUserSettingsAction } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeBackupRow(row = {}) {
   return {
@@ -39,6 +43,17 @@ function normalizeBackupRow(row = {}) {
 }
 
 async function getBackupById(supabase, farmId, backupId) {
+  if (!backupId) {
+    const missing = new Error("Backup निवडा.");
+    missing.status = 400;
+    throw missing;
+  }
+  if (!uuidPattern.test(String(backupId))) {
+    const invalid = new Error("Backup record चुकीचा आहे.");
+    invalid.status = 400;
+    throw invalid;
+  }
+
   const { data, error } = await supabase
     .from("farm_export_backups")
     .select("*")
@@ -53,6 +68,46 @@ async function getBackupById(supabase, farmId, backupId) {
   }
 
   return data;
+}
+
+function assertBackupFileReady(backup) {
+  if (!["ready", "restored"].includes(backup.status)) {
+    const error = new Error("हा backup वापरण्यासाठी तयार नाही.");
+    error.status = 400;
+    throw error;
+  }
+}
+
+function monthPairsBetween(startDate, endDate) {
+  const months = [];
+  const start = new Date(`${String(startDate).slice(0, 10)}T00:00:00Z`);
+  const end = new Date(`${String(endDate).slice(0, 10)}T00:00:00Z`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return months;
+  }
+
+  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const final = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+
+  while (cursor <= final && months.length < 36) {
+    months.push({ month: cursor.getUTCMonth() + 1, year: cursor.getUTCFullYear() });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  return months;
+}
+
+async function refreshSummariesForBackupRange(supabase, farmId, range = {}) {
+  const months = monthPairsBetween(range.startDate, range.endDate);
+  const refreshed = [];
+
+  for (const item of months) {
+    await refreshMonthlySummary(supabase, farmId, item.month, item.year);
+    refreshed.push(`${item.year}-${String(item.month).padStart(2, "0")}`);
+  }
+
+  return refreshed;
 }
 
 export async function GET(request) {
@@ -86,12 +141,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const action = body.action || "export";
     const supabase = getSupabaseServerClient();
 
     if (action === "export") {
-      const format = body.format || "json";
+      const format = validateExportFormat(body.format || "json");
       const exportData = await collectFarmExportData(supabase, auth.farmId, auth.user, body);
       const buffer = await renderExportFile(exportData, format);
       const fileName = buildExportFileName("majhi-dairy-export", format, exportData.range);
@@ -135,6 +190,7 @@ export async function POST(request) {
 
     if (action === "download_backup") {
       const backup = await getBackupById(supabase, auth.farmId, body.backupId);
+      assertBackupFileReady(backup);
       const signedUrl = await getBackupSignedUrl(supabase, backup);
       return NextResponse.json({
         success: true,
@@ -146,16 +202,19 @@ export async function POST(request) {
     if (action === "restore_backup") {
       const backup = await getBackupById(supabase, auth.farmId, body.backupId);
       const result = await restoreBackup({ supabase, farmId: auth.farmId, backup });
+      const refreshedMonths = await refreshSummariesForBackupRange(supabase, auth.farmId, backup.date_range || {});
 
       await logUserSettingsAction(supabase, request, auth.userId, auth.farmId, "backup_restored", {
         backupId: backup.id,
         restoredCount: result.restoredCount,
-        restored: result.restored
+        restored: result.restored,
+        refreshedMonths
       });
 
       return NextResponse.json({
         success: true,
         ...result,
+        refreshedMonths,
         message: "Backup restore झाला."
       });
     }

@@ -5,44 +5,13 @@ import { useRouter } from "next/navigation";
 import BrandLockup from "@/components/BrandLockup";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import { useAuth } from "@/context/AuthContext";
+import {
+  MAHARASHTRA_DISTRICTS,
+  getAhilyanagarTalukas,
+  getAhilyanagarVillages,
+  isAhilyanagarDistrict
+} from "@/lib/maharashtraLocations";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-const districts = [
-  "पुणे",
-  "मुंबई",
-  "नाशिक",
-  "छत्रपती संभाजीनगर",
-  "नागपूर",
-  "अहमदनगर",
-  "सोलापूर",
-  "सातारा",
-  "सांगली",
-  "कोल्हापूर",
-  "जळगाव",
-  "धुळे",
-  "नंदुरबार",
-  "अमरावती",
-  "अकोला",
-  "बुलढाणा",
-  "यवतमाळ",
-  "वर्धा",
-  "भंडारा",
-  "गोंदिया",
-  "चंद्रपूर",
-  "गडचिरोली",
-  "लातूर",
-  "उस्मानाबाद",
-  "बीड",
-  "नांदेड",
-  "परभणी",
-  "हिंगोली",
-  "जालना",
-  "रत्नागिरी",
-  "सिंधुदुर्ग",
-  "रायगड",
-  "ठाणे",
-  "पालघर"
-];
 
 const weakPins = new Set([
   "0000",
@@ -151,6 +120,15 @@ export default function SignupPage() {
 
     return ["मोबाइल नंबर", "डेअरी माहिती", "PIN तयार करा"][step - 1] || "नोंदणी";
   }, [step, success]);
+  const isAhilyanagarSelected = isAhilyanagarDistrict(form.districtName);
+  const talukaOptions = useMemo(
+    () => (isAhilyanagarSelected ? getAhilyanagarTalukas() : []),
+    [isAhilyanagarSelected]
+  );
+  const villageOptions = useMemo(
+    () => (isAhilyanagarSelected ? getAhilyanagarVillages(form.talukaName) : []),
+    [isAhilyanagarSelected, form.talukaName]
+  );
 
   useEffect(() => {
     if (success) {
@@ -165,6 +143,30 @@ export default function SignupPage() {
     setForm((current) => ({
       ...current,
       [field]: value
+    }));
+    setError("");
+  }
+
+  function updateDistrict(value) {
+    setForm((current) => {
+      const nextIsAhilyanagar = isAhilyanagarDistrict(value);
+      const currentTalukaValid = getAhilyanagarTalukas().includes(current.talukaName);
+
+      return {
+        ...current,
+        districtName: value,
+        talukaName: nextIsAhilyanagar && !currentTalukaValid ? "" : current.talukaName,
+        villageName: nextIsAhilyanagar ? "" : current.villageName
+      };
+    });
+    setError("");
+  }
+
+  function updateTaluka(value) {
+    setForm((current) => ({
+      ...current,
+      talukaName: value,
+      villageName: isAhilyanagarDistrict(current.districtName) ? "" : current.villageName
     }));
     setError("");
   }
@@ -369,40 +371,78 @@ export default function SignupPage() {
                 className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[20px] font-bold outline-none focus:border-sheti"
               />
             </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-[20px] font-extrabold text-slate-900">गावाचे नाव</span>
-                <MarathiTextInput
-                  value={form.villageName}
-                  onValueChange={(value) => updateField("villageName", value)}
-                  placeholder="उदा. शिरूर"
-                  className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[20px] font-bold outline-none focus:border-sheti"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[20px] font-extrabold text-slate-900">तालुक्याचे नाव</span>
-                <MarathiTextInput
-                  value={form.talukaName}
-                  onValueChange={(value) => updateField("talukaName", value)}
-                  placeholder="उदा. खेड"
-                  className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[20px] font-bold outline-none focus:border-sheti"
-                />
-              </label>
-            </div>
             <label className="block">
               <span className="text-[20px] font-extrabold text-slate-900">जिल्ह्याचे नाव *</span>
               <select
                 value={form.districtName}
-                onChange={(event) => updateField("districtName", event.target.value)}
+                onChange={(event) => updateDistrict(event.target.value)}
                 className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-bold outline-none focus:border-sheti"
               >
-                {districts.map((district) => (
+                {MAHARASHTRA_DISTRICTS.map((district) => (
                   <option key={district} value={district}>
-                    {district}
+                    {district === "अहमदनगर" ? "अहमदनगर (जुने नाव)" : district}
                   </option>
                 ))}
               </select>
             </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-[20px] font-extrabold text-slate-900">तालुक्याचे नाव</span>
+                {isAhilyanagarSelected ? (
+                  <select
+                    value={form.talukaName}
+                    onChange={(event) => updateTaluka(event.target.value)}
+                    className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-bold outline-none focus:border-sheti"
+                  >
+                    <option value="">तालुका निवडा</option>
+                    {form.talukaName && !talukaOptions.includes(form.talukaName) ? (
+                      <option value={form.talukaName}>{form.talukaName}</option>
+                    ) : null}
+                    {talukaOptions.map((taluka) => (
+                      <option key={taluka} value={taluka}>{taluka}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <MarathiTextInput
+                    value={form.talukaName}
+                    onValueChange={(value) => updateField("talukaName", value)}
+                    placeholder="उदा. खेड"
+                    className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[20px] font-bold outline-none focus:border-sheti"
+                  />
+                )}
+              </label>
+              <label className="block">
+                <span className="text-[20px] font-extrabold text-slate-900">गावाचे नाव</span>
+                {isAhilyanagarSelected ? (
+                  <select
+                    value={form.villageName}
+                    onChange={(event) => updateField("villageName", event.target.value)}
+                    disabled={!form.talukaName}
+                    className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-bold outline-none focus:border-sheti disabled:bg-slate-100 disabled:text-slate-500"
+                  >
+                    <option value="">{form.talukaName ? "गाव निवडा" : "आधी तालुका निवडा"}</option>
+                    {form.villageName && !villageOptions.includes(form.villageName) ? (
+                      <option value={form.villageName}>{form.villageName}</option>
+                    ) : null}
+                    {villageOptions.map((village) => (
+                      <option key={village} value={village}>{village}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <MarathiTextInput
+                    value={form.villageName}
+                    onValueChange={(value) => updateField("villageName", value)}
+                    placeholder="उदा. शिरूर"
+                    className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[20px] font-bold outline-none focus:border-sheti"
+                  />
+                )}
+              </label>
+            </div>
+            {isAhilyanagarSelected ? (
+              <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[16px] font-bold leading-snug text-green-800">
+                अहिल्यानगर जिल्ह्यासाठी official १४ तालुके आणि १६०२ गावांची dropdown यादी वापरली आहे.
+              </p>
+            ) : null}
             <label className="block">
               <span className="text-[20px] font-extrabold text-slate-900">एकूण गायी</span>
               <input

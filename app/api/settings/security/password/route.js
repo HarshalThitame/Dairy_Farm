@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logUserSettingsAction } from "@/lib/userSettings";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ function validatePassword(password) {
 export async function PATCH(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const currentPassword = String(body.currentPassword || "");
     const newPassword = String(body.newPassword || "");
     const confirmPassword = String(body.confirmPassword || "");

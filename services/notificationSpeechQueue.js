@@ -1,32 +1,38 @@
 "use client";
 
 import { getVoiceSettings } from "@/store/voiceSettingsStore";
-import { isSpeechSupported, speakText } from "@/services/speechService";
+import { isNotificationToneSupported, playNotificationTone } from "@/services/notificationToneService";
 
-const SPOKEN_IDS_KEY = "majhi_dairy_spoken_notification_ids";
-const MAX_SPOKEN_IDS = 150;
+const PLAYED_IDS_KEY = "majhi_dairy_played_notification_tone_ids";
+const LEGACY_SPOKEN_IDS_KEY = "majhi_dairy_spoken_notification_ids";
+const MAX_PLAYED_IDS = 150;
 
 const queue = [];
 let processing = false;
 
-function readSpokenIds() {
+function readPlayedIds() {
   if (typeof window === "undefined") {
     return [];
   }
 
   try {
-    return JSON.parse(window.localStorage.getItem(SPOKEN_IDS_KEY) || "[]");
+    const currentIds = JSON.parse(window.localStorage.getItem(PLAYED_IDS_KEY) || "[]");
+    if (currentIds.length) {
+      return currentIds;
+    }
+
+    return JSON.parse(window.localStorage.getItem(LEGACY_SPOKEN_IDS_KEY) || "[]");
   } catch {
     return [];
   }
 }
 
-function writeSpokenIds(ids) {
+function writePlayedIds(ids) {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(SPOKEN_IDS_KEY, JSON.stringify(ids.slice(-MAX_SPOKEN_IDS)));
+  window.localStorage.setItem(PLAYED_IDS_KEY, JSON.stringify(ids.slice(-MAX_PLAYED_IDS)));
 }
 
 function stableHash(value) {
@@ -54,15 +60,15 @@ export function buildNotificationSpeechId(notification = {}) {
   );
 }
 
-function markSpoken(id) {
-  const ids = readSpokenIds();
+function markPlayed(id) {
+  const ids = readPlayedIds();
   if (!ids.includes(id)) {
-    writeSpokenIds([...ids, id]);
+    writePlayedIds([...ids, id]);
   }
 }
 
-function hasBeenSpoken(id) {
-  return readSpokenIds().includes(id);
+function hasBeenPlayed(id) {
+  return readPlayedIds().includes(id);
 }
 
 async function processQueue() {
@@ -76,10 +82,10 @@ async function processQueue() {
     const item = queue.shift();
 
     try {
-      await speakText(item.text, { volume: item.volume, rate: 0.9, pitch: 1 });
-      markSpoken(item.id);
+      await playNotificationTone({ volume: item.volume });
+      markPlayed(item.id);
     } catch (error) {
-      console.error("Voice notification queue failed:", error);
+      console.error("Notification tone queue failed:", error);
     }
   }
 
@@ -96,12 +102,12 @@ export function enqueueNotificationSpeech(notification = {}, options = {}) {
     return false;
   }
 
-  if (!isSpeechSupported()) {
+  if (!isNotificationToneSupported()) {
     return false;
   }
 
   const id = buildNotificationSpeechId(notification);
-  if (!options.force && hasBeenSpoken(id)) {
+  if (!options.force && hasBeenPlayed(id)) {
     return false;
   }
 
@@ -109,14 +115,8 @@ export function enqueueNotificationSpeech(notification = {}, options = {}) {
     return false;
   }
 
-  const text = buildNotificationSpeechText(notification);
-  if (!text) {
-    return false;
-  }
-
   queue.push({
     id,
-    text,
     volume: options.volume ?? settings.volume
   });
 
@@ -125,13 +125,5 @@ export function enqueueNotificationSpeech(notification = {}, options = {}) {
 }
 
 export function speakTestVoice(volume) {
-  return enqueueNotificationSpeech(
-    {
-      id: `voice-test-${Date.now()}`,
-      title: "",
-      body: "नमस्कार. माझी डेअरी मध्ये तुमचे स्वागत आहे."
-    },
-    { force: true, volume }
-  );
+  return playNotificationTone({ volume });
 }
-

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ function normalizeMobile(mobile) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const mobile = normalizeMobile(body.mobile);
 
     if (!/^[6-9]\d{9}$/.test(mobile)) {
@@ -26,10 +27,10 @@ export async function POST(request) {
     ]);
 
     return NextResponse.json({ available: !farm && !user });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       { available: false, error: "मोबाइल नंबर तपासताना चूक झाली." },
-      { status: 500 }
+      { status: error.status || 500 }
     );
   }
 }

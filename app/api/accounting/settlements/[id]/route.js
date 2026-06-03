@@ -29,6 +29,17 @@ const settlementFields = [
   "settlement_image_url"
 ];
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateSettlementId(id) {
+  return UUID_PATTERN.test(String(id || ""));
+}
+
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanOptional(value) {
   const text = String(value || "").trim();
   return text || null;
@@ -248,6 +259,10 @@ function settlementPeriodChanged(oldSettlement = {}, updatedSettlement = {}) {
 
 export async function GET(request, { params }) {
   try {
+    if (!validateSettlementId(params.id)) {
+      return NextResponse.json({ error: "सेटलमेंट ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const settlement = await fetchSettlement(supabase, farmId, params.id);
@@ -272,8 +287,17 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!validateSettlementId(params.id)) {
+      return NextResponse.json({ error: "सेटलमेंट ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const payload = normalizePayload(pickFields(body));
 
     if (Object.keys(payload).length === 1 && payload.updated_at) {
@@ -356,8 +380,17 @@ export async function PUT(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
+    if (!validateSettlementId(params.id)) {
+      return NextResponse.json({ error: "सेटलमेंट ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const supabase = getSupabaseServerClient();
     const settlement = await fetchSettlement(supabase, farmId, params.id);
 
@@ -409,6 +442,10 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    if (!validateSettlementId(params.id)) {
+      return NextResponse.json({ error: "सेटलमेंट ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const existing = await fetchSettlement(supabase, farmId, params.id);

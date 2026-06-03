@@ -6,6 +6,7 @@ import { pickMilkFields } from "@/lib/milkRecordFields";
 import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     if (!body.date) {
       return NextResponse.json({ error: "तारीख आवश्यक आहे." }, { status: 400 });

@@ -11,9 +11,36 @@ export const dynamic = "force-dynamic";
 
 const expenseFields = ["expense_date", "category", "amount", "description", "vendor_name"];
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateExpenseId(id) {
+  return UUID_PATTERN.test(String(id || ""));
+}
+
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanOptional(value) {
   const text = String(value || "").trim();
   return text || null;
+}
+
+function parseAmount(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const amount = Number(
+    String(value)
+      .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(/[,₹\s]/g, "")
+      .replace(/[Oo]/g, "0")
+  );
+
+  return Number.isFinite(amount) ? amount : null;
 }
 
 function pickFields(body) {
@@ -42,6 +69,10 @@ async function fetchExpense(supabase, farmId, id) {
 
 export async function GET(request, { params }) {
   try {
+    if (!validateExpenseId(params.id)) {
+      return NextResponse.json({ error: "खर्च नोंद ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const expense = await fetchExpense(supabase, farmId, params.id);
@@ -58,8 +89,17 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!validateExpenseId(params.id)) {
+      return NextResponse.json({ error: "खर्च नोंद ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const payload = pickFields(body);
 
     if (Object.keys(payload).length === 0) {
@@ -68,13 +108,13 @@ export async function PUT(request, { params }) {
 
     if (
       payload.amount !== undefined &&
-      (!Number.isFinite(Number(payload.amount)) || Number(payload.amount) <= 0)
+      (parseAmount(payload.amount) === null || parseAmount(payload.amount) <= 0)
     ) {
       return NextResponse.json({ error: "रक्कम शून्यापेक्षा जास्त असावी." }, { status: 400 });
     }
 
     if (payload.amount !== undefined) {
-      payload.amount = Number(payload.amount);
+      payload.amount = parseAmount(payload.amount);
     }
 
     if (payload.expense_date) {
@@ -122,6 +162,10 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    if (!validateExpenseId(params.id)) {
+      return NextResponse.json({ error: "खर्च नोंद ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase

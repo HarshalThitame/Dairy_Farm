@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "majhi_dairy_ai_assistant_messages";
 const AI_LOGO_SRC = "/icons/ai logo.png";
@@ -362,7 +362,7 @@ export default function AIAssistantWidget() {
     persistMessages(next);
   }
 
-  function openAssistant() {
+  const openAssistant = useCallback(() => {
     if (typeof window !== "undefined" && !open) {
       const currentState =
         window.history.state && typeof window.history.state === "object"
@@ -381,7 +381,7 @@ export default function AIAssistantWidget() {
     }
 
     setOpen(true);
-  }
+  }, [open]);
 
   function closeAssistant() {
     if (
@@ -396,6 +396,27 @@ export default function AIAssistantWidget() {
 
     setOpen(false);
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handleOpenAssistant(event) {
+      const question = event.detail?.question;
+      openAssistant();
+
+      if (typeof question === "string" && question.trim()) {
+        setInput(question.trim());
+      }
+    }
+
+    window.addEventListener("majhi-open-ai-assistant", handleOpenAssistant);
+
+    return () => {
+      window.removeEventListener("majhi-open-ai-assistant", handleOpenAssistant);
+    };
+  }, [openAssistant]);
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
+import { badRequest, isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,10 +9,13 @@ export const runtime = "nodejs";
 export async function POST(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const notificationId = body.notificationId || body.id;
     if (!notificationId) {
-      throw new Error("Notification ID is required.");
+      throw badRequest("Notification ID आवश्यक आहे.");
+    }
+    if (!isUuid(notificationId)) {
+      throw badRequest("Notification ID चुकीचा आहे.");
     }
 
     const supabase = getSupabaseServerClient();
@@ -23,7 +27,7 @@ export async function POST(request) {
 
     if (fetchError) throw fetchError;
     if (!["draft", "scheduled"].includes(existing.status)) {
-      throw new Error("Only draft or scheduled notifications can be cancelled.");
+      throw badRequest("फक्त draft किंवा scheduled notifications cancel करता येतात.");
     }
 
     const { data, error } = await supabase

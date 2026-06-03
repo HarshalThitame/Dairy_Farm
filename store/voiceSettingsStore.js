@@ -5,7 +5,8 @@ const CHANGE_EVENT = "majhi-dairy-voice-settings-changed";
 
 export const defaultVoiceSettings = {
   enabled: true,
-  volume: 1
+  volume: 0.85,
+  mode: "tone"
 };
 
 function clampVolume(value) {
@@ -21,7 +22,8 @@ function clampVolume(value) {
 function normalizeSettings(settings = {}) {
   return {
     enabled: settings.enabled !== false,
-    volume: clampVolume(settings.volume)
+    volume: clampVolume(settings.volume),
+    mode: "tone"
   };
 }
 
@@ -65,6 +67,14 @@ export function setVoiceNotificationVolume(volume) {
   return saveVoiceSettings({ volume: clampVolume(volume) });
 }
 
+export function setNotificationToneEnabled(enabled) {
+  return setVoiceNotificationsEnabled(enabled);
+}
+
+export function setNotificationToneVolume(volume) {
+  return setVoiceNotificationVolume(volume);
+}
+
 export function subscribeVoiceSettings(listener) {
   if (typeof window === "undefined") {
     return () => {};
@@ -88,4 +98,3 @@ export function subscribeVoiceSettings(listener) {
     window.removeEventListener("storage", handleStorage);
   };
 }
-

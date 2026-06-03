@@ -16,19 +16,18 @@ import {
 } from "recharts";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import PageHeader from "@/components/PageHeader";
 import { formatCurrency, formatLitres, formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
 
 const TOKEN_KEY = "goshala_token";
 
 const overviewCards = [
-  ["totalMilk", "🥛", "एकूण दूध", "milk"],
-  ["totalIncome", "💰", "एकूण उत्पन्न", "currency"],
-  ["averageFat", "🧈", "सरासरी फॅट", "percent"],
-  ["averageSNF", "🧪", "सरासरी SNF", "number"],
-  ["totalSlips", "📷", "एकूण स्लिप", "number"],
-  ["aiQuestions", "🤖", "AI प्रश्न", "number"],
-  ["animalsCount", "🐄", "जनावरे", "number"]
+  ["totalMilk", "🥛", "एकूण दूध", "milk", "from-blue-50 via-white to-cyan-50 border-blue-100 text-blue-950"],
+  ["totalIncome", "💰", "एकूण उत्पन्न", "currency", "from-green-50 via-white to-emerald-50 border-green-100 text-green-950"],
+  ["averageFat", "🧈", "सरासरी फॅट", "percent", "from-yellow-50 via-white to-amber-50 border-yellow-100 text-yellow-950"],
+  ["averageSNF", "🧪", "सरासरी SNF", "number", "from-purple-50 via-white to-violet-50 border-purple-100 text-purple-950"],
+  ["totalSlips", "📷", "एकूण स्लिप", "number", "from-sky-50 via-white to-blue-50 border-sky-100 text-sky-950"],
+  ["aiQuestions", "🤖", "AI प्रश्न", "number", "from-emerald-50 via-white to-teal-50 border-emerald-100 text-emerald-950"],
+  ["animalsCount", "🐄", "जनावरे", "number", "from-slate-50 via-white to-green-50 border-slate-200 text-slate-950"]
 ];
 
 function getToken() {
@@ -73,22 +72,22 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 text-[14px] font-bold shadow-soft">
+    <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 text-[14px] font-bold shadow-soft backdrop-blur">
       <p className="text-slate-700">{toMarathiNumerals(label)}</p>
       <p className="text-slate-950">{formatNumber(item.value, 2)}</p>
     </div>
   );
 }
 
-function OverviewCard({ icon, label, value, type }) {
+function OverviewCard({ icon, label, value, type, tone }) {
   return (
-    <article className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-soft backdrop-blur">
+    <article className={`dashboard-card min-w-0 overflow-hidden rounded-3xl border bg-gradient-to-br p-4 shadow-soft ${tone}`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[34px]">{icon}</span>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-black text-slate-500">LIVE</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-[30px] shadow-sm">{icon}</span>
+        <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-white/70">LIVE</span>
       </div>
-      <p className="mt-3 text-[14px] font-black uppercase text-slate-500">{label}</p>
-      <p className="mt-1 text-[24px] font-black leading-tight text-slate-950">{formatValue(value, type)}</p>
+      <p className="mt-4 text-[13px] font-black uppercase leading-tight opacity-65">{label}</p>
+      <p className="mt-1 break-words text-[26px] font-black leading-tight">{formatValue(value, type)}</p>
     </article>
   );
 }
@@ -97,8 +96,15 @@ function GrowthCard({ metric }) {
   const positive = metric.direction === "increase";
   const negative = metric.direction === "decrease";
   return (
-    <article className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-soft">
-      <p className="text-[16px] font-black text-slate-600">{metric.label}</p>
+    <article className="dashboard-card rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[17px] font-black text-slate-700">{metric.label}</p>
+        <span className={`rounded-full px-3 py-1 text-[13px] font-black ${
+          positive ? "bg-green-100 text-green-800" : negative ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-700"
+        }`}>
+          {positive ? "▲" : negative ? "▼" : "•"} {trendText(metric)}
+        </span>
+      </div>
       <div className="mt-2 flex items-end justify-between gap-3">
         <div>
           <p className="text-[22px] font-black text-slate-950">
@@ -108,30 +114,33 @@ function GrowthCard({ metric }) {
             मागील: {metric.unit === "₹" ? formatCurrency(metric.previousValue) : `${formatNumber(metric.previousValue, 2)} ${metric.unit || ""}`}
           </p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-[13px] font-black ${
-          positive ? "bg-green-100 text-green-800" : negative ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-700"
-        }`}>
-          {positive ? "▲" : negative ? "▼" : "•"} {trendText(metric)}
-        </span>
       </div>
     </article>
   );
 }
 
-function ChartCard({ title, subtitle, children }) {
+function ChartCard({ title, subtitle, icon = "📊", children }) {
   return (
-    <section className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-soft">
-      <h2 className="text-[22px] font-black text-slate-950">{title}</h2>
-      {subtitle ? <p className="mt-1 text-[14px] font-bold text-slate-500">{subtitle}</p> : null}
-      <div className="mt-4 h-[250px]">{children}</div>
+    <section className="rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft">
+      <div className="flex items-start gap-3">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-[28px] shadow-inner">{icon}</span>
+        <span className="min-w-0">
+          <h2 className="text-[22px] font-black leading-tight text-slate-950">{title}</h2>
+          {subtitle ? <p className="mt-1 text-[14px] font-bold leading-snug text-slate-500">{subtitle}</p> : null}
+        </span>
+      </div>
+      <div className="mt-4 h-[260px] overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 to-white p-2 ring-1 ring-slate-100">{children}</div>
     </section>
   );
 }
 
 function EmptyChart() {
   return (
-    <div className="flex h-full items-center justify-center rounded-xl bg-slate-50 text-center text-[16px] font-bold text-slate-500">
-      या कालावधीसाठी chart data उपलब्ध नाही.
+    <div className="flex h-full items-center justify-center rounded-2xl bg-slate-50 text-center text-[16px] font-bold text-slate-500">
+      <span>
+        <span className="block text-[34px]">📭</span>
+        या कालावधीसाठी chart data उपलब्ध नाही.
+      </span>
     </div>
   );
 }
@@ -144,11 +153,11 @@ function BestCard({ title, item, tone = "green" }) {
     purple: "from-purple-50 to-white border-purple-100 text-purple-800"
   }[tone];
   return (
-    <article className={`rounded-2xl border bg-gradient-to-br p-4 shadow-soft ${toneClass}`}>
-      <p className="text-[16px] font-black">{title}</p>
+    <article className={`dashboard-card rounded-3xl border bg-gradient-to-br p-4 shadow-soft ${toneClass}`}>
+      <p className="text-[17px] font-black">{title}</p>
       {item ? (
         <>
-          <p className="mt-2 text-[24px] font-black text-slate-950">
+          <p className="mt-2 break-words text-[25px] font-black text-slate-950">
             {item.unit === "₹" ? formatCurrency(item.value) : `${formatNumber(item.value, 2)} ${item.unit || ""}`}
           </p>
           <p className="mt-1 text-[14px] font-bold text-slate-600">{formatMarathiDate(item.date)}</p>
@@ -157,6 +166,17 @@ function BestCard({ title, item, tone = "green" }) {
         <p className="mt-3 text-[17px] font-bold text-slate-500">माहिती नाही</p>
       )}
     </article>
+  );
+}
+
+function HeroStat({ label, value }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-3 py-3 text-center backdrop-blur">
+      <p className="text-[12px] font-black uppercase leading-tight text-white/65">{label}</p>
+      <p className="mt-1 break-words text-[18px] font-black leading-tight text-white">
+        {typeof value === "number" ? toMarathiNumerals(value) : value}
+      </p>
+    </div>
   );
 }
 
@@ -305,48 +325,116 @@ export default function PersonalStatisticsPage() {
   if (loading) return <LoadingState text="वैयक्तिक आकडेवारी लोड होत आहे..." />;
   if (error && !data) return <ErrorState message={error} onRetry={load} />;
 
+  const healthScore = Math.min(100, Math.max(0, Number(stats.farmHealthScore.score || 0)));
+  const healthCircumference = 2 * Math.PI * 48;
+  const healthDashOffset = healthCircumference - (healthScore / 100) * healthCircumference;
+  const farmName = data?.farm?.farmName || "माझी डेअरी";
+  const rangeLabel = stats.currentRange?.startDate && stats.currentRange?.endDate
+    ? `${formatMarathiDate(stats.currentRange.startDate)} ते ${formatMarathiDate(stats.currentRange.endDate)}`
+    : "सध्याची आकडेवारी";
+
   return (
-    <div className="space-y-5 pb-24">
-      <PageHeader title="📊 वैयक्तिक आकडेवारी" subtitle="शेतकरी performance, dairy growth आणि quality analytics." />
+    <div className="mx-auto w-full max-w-6xl space-y-5 pb-24">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br from-slate-950 via-emerald-950 to-green-700 p-5 text-white shadow-soft sm:p-6">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-yellow-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-0 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/25 to-transparent" />
 
-      {message ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-[18px] font-black text-green-900 shadow-sm">
-          {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[18px] font-black text-red-900 shadow-sm">
-          {error}
-        </div>
-      ) : null}
+        <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[13px] font-black text-green-50 backdrop-blur">
+                📊 वैयक्तिक आकडेवारी
+              </span>
+              <span className="rounded-full border border-yellow-200/40 bg-yellow-300/15 px-3 py-1 text-[13px] font-black text-yellow-50">
+                {rangeLabel}
+              </span>
+            </div>
+            <h1 className="mt-4 break-words text-[34px] font-black leading-tight sm:text-[44px]">
+              {farmName}
+            </h1>
+            <p className="mt-2 max-w-3xl text-[18px] font-bold leading-relaxed text-white/85">
+              {stats.aiSummary}
+            </p>
 
-      <section className="rounded-3xl border border-white/80 bg-gradient-to-br from-emerald-700 via-green-600 to-sky-700 p-5 text-white shadow-soft">
-        <p className="text-[17px] font-black text-white/80">AI Summary</p>
-        <h1 className="mt-2 text-[25px] font-black leading-tight">{stats.aiSummary}</h1>
-        <div className="mt-4 rounded-2xl bg-white/15 p-4">
-          <p className="text-[15px] font-black text-white/80">Farm Health Score</p>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <p className="text-[54px] font-black leading-none">{toMarathiNumerals(stats.farmHealthScore.score)}/१००</p>
-            <p className="rounded-full bg-white/20 px-3 py-1 text-[15px] font-black">{stats.farmHealthScore.label}</p>
+            <div className="mt-5 grid grid-cols-3 gap-2 sm:max-w-2xl">
+              <HeroStat label="दूध" value={`${formatLitres(overview.totalMilk)} लि.`} />
+              <HeroStat label="उत्पन्न" value={formatCurrency(overview.totalIncome)} />
+              <HeroStat label="जनावरे" value={overview.animalsCount || 0} />
+            </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-white/20 bg-white/10 p-4 backdrop-blur sm:min-w-[330px]">
+            <div className="flex items-center justify-center">
+              <div className="relative h-48 w-48">
+                <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                  <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="13" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="48"
+                    fill="none"
+                    stroke="url(#healthGradient)"
+                    strokeWidth="13"
+                    strokeLinecap="round"
+                    strokeDasharray={healthCircumference}
+                    strokeDashoffset={healthDashOffset}
+                  />
+                  <defs>
+                    <linearGradient id="healthGradient" x1="0" x2="1" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#fde68a" />
+                      <stop offset="55%" stopColor="#86efac" />
+                      <stop offset="100%" stopColor="#22d3ee" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-[42px] font-black leading-none">{toMarathiNumerals(healthScore)}/१००</span>
+                  <span className="mt-1 text-[14px] font-black text-white/70">Farm Health</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-2 rounded-2xl bg-white/10 px-4 py-3 text-center text-[18px] font-black text-white">
+              {stats.farmHealthScore.label}
+            </p>
           </div>
         </div>
       </section>
 
+      {message ? (
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-[18px] font-black text-green-900 shadow-sm">
+          {message}
+        </div>
+      ) : null}
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-[18px] font-black text-red-900 shadow-sm">
+          {error}
+        </div>
+      ) : null}
+
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {overviewCards.map(([key, icon, label, type]) => (
-          <OverviewCard key={key} icon={icon} label={label} value={overview[key]} type={type} />
+        {overviewCards.map(([key, icon, label, type, tone]) => (
+          <OverviewCard key={key} icon={icon} label={label} value={overview[key]} type={type} tone={tone} />
         ))}
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <h2 className="sm:col-span-2 text-[24px] font-black text-slate-950">वाढ/घट तुलना</h2>
+        <div className="sm:col-span-2">
+          <p className="text-[14px] font-black uppercase tracking-wide text-emerald-700">Growth Metrics</p>
+          <h2 className="mt-1 text-[28px] font-black leading-tight text-slate-950">या महिन्याची वाढ/घट तुलना</h2>
+        </div>
         {stats.growth.metrics.map((metric) => (
           <GrowthCard key={metric.id} metric={metric} />
         ))}
       </section>
 
       <section className="grid gap-4">
-        <ChartCard title="रोजचे दूध ट्रेंड" subtitle="या महिन्यातील रोजचे दूध">
+        <div>
+          <p className="text-[14px] font-black uppercase tracking-wide text-emerald-700">Charts</p>
+          <h2 className="mt-1 text-[28px] font-black leading-tight text-slate-950">दूध, उत्पन्न आणि गुणवत्ता trend</h2>
+        </div>
+
+        <ChartCard title="रोजचे दूध ट्रेंड" subtitle="या महिन्यातील रोजचे दूध" icon="🥛">
           {stats.trends.dailyMilk.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.trends.dailyMilk} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
@@ -360,7 +448,7 @@ export default function PersonalStatisticsPage() {
           ) : <EmptyChart />}
         </ChartCard>
 
-        <ChartCard title="मासिक दूध ट्रेंड" subtitle="मागील ६ महिन्यांचे दूध">
+        <ChartCard title="मासिक दूध ट्रेंड" subtitle="मागील ६ महिन्यांचे दूध" icon="📆">
           {stats.trends.monthlyMilk.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.trends.monthlyMilk} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
@@ -374,20 +462,22 @@ export default function PersonalStatisticsPage() {
           ) : <EmptyChart />}
         </ChartCard>
 
-        <ChartCard title="उत्पन्न ट्रेंड" subtitle="मागील ६ महिन्यांचे उत्पन्न">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={stats.trends.income} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 800 }} />
-              <YAxis tickFormatter={(value) => toMarathiNumerals(value)} width={62} tick={{ fontSize: 12, fontWeight: 800 }} />
-              <Tooltip content={<ChartTooltip />} />
-              <Line type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={4} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
+        <ChartCard title="उत्पन्न ट्रेंड" subtitle="मागील ६ महिन्यांचे उत्पन्न" icon="💰">
+          {stats.trends.income.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.trends.income} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 800 }} />
+                <YAxis tickFormatter={(value) => toMarathiNumerals(value)} width={62} tick={{ fontSize: 12, fontWeight: 800 }} />
+                <Tooltip content={<ChartTooltip />} />
+                <Line type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={4} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : <EmptyChart />}
         </ChartCard>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <ChartCard title="फॅट ट्रेंड" subtitle="या महिन्यातील फॅट">
+          <ChartCard title="फॅट ट्रेंड" subtitle="या महिन्यातील फॅट" icon="🧈">
             {stats.trends.fat.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={stats.trends.fat} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
@@ -400,7 +490,7 @@ export default function PersonalStatisticsPage() {
             ) : <EmptyChart />}
           </ChartCard>
 
-          <ChartCard title="SNF ट्रेंड" subtitle="या महिन्यातील SNF">
+          <ChartCard title="SNF ट्रेंड" subtitle="या महिन्यातील SNF" icon="🧪">
             {stats.trends.snf.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={stats.trends.snf} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
@@ -416,19 +506,30 @@ export default function PersonalStatisticsPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <h2 className="sm:col-span-2 text-[24px] font-black text-slate-950">सर्वोत्तम कामगिरी</h2>
+        <div className="sm:col-span-2">
+          <p className="text-[14px] font-black uppercase tracking-wide text-emerald-700">Best Performance</p>
+          <h2 className="mt-1 text-[28px] font-black leading-tight text-slate-950">सर्वोत्तम कामगिरी</h2>
+        </div>
         <BestCard title="🏆 सर्वाधिक दूध दिवस" item={stats.bestPerformance.highestMilkDay} tone="green" />
         <BestCard title="💰 सर्वाधिक उत्पन्न दिवस" item={stats.bestPerformance.highestIncomeDay} tone="blue" />
         <BestCard title="🧈 सर्वोत्तम फॅट दिवस" item={stats.bestPerformance.bestFatDay} tone="yellow" />
         <BestCard title="🧪 सर्वोत्तम SNF दिवस" item={stats.bestPerformance.bestSNFDay} tone="purple" />
       </section>
 
-      <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-soft">
-        <h2 className="text-[24px] font-black text-slate-950">फार्म हेल्थ स्कोअर</h2>
-        <div className="mt-4 h-5 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-green-600" style={{ width: `${Math.min(100, stats.farmHealthScore.score)}%` }} />
+      <section className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-soft">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[14px] font-black uppercase tracking-wide text-emerald-700">Farm Health</p>
+            <h2 className="mt-1 text-[28px] font-black leading-tight text-slate-950">फार्म हेल्थ स्कोअर</h2>
+          </div>
+          <p className="rounded-full bg-green-50 px-4 py-2 text-[18px] font-black text-green-800 ring-1 ring-green-100">
+            {toMarathiNumerals(healthScore)}/१००
+          </p>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 h-5 overflow-hidden rounded-full bg-slate-100 p-1">
+          <div className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-lime-400 to-green-600" style={{ width: `${healthScore}%` }} />
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Metric label="दूध सातत्य" value={`${formatNumber(stats.farmHealthScore.milkConsistency, 1)}%`} />
           <Metric label="फॅट सातत्य" value={`${formatNumber(stats.farmHealthScore.fatConsistency, 1)}%`} />
           <Metric label="नोंदी पूर्णता" value={`${formatNumber(stats.farmHealthScore.recordCompletion, 1)}%`} />
@@ -436,11 +537,17 @@ export default function PersonalStatisticsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-soft">
-        <h2 className="text-[24px] font-black text-slate-950">दूध टप्पे</h2>
-        <div className="mt-4 grid gap-3">
+      <section className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-soft">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-50 text-[28px] shadow-inner">🏁</span>
+          <span>
+            <p className="text-[14px] font-black uppercase tracking-wide text-yellow-700">Milestones</p>
+            <h2 className="mt-1 text-[28px] font-black leading-tight text-slate-950">दूध टप्पे</h2>
+          </span>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
           {stats.milestones.map((milestone) => (
-            <div key={milestone.target} className="rounded-xl bg-slate-50 p-4">
+            <div key={milestone.target} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[18px] font-black text-slate-950">{formatLitres(milestone.target)} लिटर</p>
                 <p className={`rounded-full px-3 py-1 text-[13px] font-black ${milestone.completed ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
@@ -455,16 +562,22 @@ export default function PersonalStatisticsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-soft">
-        <h2 className="text-[24px] font-black text-slate-950">आकडेवारी शेअर करा</h2>
+      <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-soft">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[28px] shadow-sm">📤</span>
+          <span>
+            <h2 className="text-[26px] font-black leading-tight text-slate-950">आकडेवारी शेअर करा</h2>
+            <p className="mt-1 text-[15px] font-bold text-slate-600">Image, PDF किंवा WhatsApp वर farm performance पाठवा.</p>
+          </span>
+        </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <button onClick={downloadShareImage} className="min-h-[54px] rounded-xl bg-slate-900 px-4 text-[17px] font-black text-white">
+          <button onClick={downloadShareImage} className="min-h-[56px] rounded-2xl bg-slate-900 px-4 text-[17px] font-black text-white shadow-sm active:scale-[0.98]">
             🖼️ Image Download
           </button>
-          <button onClick={downloadPdf} disabled={busyAction === "pdf"} className="min-h-[54px] rounded-xl bg-red-600 px-4 text-[17px] font-black text-white disabled:opacity-60">
+          <button onClick={downloadPdf} disabled={busyAction === "pdf"} className="min-h-[56px] rounded-2xl bg-red-600 px-4 text-[17px] font-black text-white shadow-sm active:scale-[0.98] disabled:opacity-60">
             {busyAction === "pdf" ? "PDF तयार..." : "📄 PDF Report"}
           </button>
-          <button onClick={shareToWhatsApp} className="min-h-[54px] rounded-xl bg-green-600 px-4 text-[17px] font-black text-white">
+          <button onClick={shareToWhatsApp} className="min-h-[56px] rounded-2xl bg-green-600 px-4 text-[17px] font-black text-white shadow-sm active:scale-[0.98]">
             🟢 WhatsApp Share
           </button>
         </div>
@@ -475,7 +588,7 @@ export default function PersonalStatisticsPage() {
 
 function Metric({ label, value }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-3">
+    <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
       <p className="text-[12px] font-black uppercase text-slate-500">{label}</p>
       <p className="mt-1 text-[18px] font-black text-slate-950">{value}</p>
     </div>

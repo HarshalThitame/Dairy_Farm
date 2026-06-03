@@ -6,6 +6,7 @@ import {
   signFarmToken
 } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -85,7 +86,7 @@ export async function POST(request) {
   let createdFarmId = null;
 
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const validated = validateSignup(body);
 
     if (validated.error) {

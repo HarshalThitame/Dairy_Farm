@@ -6,6 +6,7 @@ import { buildCalfPayload, CALF_SELECT, insertCalfWithReminders, syncCalfReminde
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -324,7 +325,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     if (!body.birth_date || !body.gender) {
       return NextResponse.json({ error: "जन्म तारीख आणि लिंग आवश्यक आहे." }, { status: 400 });
@@ -332,6 +333,9 @@ export async function POST(request) {
 
     if (!allowedGenders.has(body.gender)) {
       return NextResponse.json({ error: "वासराचे लिंग नर किंवा मादी असावे." }, { status: 400 });
+    }
+    if (body.mother_cow_id && !isUuid(body.mother_cow_id)) {
+      return NextResponse.json({ error: "आई गाय क्रमांक चुकीचा आहे." }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmAccess(request, body.mother_cow_id || null);
@@ -349,9 +353,9 @@ export async function PATCH(request) {
   let conversionFarmIdToCleanup = null;
 
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
-    if (!body.id) {
+    if (!isUuid(body.id)) {
       return NextResponse.json({ error: "वासराचा आयडी आवश्यक आहे." }, { status: 400 });
     }
 
@@ -363,6 +367,9 @@ export async function PATCH(request) {
 
     const auth = await verifyFarmAccess(request);
     const { farmId } = auth;
+    if (body.mother_cow_id && !isUuid(body.mother_cow_id)) {
+      return NextResponse.json({ error: "आई गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
     if (body.mother_cow_id) {
       await verifyFarmAccess(request, body.mother_cow_id);
     }

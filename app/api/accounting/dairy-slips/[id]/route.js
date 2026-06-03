@@ -28,6 +28,17 @@ const slipFields = [
   "slip_image_url"
 ];
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateSlipId(id) {
+  return UUID_PATTERN.test(String(id || ""));
+}
+
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanOptional(value) {
   const text = String(value || "").trim();
   return text || null;
@@ -38,7 +49,13 @@ function optionalNumber(value) {
     return null;
   }
 
-  const numberValue = Number(value);
+  const numberValue = Number(
+    String(value)
+      .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(/[,₹\s]/g, "")
+      .replace(/[Oo]/g, "0")
+  );
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
@@ -79,14 +96,13 @@ function validateSlip(payload) {
     return "दुधाचा प्रकार गाय किंवा म्हैस असावा.";
   }
 
-  if (payload.liters !== undefined && (!Number.isFinite(Number(payload.liters)) || Number(payload.liters) <= 0)) {
+  const liters = optionalNumber(payload.liters);
+  if (payload.liters !== undefined && (liters === null || liters <= 0)) {
     return "दूधाचे लिटर शून्यापेक्षा जास्त असावे.";
   }
 
-  if (
-    payload.rate_per_liter !== undefined &&
-    (!Number.isFinite(Number(payload.rate_per_liter)) || Number(payload.rate_per_liter) <= 0)
-  ) {
+  const rate = optionalNumber(payload.rate_per_liter);
+  if (payload.rate_per_liter !== undefined && (rate === null || rate <= 0)) {
     return "दर शून्यापेक्षा जास्त असावा.";
   }
 
@@ -115,6 +131,10 @@ async function fetchSlip(supabase, farmId, id) {
 
 export async function GET(request, { params }) {
   try {
+    if (!validateSlipId(params.id)) {
+      return NextResponse.json({ error: "दूध नोंद ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const slip = await fetchSlip(supabase, farmId, params.id);
@@ -131,8 +151,17 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!validateSlipId(params.id)) {
+      return NextResponse.json({ error: "दूध नोंद ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const payload = pickSlipFields(body);
     const validationError = validateSlip(payload);
 
@@ -145,10 +174,10 @@ export async function PUT(request, { params }) {
     }
 
     if (payload.liters !== undefined) {
-      payload.liters = Number(payload.liters);
+      payload.liters = optionalNumber(payload.liters);
     }
     if (payload.rate_per_liter !== undefined) {
-      payload.rate_per_liter = Number(payload.rate_per_liter);
+      payload.rate_per_liter = optionalNumber(payload.rate_per_liter);
     }
     if (payload.dairy_name !== undefined) {
       payload.dairy_name = cleanOptional(payload.dairy_name);
@@ -223,6 +252,10 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    if (!validateSlipId(params.id)) {
+      return NextResponse.json({ error: "दूध नोंद ID चुकीचा आहे." }, { status: 400 });
+    }
+
     const { farmId } = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase

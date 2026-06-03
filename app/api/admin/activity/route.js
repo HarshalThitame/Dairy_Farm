@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
+import { badRequest, isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -44,6 +45,9 @@ export async function GET(request) {
       query = query.eq("action", searchParams.get("action"));
     }
     if (searchParams.get("farm_id")) {
+      if (!isUuid(searchParams.get("farm_id"))) {
+        throw badRequest("Farm ID चुकीचा आहे.");
+      }
       query = query.eq("farm_id", searchParams.get("farm_id"));
     }
 
@@ -61,8 +65,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
-    await logAdminAction(request, adminId, body.action || "manual_log", body.farm_id || null, body.details || {});
+    const body = await readJsonBody(request);
+    const farmId = body.farm_id || null;
+    if (farmId && !isUuid(farmId)) {
+      throw badRequest("Farm ID चुकीचा आहे.");
+    }
+    await logAdminAction(request, adminId, body.action || "manual_log", farmId, body.details || {});
     return NextResponse.json({ success: true });
   } catch (error) {
     return superAdminErrorResponse(error);

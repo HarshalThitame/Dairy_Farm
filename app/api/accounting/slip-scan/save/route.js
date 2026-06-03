@@ -17,6 +17,13 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanText(value) {
   const text = String(value || "").trim();
   return text || null;
@@ -482,11 +489,20 @@ async function getMilkRecordByDate(supabase, farmId, date) {
 export async function POST(request) {
   try {
     const { farmId, userId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const { uploadId, slip_type: requestedSlipType, extractedData, userEdits } = body;
 
     if (!uploadId) {
       return NextResponse.json({ error: "स्लिप फोटो ID आवश्यक आहे." }, { status: 400 });
+    }
+
+    if (!UUID_PATTERN.test(String(uploadId))) {
+      return NextResponse.json({ error: "स्लिप फोटो ID चुकीचा आहे." }, { status: 400 });
     }
 
     const supabase = getSupabaseServerClient();
@@ -660,6 +676,10 @@ export async function POST(request) {
         dairy_name: cleanText(data.dairy_name),
         dairy_member_number: cleanText(data.farmer_code || data.member_number || data.dairy_member_number || data.dairy_member_code),
         total_liters: getSettlementTotalLiters(data),
+        morning_total_liters: morningTotalLiters,
+        evening_total_liters: eveningTotalLiters,
+        session_totals: normalizedSettlementRawData.session_totals,
+        daily_entries: Array.isArray(data.daily_entries) ? data.daily_entries : [],
         total_milk_income: money(data.total_milk_income),
         cattle_feed_deduction: deductions.feedDeduction,
         other_deductions: deductions.otherDeductions,

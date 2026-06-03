@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
@@ -20,6 +20,13 @@ function statusTone(status) {
   return "border-red-200 bg-red-50 text-red-900";
 }
 
+function statusLabel(status) {
+  if (status === "operational") return "सुरळीत";
+  if (status === "maintenance") return "देखभाल";
+  if (status === "degraded") return "मंद";
+  return "अडचण";
+}
+
 function TicketStatusBadge({ statusLabel }) {
   return (
     <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-black text-slate-700">
@@ -29,6 +36,7 @@ function TicketStatusBadge({ statusLabel }) {
 }
 
 export default function SupportHomeClient({ settingsMode = false }) {
+  const searchRequestRef = useRef(0);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,25 +68,35 @@ export default function SupportHomeClient({ settingsMode = false }) {
 
   async function runSearch(event) {
     event.preventDefault();
-    if (query.trim().length < 2) {
+    const cleanQuery = query.trim();
+    if (cleanQuery.length < 2) {
       setResults(null);
       return;
     }
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
     setSearching(true);
+    setResults(null);
     try {
-      const response = await fetch(`/api/support/search?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`/api/support/search?q=${encodeURIComponent(cleanQuery)}`, {
         cache: "no-store",
         headers: { Authorization: `Bearer ${getToken()}` }
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Search झाले नाही.");
+      if (requestId !== searchRequestRef.current) return;
       setResults(result);
     } catch (searchError) {
+      if (requestId !== searchRequestRef.current) return;
       setResults({ error: searchError.message, faqs: [], tutorials: [], tickets: [] });
     } finally {
-      setSearching(false);
+      if (requestId === searchRequestRef.current) {
+        setSearching(false);
+      }
     }
   }
+
+  const searchDisabled = searching || query.trim().length < 2;
 
   if (loading) return <LoadingState text="Support Center लोड होत आहे..." />;
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -93,28 +111,35 @@ export default function SupportHomeClient({ settingsMode = false }) {
             href="/support/tickets"
             className="rounded-xl bg-green-600 px-4 py-3 text-[15px] font-black text-white shadow-sm active:scale-[0.98]"
           >
-            🎫 Ticket
+            🎫 Ticket तयार करा
           </Link>
         }
       />
 
       <form onSubmit={runSearch} className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-soft">
-        <label className="text-[18px] font-black text-slate-950">Support Search</label>
+        <label className="text-[18px] font-black text-slate-950">मदत शोधा</label>
         <div className="mt-3 flex gap-2">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              if (event.target.value.trim().length < 2) {
+                setResults(null);
+              }
+            }}
+            maxLength={120}
             className="min-h-[52px] flex-1 rounded-xl border border-slate-200 px-4 text-[17px] font-bold outline-none focus:border-green-500"
             placeholder="Slip upload, अहवाल, notification, AI..."
           />
           <button
             type="submit"
-            className="min-h-[52px] rounded-xl bg-slate-950 px-5 text-[16px] font-black text-white"
-            disabled={searching}
+            className="min-h-[52px] rounded-xl bg-slate-950 px-5 text-[16px] font-black text-white disabled:opacity-60"
+            disabled={searchDisabled}
           >
-            {searching ? "..." : "शोधा"}
+            {searching ? "शोधत आहे..." : "शोधा"}
           </button>
         </div>
+        <p className="mt-2 text-[13px] font-bold text-slate-500">किमान २ अक्षरे टाका.</p>
 
         {results ? (
           <div className="mt-4 rounded-xl bg-slate-50 p-3">
@@ -131,16 +156,16 @@ export default function SupportHomeClient({ settingsMode = false }) {
       <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <ActionCard href="/support/faq" icon="❓" title="FAQ" subtitle="सामान्य प्रश्न" />
         <ActionCard href="/support/tickets" icon="🎫" title="Ticket" subtitle="समस्या नोंदवा" />
-        <ActionCard href="/support/contact" icon="📞" title="Contact" subtitle="थेट संपर्क" />
-        <ActionCard href="/support/tutorials" icon="🎥" title="Tutorials" subtitle="Step-by-step मदत" />
-        <ActionCard href="/support/status" icon="🟢" title="Status" subtitle="सेवा स्थिती" />
+        <ActionCard href="/support/contact" icon="📞" title="संपर्क" subtitle="थेट मदत" />
+        <ActionCard href="/support/tutorials" icon="🎥" title="मार्गदर्शक" subtitle="Step-by-step मदत" />
+        <ActionCard href="/support/status" icon="🟢" title="स्थिती" subtitle="सेवा स्थिती" />
       </section>
 
       <section className="grid gap-3 md:grid-cols-4">
-        <MetricCard label="Total Tickets" value={data.stats?.total || 0} tone="bg-slate-950 text-white" />
-        <MetricCard label="Open" value={data.stats?.open || 0} tone="bg-yellow-50 text-yellow-900 border-yellow-200" />
-        <MetricCard label="Solved" value={data.stats?.resolved || 0} tone="bg-green-50 text-green-900 border-green-200" />
-        <MetricCard label="Critical" value={data.stats?.critical || 0} tone="bg-red-50 text-red-900 border-red-200" />
+        <MetricCard label="एकूण tickets" value={data.stats?.total || 0} tone="bg-slate-950 text-white" />
+        <MetricCard label="चालू" value={data.stats?.open || 0} tone="bg-yellow-50 text-yellow-900 border-yellow-200" />
+        <MetricCard label="सोडवले" value={data.stats?.resolved || 0} tone="bg-green-50 text-green-900 border-green-200" />
+        <MetricCard label="तातडीचे" value={data.stats?.critical || 0} tone="bg-red-50 text-red-900 border-red-200" />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -177,17 +202,21 @@ export default function SupportHomeClient({ settingsMode = false }) {
         </div>
 
         <div className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-soft">
-          <h2 className="text-[24px] font-black text-slate-950">System Status</h2>
+          <h2 className="text-[24px] font-black text-slate-950">System स्थिती</h2>
           <div className="mt-3 grid gap-2">
-            {(data.status || []).map((service) => (
+            {(data.status || []).length ? (data.status || []).map((service) => (
               <div key={service.id} className={`rounded-xl border p-3 ${statusTone(service.status)}`}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-black">{service.service_name}</p>
-                  <p className="text-[12px] font-black uppercase">{service.status}</p>
+                  <p className="text-[12px] font-black uppercase">{statusLabel(service.status)}</p>
                 </div>
                 <p className="mt-1 text-[13px] font-bold opacity-80">{service.message}</p>
               </div>
-            ))}
+            )) : (
+              <p className="rounded-xl bg-slate-50 p-4 text-[15px] font-bold text-slate-600">
+                सेवा स्थितीची माहिती उपलब्ध नाही. App वापरताना अडचण आल्यास ticket तयार करा.
+              </p>
+            )}
           </div>
         </div>
       </section>

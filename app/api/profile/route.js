@@ -13,6 +13,12 @@ import {
   normalizeAppearancePreferences,
   normalizeNotificationPreferences
 } from "@/lib/userSettings";
+import { readJsonBody } from "@/lib/apiSafety";
+import {
+  getAhilyanagarTalukas,
+  getAhilyanagarVillages,
+  isAhilyanagarDistrict
+} from "@/lib/maharashtraLocations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -139,12 +145,17 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const supabase = getSupabaseServerClient();
 
     const name = cleanText(body.name, 100);
     if (name.length < 2) {
       return NextResponse.json({ error: "नाव किमान २ अक्षरे असावे." }, { status: 400 });
+    }
+
+    const farmName = cleanText(body.farm_name || body.farmName, 140);
+    if (farmName.length < 2) {
+      return NextResponse.json({ error: "डेअरीचे नाव किमान २ अक्षरे असावे." }, { status: 400 });
     }
 
     const profilePayload = {
@@ -154,6 +165,24 @@ export async function PATCH(request) {
       state_name: cleanText(body.state_name || body.stateName || "महाराष्ट्र", 100),
       updated_at: new Date().toISOString()
     };
+
+    if (isAhilyanagarDistrict(profilePayload.district_name)) {
+      const talukas = getAhilyanagarTalukas();
+      if (!profilePayload.taluka_name || !talukas.includes(profilePayload.taluka_name)) {
+        return NextResponse.json(
+          { error: "अहिल्यानगर जिल्ह्यासाठी योग्य तालुका dropdown मधून निवडा." },
+          { status: 400 }
+        );
+      }
+
+      const villages = getAhilyanagarVillages(profilePayload.taluka_name);
+      if (!profilePayload.village_name || !villages.includes(profilePayload.village_name)) {
+        return NextResponse.json(
+          { error: "निवडलेल्या तालुक्यासाठी योग्य गाव dropdown मधून निवडा." },
+          { status: 400 }
+        );
+      }
+    }
 
     const { error: userError } = await supabase
       .from("users")
@@ -170,8 +199,21 @@ export async function PATCH(request) {
       }, { onConflict: "user_id" });
     if (profileError) throw profileError;
 
+    const { error: farmUpdateError } = await supabase
+      .from("farms")
+      .update({
+        farm_name: farmName,
+        village_name: profilePayload.village_name,
+        taluka_name: profilePayload.taluka_name,
+        district_name: profilePayload.district_name,
+        state_name: profilePayload.state_name,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", auth.farmId);
+    if (farmUpdateError) throw farmUpdateError;
+
     await logUserSettingsAction(supabase, request, auth.userId, auth.farmId, "profile_updated", {
-      fields: ["name", ...Object.keys(profilePayload)]
+      fields: ["name", "farm_name", ...Object.keys(profilePayload)]
     });
 
     return GET(request);

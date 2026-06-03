@@ -12,6 +12,33 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const implementedChannels = new Set(["in_app", "push"]);
+const validTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function sanitizeBooleanMap(source, defaults, options = {}) {
+  const incoming = source && typeof source === "object" && !Array.isArray(source) ? source : {};
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, defaultValue]) => {
+      if (options.implementedOnly && !implementedChannels.has(key)) {
+        return [key, false];
+      }
+      if (Object.prototype.hasOwnProperty.call(incoming, key)) {
+        return [key, incoming[key] === true];
+      }
+      return [key, Boolean(defaultValue)];
+    })
+  );
+}
+
+function cleanTime(value, fallback, hardFallback = "22:00") {
+  const time = String(value || "").trim();
+  if (validTimePattern.test(time)) {
+    return time;
+  }
+  const fallbackTime = String(fallback || "").trim().slice(0, 5);
+  return validTimePattern.test(fallbackTime) ? fallbackTime : hardFallback;
+}
+
 export async function GET(request) {
   try {
     const auth = await verifyFarmAccess(request);
@@ -41,28 +68,38 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const safeBody = body && typeof body === "object" && !Array.isArray(body) ? body : {};
     const supabase = getSupabaseServerClient();
     const current = await getOrCreateNotificationPreferences(supabase, auth.userId, auth.farmId);
-    const categories = {
+    const currentCategories = {
       ...DEFAULT_NOTIFICATION_CATEGORIES,
-      ...(current.categories || {}),
-      ...(body.categories || {})
+      ...(current.categories || {})
     };
-    const channels = {
+    const currentChannels = {
       ...DEFAULT_NOTIFICATION_CHANNELS,
-      ...(current.channels || {}),
-      ...(body.channels || {})
+      ...(current.channels || {})
     };
-    const frequency = ["instant", "daily", "weekly"].includes(body.frequency) ? body.frequency : current.frequency || "instant";
+    const categories = sanitizeBooleanMap(
+      { ...currentCategories, ...(safeBody.categories || {}) },
+      DEFAULT_NOTIFICATION_CATEGORIES
+    );
+    const channels = sanitizeBooleanMap(
+      { ...currentChannels, ...(safeBody.channels || {}) },
+      DEFAULT_NOTIFICATION_CHANNELS,
+      { implementedOnly: true }
+    );
+    const frequency = ["instant", "daily", "weekly"].includes(safeBody.frequency)
+      ? safeBody.frequency
+      : current.frequency || "instant";
     const payload = {
       user_id: auth.userId,
       farm_id: auth.farmId,
       categories,
       channels,
-      quiet_hours_enabled: Boolean(body.quiet_hours_enabled),
-      quiet_hours_start: body.quiet_hours_start || "22:00",
-      quiet_hours_end: body.quiet_hours_end || "06:00",
+      quiet_hours_enabled: Boolean(safeBody.quiet_hours_enabled),
+      quiet_hours_start: cleanTime(safeBody.quiet_hours_start, current.quiet_hours_start || "22:00", "22:00"),
+      quiet_hours_end: cleanTime(safeBody.quiet_hours_end, current.quiet_hours_end || "06:00", "06:00"),
       frequency,
       updated_at: new Date().toISOString()
     };

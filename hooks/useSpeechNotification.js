@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { enqueueNotificationSpeech, speakTestVoice } from "@/services/notificationSpeechQueue";
 import {
-  getSelectedVoiceInfo,
-  isSpeechSupported,
-  markSpeechUnlocked
-} from "@/services/speechService";
+  getNotificationToneInfo,
+  isNotificationToneSupported,
+  markToneUnlocked
+} from "@/services/notificationToneService";
 import {
   getVoiceSettings,
   saveVoiceSettings,
@@ -30,30 +30,22 @@ export function useSpeechNotification(options = {}) {
   const { listenForPushMessages = false } = options;
   const [settings, setSettings] = useState(getVoiceSettings);
   const [voiceInfo, setVoiceInfo] = useState({
-    supported: false,
-    voiceName: "",
-    voiceLanguage: "",
-    fallbackUsed: true
+    supported: isNotificationToneSupported(),
+    voiceName: "माझी डेअरी टोन",
+    voiceLanguage: "tone",
+    fallbackUsed: false
   });
 
   useEffect(() => subscribeVoiceSettings(setSettings), []);
 
   useEffect(() => {
-    let active = true;
-
-    getSelectedVoiceInfo()
-      .then((info) => {
-        if (active) {
-          setVoiceInfo(info);
-        }
-      })
-      .catch((error) => {
-        console.error("Voice detection failed:", error);
-      });
-
-    return () => {
-      active = false;
-    };
+    const toneInfo = getNotificationToneInfo();
+    setVoiceInfo({
+      supported: toneInfo.supported,
+      voiceName: toneInfo.toneName,
+      voiceLanguage: "tone",
+      fallbackUsed: false
+    });
   }, []);
 
   useEffect(() => {
@@ -61,16 +53,16 @@ export function useSpeechNotification(options = {}) {
       return undefined;
     }
 
-    function unlockSpeech() {
-      markSpeechUnlocked();
+    function unlockTone() {
+      markToneUnlocked();
     }
 
-    window.addEventListener("pointerdown", unlockSpeech, { once: true });
-    window.addEventListener("keydown", unlockSpeech, { once: true });
+    window.addEventListener("pointerdown", unlockTone, { once: true });
+    window.addEventListener("keydown", unlockTone, { once: true });
 
     return () => {
-      window.removeEventListener("pointerdown", unlockSpeech);
-      window.removeEventListener("keydown", unlockSpeech);
+      window.removeEventListener("pointerdown", unlockTone);
+      window.removeEventListener("keydown", unlockTone);
     };
   }, []);
 
@@ -105,11 +97,10 @@ export function useSpeechNotification(options = {}) {
 
   return {
     settings,
-    supported: isSpeechSupported(),
+    supported: isNotificationToneSupported(),
     voiceInfo,
     updateSettings,
     speakNotification,
     testVoice
   };
 }
-

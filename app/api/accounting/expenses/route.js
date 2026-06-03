@@ -15,9 +15,30 @@ export const dynamic = "force-dynamic";
 
 const expenseFields = ["expense_date", "category", "amount", "description", "vendor_name"];
 
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function cleanOptional(value) {
   const text = String(value || "").trim();
   return text || null;
+}
+
+function parseAmount(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const amount = Number(
+    String(value)
+      .replace(/[०-९]/g, (digit) => String("०१२३४५६७८९".indexOf(digit)))
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(/[,₹\s]/g, "")
+      .replace(/[Oo]/g, "0")
+  );
+
+  return Number.isFinite(amount) ? amount : null;
 }
 
 function pickFields(body) {
@@ -30,7 +51,7 @@ function pickFields(body) {
 }
 
 function validateExpense(body) {
-  const amount = Number(body.amount);
+  const amount = parseAmount(body.amount);
 
   if (!body.expense_date) {
     return "तारीख आवश्यक आहे.";
@@ -40,7 +61,7 @@ function validateExpense(body) {
     return "खर्चाचा वर्ग निवडा.";
   }
 
-  if (body.amount === "" || body.amount === undefined || !Number.isFinite(amount) || amount <= 0) {
+  if (amount === null || amount <= 0) {
     return "रक्कम शून्यापेक्षा जास्त असावी.";
   }
 
@@ -178,7 +199,12 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const validationError = validateExpense(body);
 
     if (validationError) {
@@ -191,7 +217,7 @@ export async function POST(request) {
       farm_id: farmId,
       month_year: getMonthYearString(body.expense_date),
       category: normalizeAccountingExpenseCategory(body.category),
-      amount: Number(body.amount),
+      amount: parseAmount(body.amount),
       description: cleanOptional(body.description),
       vendor_name: cleanOptional(body.vendor_name)
     };

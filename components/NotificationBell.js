@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cacheNotifications, getCachedNotifications } from "@/lib/localDB";
 import { supabase } from "@/lib/supabase";
 
@@ -26,12 +26,29 @@ function getTokenClaims() {
 
 export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
+  const [shake, setShake] = useState(false);
+  const previousUnreadCountRef = useRef(null);
+  const shakeTimerRef = useRef(null);
+
+  const applyUnreadCount = useCallback((nextCount) => {
+    const normalizedCount = Number(nextCount || 0);
+    const previousCount = previousUnreadCountRef.current;
+
+    if (previousCount !== null && normalizedCount > previousCount) {
+      setShake(true);
+      window.clearTimeout(shakeTimerRef.current);
+      shakeTimerRef.current = window.setTimeout(() => setShake(false), 720);
+    }
+
+    previousUnreadCountRef.current = normalizedCount;
+    setUnreadCount(normalizedCount);
+  }, []);
 
   const loadNotifications = useCallback(async ({ silent = false } = {}) => {
     try {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         const cached = await getCachedNotifications();
-        setUnreadCount(cached.filter((item) => !item.readAt && !item.deletedAt).length);
+        applyUnreadCount(cached.filter((item) => !item.readAt && !item.deletedAt).length);
         return;
       }
 
@@ -41,16 +58,16 @@ export default function NotificationBell() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (!silent) setUnreadCount(0);
+        if (!silent) applyUnreadCount(0);
         return;
       }
-      setUnreadCount(result.unreadCount || 0);
+      applyUnreadCount(result.unreadCount || 0);
       await cacheNotifications(result.notifications || []);
     } catch {
       const cached = await getCachedNotifications();
-      setUnreadCount(cached.filter((item) => !item.readAt && !item.deletedAt).length);
+      applyUnreadCount(cached.filter((item) => !item.readAt && !item.deletedAt).length);
     }
-  }, []);
+  }, [applyUnreadCount]);
 
   useEffect(() => {
     loadNotifications({ silent: true });
@@ -61,6 +78,7 @@ export default function NotificationBell() {
 
     return () => {
       window.clearInterval(interval);
+      window.clearTimeout(shakeTimerRef.current);
       window.removeEventListener("focus", loadNotifications);
       window.removeEventListener("online", loadNotifications);
       window.removeEventListener("notification-updated", loadNotifications);
@@ -95,7 +113,7 @@ export default function NotificationBell() {
   return (
     <Link
       href="/notifications"
-      className="dashboard-card relative flex min-h-[52px] min-w-[52px] items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-100 via-white to-orange-50 text-[24px] shadow-[0_8px_22px_rgba(245,158,11,0.22)] ring-1 ring-yellow-100 active:bg-yellow-100"
+      className={`dashboard-card relative flex min-h-[52px] min-w-[52px] items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-100 via-white to-orange-50 text-[24px] shadow-[0_8px_22px_rgba(245,158,11,0.22)] ring-1 ring-yellow-100 active:bg-yellow-100 ${shake ? "notification-bell-shake" : ""}`}
       aria-label="सूचना"
       title="सूचना"
     >

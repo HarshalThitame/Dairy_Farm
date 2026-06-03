@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BrandLockup from "@/components/BrandLockup";
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +11,37 @@ export default function TopHeader() {
   const pathname = usePathname();
   const { farm, user, isAdmin, isFarmOwner, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    function handlePointerDown(event) {
+      if (!profileMenuRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   if (
     pathname === "/login" ||
@@ -30,6 +61,7 @@ export default function TopHeader() {
 
   function handleLogout() {
     if (window.confirm("लॉगआउट करायचे आहे का?")) {
+      setOpen(false);
       logout();
     }
   }
@@ -46,7 +78,7 @@ export default function TopHeader() {
           ) : null}
         </Link>
 
-        <div className="relative flex items-center gap-2">
+        <div ref={profileMenuRef} className="relative flex items-center gap-2">
           <NotificationBell />
           <button
             type="button"

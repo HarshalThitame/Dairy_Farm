@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { extractTextWithGoogleVision } from "@/lib/googleVisionOCR";
+import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,7 +9,7 @@ export const runtime = "nodejs";
 export async function POST(request) {
   try {
     await verifyFarmAccess(request);
-    const { imageBase64 } = await request.json();
+    const { imageBase64 } = await readJsonBody(request);
 
     if (!imageBase64) {
       return NextResponse.json({ error: "फोटो डेटा आवश्यक आहे." }, { status: 400 });

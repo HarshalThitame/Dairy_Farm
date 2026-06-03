@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 import { notificationPriorities, notificationTypes } from "@/lib/notificationCenter";
+import { badRequest, isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ function templatePayload(body = {}) {
   const message = cleanText(body.message);
 
   if (!name || !title || !message) {
-    throw new Error("Template name, title, and message are required.");
+    throw badRequest("Template name, title आणि message आवश्यक आहेत.");
   }
 
   return {
@@ -34,8 +35,11 @@ function templatePayload(body = {}) {
 
 export async function PUT(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Template ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const payload = templatePayload(body);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
@@ -56,6 +60,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Template ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase

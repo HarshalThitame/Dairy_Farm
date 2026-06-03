@@ -4,12 +4,16 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { pickMilkFields } from "@/lib/milkRecordFields";
 import { deleteDairySlipsForMilkDate, syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
 export async function PUT(request, { params }) {
   try {
-    const body = await request.json();
+    if (!isUuid(params.id)) {
+      return NextResponse.json({ error: "दूध नोंद क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
+    const body = await readJsonBody(request);
     const auth = await verifyFarmAccess(request);
     const pickedFields = pickMilkFields(body);
 

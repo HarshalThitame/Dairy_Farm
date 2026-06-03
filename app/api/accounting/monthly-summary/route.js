@@ -11,6 +11,11 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
+
 function parseBodyMonth(body) {
   const month = Number(body.month);
   const year = Number(body.year);
@@ -54,7 +59,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await readJsonBody(request);
+
+    if (!body) {
+      return NextResponse.json({ error: "माहिती योग्य format मध्ये पाठवा." }, { status: 400 });
+    }
+
     const monthInput = parseBodyMonth(body);
 
     if (!monthInput) {

@@ -19,7 +19,7 @@ const allowed = {
 };
 
 function normalizePayload(body = {}, current = {}) {
-  const payload = { ...DEFAULT_APPEARANCE, ...current };
+  const payload = { ...DEFAULT_APPEARANCE, ...normalizeAppearancePreferences(current) };
   for (const key of Object.keys(allowed)) {
     if (body[key] !== undefined && allowed[key].includes(body[key])) {
       payload[key] = body[key];
@@ -47,7 +47,7 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const auth = await verifyFarmAccess(request);
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const supabase = getSupabaseServerClient();
     const current = await getOrCreateAppearancePreferences(supabase, auth.userId, auth.farmId);
     const next = normalizePayload(body, current);

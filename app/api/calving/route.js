@@ -3,6 +3,7 @@ import { createCalvesForCalving } from "@/lib/calfServer";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,9 @@ export async function GET(request) {
       .order("expected_date", { ascending: false });
 
     if (cowId) {
+      if (!isUuid(cowId)) {
+        return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+      }
       await verifyFarmAccess(request, cowId);
       query = query.eq("cow_id", cowId);
     }
@@ -143,10 +147,16 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     if (!body.cow_id || !body.actual_date || !body.calf_gender) {
       return NextResponse.json({ error: "गाय, तारीख आणि वासराचे लिंग आवश्यक आहे." }, { status: 400 });
+    }
+    if (!isUuid(body.cow_id)) {
+      return NextResponse.json({ error: "गाय क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
+    if (body.reminder_id && !isUuid(body.reminder_id)) {
+      return NextResponse.json({ error: "आठवण क्रमांक चुकीचा आहे." }, { status: 400 });
     }
 
     if (!allowedCalfGenders.has(body.calf_gender)) {
