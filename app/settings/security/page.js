@@ -5,13 +5,11 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/context/AuthContext";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
-const TOKEN_KEY = "goshala_token";
-
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function getSessionIdFromToken() {

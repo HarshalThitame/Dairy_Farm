@@ -5,13 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { formatMarathiDate } from "@/lib/marathiUtils";
 
-const TOKEN_KEY = "goshala_token";
-
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 export default function TicketDetailPage({ params }) {
@@ -220,4 +218,3 @@ export default function TicketDetailPage({ params }) {
     </div>
   );
 }
-

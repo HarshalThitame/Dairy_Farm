@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import BrandLockup from "@/components/BrandLockup";
 import { useAuth } from "@/context/AuthContext";
+import { safeGetLocalStorageItem, safeSetLocalStorageItem } from "@/lib/clientStorage";
 
 const steps = [
   {
@@ -34,13 +35,13 @@ export default function WelcomePage() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    if (typeof localStorage !== "undefined" && localStorage.getItem("onboarding_completed") === "true") {
+    if (safeGetLocalStorageItem("onboarding_completed", "") === "true") {
       router.replace("/");
     }
   }, [router]);
 
   function finish() {
-    localStorage.setItem("onboarding_completed", "true");
+    safeSetLocalStorageItem("onboarding_completed", "true");
     router.replace("/");
   }
 
@@ -77,7 +78,7 @@ export default function WelcomePage() {
             <button
               type="button"
               onClick={() => {
-                localStorage.setItem("onboarding_completed", "true");
+                safeSetLocalStorageItem("onboarding_completed", "true");
                 router.replace("/gayi/navi");
               }}
               className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-soft"

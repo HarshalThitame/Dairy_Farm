@@ -2,6 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  getCookieValue,
+  safeGetLocalStorageItem,
+  safeParseLocalStorageJson,
+  safeRemoveLocalStorageItem,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
 
 const SuperAdminContext = createContext(null);
 const TOKEN_KEY = "super_admin_token";
@@ -11,49 +18,43 @@ function setAdminCookie(token) {
   if (typeof document === "undefined") {
     return;
   }
-  document.cookie = `${TOKEN_KEY}=${token}; Max-Age=${60 * 60 * 12}; Path=/; SameSite=Lax`;
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Max-Age=${60 * 60 * 12}; Path=/; SameSite=Lax${secure}`;
+  } catch {
+    // Ignore cookie errors.
+  }
 }
 
 function clearAdminCookie() {
   if (typeof document === "undefined") {
     return;
   }
-  document.cookie = `${TOKEN_KEY}=; Max-Age=0; Path=/; SameSite=Lax`;
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${TOKEN_KEY}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+  } catch {
+    // Ignore cookie errors.
+  }
 }
 
 function getStoredAdmin() {
-  if (typeof localStorage === "undefined") {
-    return null;
-  }
-
-  try {
-    return JSON.parse(localStorage.getItem(ADMIN_KEY) || "null");
-  } catch {
-    return null;
-  }
+  return safeParseLocalStorageJson(ADMIN_KEY, null);
 }
 
 function getStoredToken() {
-  if (typeof localStorage === "undefined") {
-    return "";
-  }
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return safeGetLocalStorageItem(TOKEN_KEY, "") || getCookieValue(TOKEN_KEY);
 }
 
 function storeSession(token, admin) {
-  if (typeof localStorage === "undefined") {
-    return;
-  }
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(ADMIN_KEY, JSON.stringify(admin));
+  safeSetLocalStorageItem(TOKEN_KEY, token);
+  safeSetLocalStorageItem(ADMIN_KEY, JSON.stringify(admin));
   setAdminCookie(token);
 }
 
 function clearSession() {
-  if (typeof localStorage !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(ADMIN_KEY);
-  }
+  safeRemoveLocalStorageItem(TOKEN_KEY);
+  safeRemoveLocalStorageItem(ADMIN_KEY);
   clearAdminCookie();
 }
 

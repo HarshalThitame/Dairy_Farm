@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/context/AuthContext";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 
 const weakPins = new Set([
   "0000",
@@ -107,13 +108,13 @@ export default function ChangePinPage() {
     setSuccess("");
 
     try {
-      const token = localStorage.getItem("goshala_token") || "";
       const response = await fetch("/api/auth/change-pin", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          ...getClientAuthHeaders()
         },
+        credentials: "same-origin",
         body: JSON.stringify({
           currentPin: currentValue,
           newPin: newValue

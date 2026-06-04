@@ -2,6 +2,12 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  getClientAuthHeaders,
+  getClientAuthToken,
+  safeGetLocalStorageItem,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
 
 const STORAGE_KEY = "majhi_dairy_ai_assistant_messages";
 const AI_LOGO_SRC = "/icons/ai logo.png";
@@ -30,11 +36,7 @@ const suggestedQuestions = [
 ];
 
 function getAuthToken() {
-  if (typeof localStorage === "undefined") {
-    return "";
-  }
-
-  return localStorage.getItem("goshala_token") || "";
+  return getClientAuthToken();
 }
 
 function initialMessages() {
@@ -48,12 +50,8 @@ function initialMessages() {
 }
 
 function readStoredMessages() {
-  if (typeof localStorage === "undefined") {
-    return initialMessages();
-  }
-
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const stored = JSON.parse(safeGetLocalStorageItem(STORAGE_KEY, "[]"));
     return Array.isArray(stored) && stored.length ? stored : initialMessages();
   } catch {
     return initialMessages();
@@ -61,11 +59,7 @@ function readStoredMessages() {
 }
 
 function persistMessages(messages) {
-  if (typeof localStorage === "undefined") {
-    return;
-  }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
+  safeSetLocalStorageItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
 }
 
 function messageId(prefix) {
@@ -166,7 +160,8 @@ export default function AIAssistantWidget() {
 
     fetch("/api/settings/ai", {
       cache: "no-store",
-      headers: { Authorization: `Bearer ${token}` }
+      credentials: "same-origin",
+      headers: getClientAuthHeaders()
     })
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
       .then(({ ok, json }) => {
@@ -305,8 +300,9 @@ export default function AIAssistantWidget() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`
+          ...getClientAuthHeaders()
         },
+        credentials: "same-origin",
         body: JSON.stringify({
           message: question,
           messages: visibleHistory
@@ -346,8 +342,9 @@ export default function AIAssistantWidget() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`
+          ...getClientAuthHeaders()
         },
+        credentials: "same-origin",
         body: JSON.stringify({ logId, feedback })
       });
     } catch {

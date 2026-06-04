@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const categories = [
   ["technical_support", "Technical Support"],
@@ -31,8 +30,7 @@ const priorities = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function getDeviceInfo() {
@@ -233,4 +231,3 @@ function MiniStat({ label, value }) {
     </div>
   );
 }
-

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { cacheNotifications, getCachedNotifications, updateCachedNotification } from "@/lib/localDB";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
@@ -35,8 +36,7 @@ const typeTone = {
 };
 
 function getAuthToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem("goshala_token") || "";
+  return getClientAuthToken();
 }
 
 function getTokenClaims() {

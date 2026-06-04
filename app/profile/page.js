@@ -14,11 +14,11 @@ import {
   getAhilyanagarVillages,
   isAhilyanagarDistrict
 } from "@/lib/maharashtraLocations";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { formatCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 
 function authHeader() {
-  const token = typeof localStorage !== "undefined" ? localStorage.getItem("goshala_token") : "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return getClientAuthHeaders();
 }
 
 function roleLabel(user) {

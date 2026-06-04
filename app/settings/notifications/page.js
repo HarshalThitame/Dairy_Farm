@@ -5,10 +5,9 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import { useSpeechNotification } from "@/hooks/useSpeechNotification";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
-
-const TOKEN_KEY = "goshala_token";
 
 const categoryLabels = [
   ["daily_reminder", "दैनंदिन आठवण", "रोजच्या कामांसाठी सूचना"],
@@ -36,8 +35,7 @@ const frequencyOptions = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {

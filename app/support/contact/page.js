@@ -5,9 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
-const TOKEN_KEY = "goshala_token";
 const supportWhatsAppUrl = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP_URL || "/support/tickets";
 const supportEmailUrl = process.env.NEXT_PUBLIC_SUPPORT_EMAIL
   ? `mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL}`
@@ -17,8 +17,7 @@ const supportPhoneUrl = process.env.NEXT_PUBLIC_SUPPORT_PHONE
   : "/support/tickets";
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 export default function ContactSupportPage() {

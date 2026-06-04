@@ -3,15 +3,11 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from "react";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { compressImageFileToWebP, isSupportedImageType } from "@/lib/imageCompression";
 
 function getAuthHeader() {
-  if (typeof localStorage === "undefined") {
-    return {};
-  }
-
-  const token = localStorage.getItem("goshala_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return getClientAuthHeaders();
 }
 
 function getInitialPreview(value) {

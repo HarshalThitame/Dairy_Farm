@@ -6,13 +6,11 @@ import {
   getStoredNotificationPermission,
   isNotificationDismissed
 } from "@/lib/notifications";
+import { getClientAuthHeaders, getClientAuthToken } from "@/lib/clientStorage";
 import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
 
 function getAuthToken() {
-  if (typeof localStorage === "undefined") {
-    return "";
-  }
-  return localStorage.getItem("goshala_token") || "";
+  return getClientAuthToken();
 }
 
 export default function NotificationBanner() {
@@ -44,7 +42,8 @@ export default function NotificationBanner() {
         try {
           const response = await fetch("/api/notifications/push-status", {
             cache: "no-store",
-            headers: { Authorization: `Bearer ${token}` }
+            credentials: "same-origin",
+            headers: getClientAuthHeaders()
           });
           const status = await response.json().catch(() => ({}));
 

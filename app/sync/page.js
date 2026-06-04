@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import { safeGetLocalStorageItem } from "@/lib/clientStorage";
 import {
   deleteSyncRecord,
   getAllSyncRecords,
@@ -195,7 +196,7 @@ export default function SyncStatusPage() {
     () => records.filter((record) => record.permanentFail),
     [records]
   );
-  const lastSync = typeof localStorage !== "undefined" ? localStorage.getItem("goshala-last-sync") : null;
+  const lastSync = safeGetLocalStorageItem("goshala-last-sync", null);
 
   async function runSync() {
     setSyncing(true);

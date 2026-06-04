@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getClientAuthHeaders, getClientAuthToken } from "@/lib/clientStorage";
 import { cacheNotifications, getCachedNotifications } from "@/lib/localDB";
 import { supabase } from "@/lib/supabase";
 
 function getAuthToken() {
-  if (typeof localStorage === "undefined") {
-    return "";
-  }
-  return localStorage.getItem("goshala_token") || "";
+  return getClientAuthToken();
 }
 
 function getTokenClaims() {
@@ -54,7 +52,8 @@ export default function NotificationBell() {
 
       const response = await fetch("/api/notifications?limit=5", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getAuthToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {

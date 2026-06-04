@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  getClientAuthHeaders,
+  getClientAuthToken,
+  safeGetLocalStorageItem,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
 
-const TOKEN_KEY = "goshala_token";
 const STORAGE_KEY = "majhi_dairy_appearance";
 
 const defaultPreferences = {
@@ -49,7 +54,7 @@ export function applyAppearancePreferences(preferences = {}) {
   metaTheme.setAttribute("content", themeColor);
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    safeSetLocalStorageItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
     // Local storage is optional.
   }
@@ -57,18 +62,14 @@ export function applyAppearancePreferences(preferences = {}) {
 
 function readLocalPreferences() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    return JSON.parse(safeGetLocalStorageItem(STORAGE_KEY, "null"));
   } catch {
     return null;
   }
 }
 
 function getToken() {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  } catch {
-    return "";
-  }
+  return getClientAuthToken();
 }
 
 export default function AppearanceBoot() {
@@ -92,7 +93,8 @@ export default function AppearanceBoot() {
     if (token && navigator.onLine) {
       fetch("/api/settings/appearance", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       })
         .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
         .then(({ ok, json }) => {

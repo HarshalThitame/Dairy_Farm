@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const responseStyles = [
   ["short", "लहान", "थेट, एका-दोन वाक्यात उत्तर"],
@@ -24,8 +23,7 @@ const dataPermissionRows = [
 const exampleQuestions = ["🥛 आजचे दूध", "💰 आजचे उत्पन्न", "📈 सरासरी फॅट", "🏆 सर्वाधिक दूध"];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {

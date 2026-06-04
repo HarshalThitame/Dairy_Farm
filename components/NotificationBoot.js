@@ -8,26 +8,29 @@ import {
 import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
 import { useSpeechNotification } from "@/hooks/useSpeechNotification";
 import { enqueueNotificationSpeech } from "@/services/notificationSpeechQueue";
+import {
+  getClientAuthHeaders,
+  getClientAuthToken,
+  safeGetLocalStorageItem,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
 
 const ANNOUNCED_ADMIN_NOTIFICATIONS_KEY = "majhi_dairy_announced_admin_notifications";
 
 function getAuthToken() {
-  if (typeof localStorage === "undefined") {
-    return "";
-  }
-  return localStorage.getItem("goshala_token") || "";
+  return getClientAuthToken();
 }
 
 function readAnnouncedIds() {
   try {
-    return JSON.parse(localStorage.getItem(ANNOUNCED_ADMIN_NOTIFICATIONS_KEY) || "[]");
+    return JSON.parse(safeGetLocalStorageItem(ANNOUNCED_ADMIN_NOTIFICATIONS_KEY, "[]"));
   } catch {
     return [];
   }
 }
 
 function writeAnnouncedIds(ids) {
-  localStorage.setItem(ANNOUNCED_ADMIN_NOTIFICATIONS_KEY, JSON.stringify(ids.slice(-100)));
+  safeSetLocalStorageItem(ANNOUNCED_ADMIN_NOTIFICATIONS_KEY, JSON.stringify(ids.slice(-100)));
 }
 
 export default function NotificationBoot() {
@@ -66,7 +69,8 @@ export default function NotificationBoot() {
         }
         const response = await fetch("/api/notifications?filter=unread&limit=3", {
           cache: "no-store",
-          headers: { Authorization: `Bearer ${getAuthToken()}` }
+          credentials: "same-origin",
+          headers: getClientAuthHeaders()
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {

@@ -16,9 +16,8 @@ import {
 } from "recharts";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { formatCurrency, formatLitres, formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const overviewCards = [
   ["totalMilk", "🥛", "एकूण दूध", "milk", "from-blue-50 via-white to-cyan-50 border-blue-100 text-blue-950"],
@@ -31,8 +30,7 @@ const overviewCards = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function formatNumber(value, decimals = 2) {

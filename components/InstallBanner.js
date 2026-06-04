@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
+import { safeGetLocalStorageItem, safeSetLocalStorageItem } from "@/lib/clientStorage";
 
 const IOS_DISMISS_KEY = "majhi-dairy-ios-install-help-dismissed-at";
 const IOS_DISMISS_DAYS = 7;
@@ -30,7 +31,7 @@ function isSafariBrowser() {
 
 function shouldShowIOSHelp() {
   try {
-    const dismissedAt = Number(window.localStorage.getItem(IOS_DISMISS_KEY) || 0);
+    const dismissedAt = Number(safeGetLocalStorageItem(IOS_DISMISS_KEY, "0") || 0);
     if (!dismissedAt) {
       return true;
     }
@@ -96,11 +97,7 @@ export default function InstallBanner() {
 
   const dismissBanner = () => {
     if (showIOSHelp) {
-      try {
-        window.localStorage.setItem(IOS_DISMISS_KEY, String(Date.now()));
-      } catch {
-        // Ignore storage failures. The close button should still work.
-      }
+      safeSetLocalStorageItem(IOS_DISMISS_KEY, String(Date.now()));
     }
 
     setVisible(false);

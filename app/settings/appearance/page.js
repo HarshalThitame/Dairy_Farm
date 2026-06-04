@@ -5,8 +5,7 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import { applyAppearancePreferences } from "@/components/settings/AppearanceBoot";
-
-const TOKEN_KEY = "goshala_token";
+import { getClientAuthToken } from "@/lib/clientStorage";
 
 const themeOptions = [
   ["light", "☀️ Light"],
@@ -35,8 +34,7 @@ const defaultPageOptions = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function OptionGrid({ options, value, onChange, disabled = false, columns = "grid-cols-3" }) {

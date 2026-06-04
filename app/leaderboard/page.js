@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const leaderboardTypes = [
   { value: "farm", label: "दूध उत्पादक Score", short: "Score", icon: "⭐", color: "from-emerald-500 to-teal-500" },
@@ -22,8 +21,7 @@ const scopeOptions = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function numberText(value, digits = 0) {

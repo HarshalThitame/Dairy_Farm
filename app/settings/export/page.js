@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const fallbackSections = [
   { id: "milk_records", label: "दूध नोंदी" },
@@ -40,8 +39,7 @@ const autoOptions = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function todayISO() {

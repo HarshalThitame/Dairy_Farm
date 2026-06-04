@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const categoryOrder = [
   "all",
@@ -23,8 +22,7 @@ const categoryOrder = [
 ];
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function formatNumber(value, decimals = 0) {

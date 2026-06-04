@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
+import { getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-const TOKEN_KEY = "goshala_token";
 
 const goalInputs = [
   ["daily_milk_goal", "दैनिक दूध लक्ष्य", "लिटर", "३००", "🥛", "आजचे उत्पादन"],
@@ -30,8 +29,7 @@ const statusTone = {
 };
 
 function getToken() {
-  if (typeof localStorage === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return getClientAuthToken();
 }
 
 function formatNumber(value, decimals = 2) {

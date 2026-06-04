@@ -27,16 +27,7 @@ const runtimeCaching = [
   },
   {
     urlPattern: /^https?:\/\/.*\/api\/.*/,
-    handler: "NetworkFirst",
-    options: {
-      cacheName: "local-api-cache",
-      networkTimeoutSeconds: 3,
-      expiration: {
-        maxEntries: 100,
-        maxAgeSeconds: 12 * 60 * 60
-      },
-      cacheableResponse: { statuses: [0, 200] }
-    }
+    handler: "NetworkOnly"
   },
   {
     urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,

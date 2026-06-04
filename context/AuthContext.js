@@ -2,6 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  getCookieValue,
+  safeGetLocalStorageItem,
+  safeParseLocalStorageJson,
+  safeRemoveLocalStorageItem,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = "goshala_token";
@@ -33,32 +40,12 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = AUTH_TIMEOUT_MS) 
 }
 
 function readJson(key) {
-  if (typeof localStorage === "undefined") {
-    if (key === USER_KEY) return memorySession.user;
-    if (key === FARM_KEY) return memorySession.farm;
-    return null;
-  }
-
-  try {
-    return JSON.parse(localStorage.getItem(key) || "null");
-  } catch {
-    if (key === USER_KEY) return memorySession.user;
-    if (key === FARM_KEY) return memorySession.farm;
-    return null;
-  }
+  const fallback = key === USER_KEY ? memorySession.user : key === FARM_KEY ? memorySession.farm : null;
+  return safeParseLocalStorageJson(key, fallback);
 }
 
 function getCookieToken() {
-  if (typeof document === "undefined") {
-    return "";
-  }
-
-  const cookie = document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${TOKEN_KEY}=`));
-
-  return cookie ? decodeURIComponent(cookie.slice(TOKEN_KEY.length + 1)) : "";
+  return getCookieValue(TOKEN_KEY);
 }
 
 function setAuthCookie(token) {
@@ -66,8 +53,12 @@ function setAuthCookie(token) {
     return;
   }
 
-  const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Max-Age=${60 * 60 * 24 * 30}; Path=/; SameSite=Lax${secure}`;
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Max-Age=${60 * 60 * 24 * 30}; Path=/; SameSite=Lax${secure}`;
+  } catch {
+    // Ignore cookie errors; in-memory state still works for the current tab.
+  }
 }
 
 function clearAuthCookie() {
@@ -75,8 +66,12 @@ function clearAuthCookie() {
     return;
   }
 
-  const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${TOKEN_KEY}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${TOKEN_KEY}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+  } catch {
+    // Ignore cookie errors.
+  }
 }
 
 function storeSession(token, user, farm) {
@@ -85,17 +80,10 @@ function storeSession(token, user, farm) {
   memorySession.farm = farm;
   memorySession.verifiedAt = Date.now();
 
-  if (typeof localStorage !== "undefined") {
-    try {
-      localStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      localStorage.setItem(FARM_KEY, JSON.stringify(farm));
-      localStorage.setItem(VERIFIED_AT_KEY, String(Date.now()));
-    } catch {
-      // iOS can temporarily reject Web Storage in standalone/private contexts.
-      // Cookie + in-memory state still keep the current session usable.
-    }
-  }
+  safeSetLocalStorageItem(TOKEN_KEY, token);
+  safeSetLocalStorageItem(USER_KEY, JSON.stringify(user));
+  safeSetLocalStorageItem(FARM_KEY, JSON.stringify(farm));
+  safeSetLocalStorageItem(VERIFIED_AT_KEY, String(Date.now()));
 
   setAuthCookie(token);
 }
@@ -106,44 +94,21 @@ function clearSession() {
   memorySession.farm = null;
   memorySession.verifiedAt = 0;
 
-  if (typeof localStorage !== "undefined") {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(FARM_KEY);
-      localStorage.removeItem(VERIFIED_AT_KEY);
-    } catch {
-      // Ignore storage errors.
-    }
-  }
+  safeRemoveLocalStorageItem(TOKEN_KEY);
+  safeRemoveLocalStorageItem(USER_KEY);
+  safeRemoveLocalStorageItem(FARM_KEY);
+  safeRemoveLocalStorageItem(VERIFIED_AT_KEY);
 
   clearAuthCookie();
 }
 
 function isRecentlyVerified() {
-  if (typeof localStorage === "undefined") {
-    return memorySession.verifiedAt > 0 && Date.now() - memorySession.verifiedAt < AUTH_VERIFY_TTL_MS;
-  }
-
-  let verifiedAt = memorySession.verifiedAt;
-  try {
-    verifiedAt = Number(localStorage.getItem(VERIFIED_AT_KEY) || verifiedAt || 0);
-  } catch {
-    verifiedAt = memorySession.verifiedAt;
-  }
+  const verifiedAt = Number(safeGetLocalStorageItem(VERIFIED_AT_KEY, String(memorySession.verifiedAt || 0)) || 0);
   return verifiedAt > 0 && Date.now() - verifiedAt < AUTH_VERIFY_TTL_MS;
 }
 
 function getStoredToken() {
-  if (typeof localStorage === "undefined") {
-    return memorySession.token || getCookieToken();
-  }
-
-  try {
-    return localStorage.getItem(TOKEN_KEY) || memorySession.token || getCookieToken();
-  } catch {
-    return memorySession.token || getCookieToken();
-  }
+  return safeGetLocalStorageItem(TOKEN_KEY, "") || memorySession.token || getCookieToken();
 }
 
 async function postAuth(url, body) {
@@ -204,9 +169,7 @@ export function AuthProvider({ children }) {
         const result = await postAuth("/api/auth/signup", signupData);
         applySession(result.token, result.user, result.farm);
 
-        if (typeof localStorage !== "undefined") {
-          localStorage.removeItem("onboarding_completed");
-        }
+        safeRemoveLocalStorageItem("onboarding_completed");
 
         return { success: true, data: result };
       } catch (error) {
@@ -294,9 +257,7 @@ export function AuthProvider({ children }) {
     }
 
     setFarm(result.data);
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(FARM_KEY, JSON.stringify(result.data));
-    }
+    safeSetLocalStorageItem(FARM_KEY, JSON.stringify(result.data));
     return result.data;
   }, []);
 

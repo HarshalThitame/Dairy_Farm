@@ -3,11 +3,11 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from "react";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { isSupportedImageType } from "@/lib/imageCompression";
 
 function getAuthHeader() {
-  const token = typeof localStorage !== "undefined" ? localStorage.getItem("goshala_token") : "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return getClientAuthHeaders();
 }
 
 export default function ProfilePhotoUploader({ value, name, onUploaded, onRemoved }) {
