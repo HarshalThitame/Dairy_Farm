@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -74,6 +75,10 @@ function sortReminderRows(reminders) {
   });
 }
 
+async function enrichReminderRows(supabase, farmId, reminders, today = getTodayISODate()) {
+  return enrichActiveCalfMilkReminders(supabase, farmId, reminders || [], { today });
+}
+
 async function runDoneQuery(request, supabase, farmId, searchParams, useDoneAt = true) {
   const range = monthRange(searchParams.get("month"), searchParams.get("year"));
 
@@ -125,7 +130,13 @@ export async function GET(request) {
         return NextResponse.json({ error: "आठवण सापडली नाही." }, { status: 404 });
       }
 
-      return NextResponse.json({ data });
+      const enriched = await enrichReminderRows(supabase, farmId, [data], today);
+
+      if (!enriched.length) {
+        return NextResponse.json({ error: "आठवण सापडली नाही." }, { status: 404 });
+      }
+
+      return NextResponse.json({ data: enriched[0] });
     }
 
     if (filter === "done") {
@@ -139,7 +150,8 @@ export async function GET(request) {
         throw result.error;
       }
 
-      return NextResponse.json({ data: result.data || [] });
+      const enrichedDoneRows = await enrichReminderRows(supabase, farmId, result.data || [], today);
+      return NextResponse.json({ data: enrichedDoneRows });
     }
 
     let query = supabase
@@ -174,7 +186,8 @@ export async function GET(request) {
       throw error;
     }
 
-    return NextResponse.json({ data: sortReminderRows(data || []) });
+    const enrichedRows = await enrichReminderRows(supabase, farmId, data || [], today);
+    return NextResponse.json({ data: sortReminderRows(enrichedRows) });
   } catch (error) {
     return farmErrorResponse(error);
   }

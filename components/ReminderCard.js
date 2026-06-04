@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { isCalfMilkReminder } from "@/lib/calfReminderDisplay";
 import { getCalvingRecordHref, isCalvingReminder } from "@/lib/calvingReminder";
 import {
   getReminderDayDistance,
@@ -49,7 +50,10 @@ export default function ReminderCard({
 }) {
   const urgency = getUrgencyLevel(reminder.reminder_date);
   const emoji = getReminderEmoji(reminder.type);
-  const cowName = reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
+  const calfReminder = isCalfMilkReminder(reminder);
+  const cowName = calfReminder
+    ? reminder.related_calf?.name || reminder.calf_name || "वासरी"
+    : reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
   const actionHref = reminder.action_href || reminder.actionHref || "";
   const actionLabel = reminder.action_label || reminder.actionLabel || "उघडा";
   const canComplete = !actionHref && (urgency === "overdue" || urgency === "today");

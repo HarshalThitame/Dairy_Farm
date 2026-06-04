@@ -5,6 +5,7 @@ import {
   isKhadyaExpenseCategory,
   summarizeMilkIncomeForMonth
 } from "@/lib/accountingUtils";
+import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
 import { getMissingSettlementSlipPeriods } from "@/lib/settlementReminderUtils";
@@ -19,7 +20,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-const reminderFields = "id, cow_id, type, message, reminder_date, is_done, cows(id, name, breed, status)";
+const reminderFields = "id, cow_id, related_record_id, type, message, reminder_date, is_done, cows(id, name, breed, status)";
 
 function roundMoney(value) {
   return Number(Number(value || 0).toFixed(2));
@@ -115,6 +116,10 @@ function buildCalvesSummary(calves) {
   };
 }
 
+async function enrichDashboardReminders(supabase, farmId, reminders, today) {
+  return enrichActiveCalfMilkReminders(supabase, farmId, reminders || [], { today });
+}
+
 function assertQuery(result) {
   if (result.error) {
     throw result.error;
@@ -185,7 +190,7 @@ export async function GET(request) {
         .eq("reminder_date", today)
         .eq("is_done", false)
         .order("created_at", { ascending: true })
-        .limit(5),
+        .limit(20),
       supabase
         .from("reminders")
         .select(reminderFields, { count: "exact" })
@@ -194,7 +199,7 @@ export async function GET(request) {
         .eq("is_done", false)
         .order("reminder_date", { ascending: true })
         .order("created_at", { ascending: true })
-        .limit(5),
+        .limit(20),
       supabase
         .from("reminders")
         .select(reminderFields, { count: "exact" })
@@ -204,7 +209,7 @@ export async function GET(request) {
         .eq("is_done", false)
         .order("reminder_date", { ascending: true })
         .order("created_at", { ascending: true })
-        .limit(5),
+        .limit(20),
       supabase
         .from("calves")
         .select("id, status, is_raised, milk_feeding_status")
@@ -232,9 +237,9 @@ export async function GET(request) {
     const cows = assertQuery(cowsResult);
     const todayMilkRecords = assertQuery(todayMilkResult);
     const pendingSettlementSlipPeriods = pendingSettlementSlipPeriodsResult || [];
-    const todayReminders = assertQuery(todayRemindersResult);
-    const overdueReminders = assertQuery(overdueRemindersResult);
-    const upcomingReminders = assertQuery(upcomingRemindersResult);
+    const todayReminders = await enrichDashboardReminders(supabase, farmId, assertQuery(todayRemindersResult), today);
+    const overdueReminders = await enrichDashboardReminders(supabase, farmId, assertQuery(overdueRemindersResult), today);
+    const upcomingReminders = await enrichDashboardReminders(supabase, farmId, assertQuery(upcomingRemindersResult), today);
     const calves = assertQuery(calvesResult);
     const monthlyIncomeRecords = assertQuery(monthlyIncomeRecordsResult);
     const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
@@ -342,12 +347,12 @@ export async function GET(request) {
           completed: dailyGoalEnabled && dailyGoalTarget > 0 && todayMilkTotal >= dailyGoalTarget
         },
         reminders: {
-          today: todayReminders,
-          overdue: overdueReminders,
-          upcoming: upcomingReminders,
-          todayCount: todayRemindersResult.count ?? todayReminders.length,
-          overdueCount: overdueRemindersResult.count ?? overdueReminders.length,
-          upcomingCount: upcomingRemindersResult.count ?? upcomingReminders.length
+          today: todayReminders.slice(0, 5),
+          overdue: overdueReminders.slice(0, 5),
+          upcoming: upcomingReminders.slice(0, 5),
+          todayCount: todayReminders.length,
+          overdueCount: overdueReminders.length,
+          upcomingCount: upcomingReminders.length
         },
         settlementSlipStatus: {
           pendingCount: pendingSettlementSlipPeriods.length,
