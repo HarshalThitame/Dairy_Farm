@@ -58,6 +58,8 @@ export default function RetanNondPage() {
   const calculatedDates = useMemo(() => {
     return {
       pregnancyCheckDate: toISODate(addDaysToDate(form.ai_date, 60)),
+      missedPregnancyAlertDate: toISODate(addDaysToDate(form.ai_date, 61)),
+      dryOffDate: toISODate(addDaysToDate(form.ai_date, 210)),
       expectedCalvingDate: toISODate(addDaysToDate(form.ai_date, 270))
     };
   }, [form.ai_date]);
@@ -193,6 +195,12 @@ export default function RetanNondPage() {
             </p>
             <p className="mt-3 text-[19px] font-bold text-slate-800">
               गर्भधारणा तपासणी: {formatMarathiDate(calculatedDates.pregnancyCheckDate)}
+            </p>
+            <p className="mt-2 text-[19px] font-bold text-slate-800">
+              तपासणी नोंद बाकी असल्यास सूचना: {formatMarathiDate(calculatedDates.missedPregnancyAlertDate)}
+            </p>
+            <p className="mt-2 text-[19px] font-bold text-slate-800">
+              दूध बंद: {formatMarathiDate(calculatedDates.dryOffDate)}
             </p>
             <p className="mt-2 text-[19px] font-bold text-slate-800">
               अपेक्षित व्यायण: {formatMarathiDate(calculatedDates.expectedCalvingDate)}

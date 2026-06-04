@@ -6,8 +6,10 @@ import {
   summarizeMilkIncomeForMonth
 } from "@/lib/accountingUtils";
 import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
+import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
+import { removeResolvedReproductiveReminders } from "@/lib/reproductiveReminderDisplay";
 import { getMissingSettlementSlipPeriods } from "@/lib/settlementReminderUtils";
 import {
   displayFinanceCategory,
@@ -117,7 +119,9 @@ function buildCalvesSummary(calves) {
 }
 
 async function enrichDashboardReminders(supabase, farmId, reminders, today) {
-  return enrichActiveCalfMilkReminders(supabase, farmId, reminders || [], { today });
+  const reproductiveRows = await removeResolvedReproductiveReminders(supabase, farmId, reminders || []);
+  const validRows = await removePostCalvingDryOffReminders(supabase, farmId, reproductiveRows);
+  return enrichActiveCalfMilkReminders(supabase, farmId, validRows, { today });
 }
 
 function assertQuery(result) {
@@ -189,8 +193,7 @@ export async function GET(request) {
         .eq("farm_id", farmId)
         .eq("reminder_date", today)
         .eq("is_done", false)
-        .order("created_at", { ascending: true })
-        .limit(20),
+        .order("created_at", { ascending: true }),
       supabase
         .from("reminders")
         .select(reminderFields, { count: "exact" })
@@ -198,8 +201,7 @@ export async function GET(request) {
         .lt("reminder_date", today)
         .eq("is_done", false)
         .order("reminder_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(20),
+        .order("created_at", { ascending: true }),
       supabase
         .from("reminders")
         .select(reminderFields, { count: "exact" })
@@ -208,8 +210,7 @@ export async function GET(request) {
         .lte("reminder_date", weekEnd)
         .eq("is_done", false)
         .order("reminder_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(20),
+        .order("created_at", { ascending: true }),
       supabase
         .from("calves")
         .select("id, status, is_raised, milk_feeding_status")

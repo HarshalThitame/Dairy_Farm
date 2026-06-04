@@ -84,7 +84,12 @@ function parseOptionalAmount(value) {
 }
 
 function isISODate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function normalizeGender(value) {
@@ -329,6 +334,10 @@ export async function POST(request) {
 
     if (!body.birth_date || !body.gender) {
       return NextResponse.json({ error: "जन्म तारीख आणि लिंग आवश्यक आहे." }, { status: 400 });
+    }
+
+    if (!isISODate(body.birth_date)) {
+      return NextResponse.json({ error: "जन्म तारीख चुकीची आहे." }, { status: 400 });
     }
 
     if (!allowedGenders.has(body.gender)) {

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createCalvesForCalving } from "@/lib/calfServer";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
-import { addDaysToISODate } from "@/lib/reminderUtils";
+import {
+  closeAiPregnancyLifecycleReminders,
+  ensureNextBreedingReadinessReminder
+} from "@/lib/reproductiveReminderServer";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
@@ -31,45 +34,13 @@ function pickFields(body) {
   }, {});
 }
 
-async function ensureDryOffReminder(supabase, farmId, calvingRecord, cowName) {
-  const reminderDate = addDaysToISODate(calvingRecord.actual_date, 60);
-  const reminderType = "दूध बंद";
-
-  const { data: existing, error: existingError } = await supabase
-    .from("reminders")
-    .select()
-    .eq("farm_id", farmId)
-    .eq("related_record_id", calvingRecord.id)
-    .eq("type", reminderType)
-    .maybeSingle();
-
-  if (existingError) {
-    throw existingError;
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
   }
 
-  if (existing) {
-    return existing;
-  }
-
-  const { data, error } = await supabase
-    .from("reminders")
-    .insert({
-      farm_id: farmId,
-      cow_id: calvingRecord.cow_id,
-      reminder_date: reminderDate,
-      type: reminderType,
-      message: `${cowName || "गाय"} चे दूध बंद करण्याची वेळ आली आहे`,
-      related_record_id: calvingRecord.id,
-      is_done: false
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 async function markCalvingRemindersDone(supabase, farmId, reminderId, cowId) {
@@ -107,6 +78,55 @@ async function markCalvingRemindersDone(supabase, farmId, reminderId, cowId) {
 
   if (result.error) {
     return [];
+  }
+
+  return result.data || [];
+}
+
+async function closePregnancyLifecycleAfterCalving(supabase, farmId, calvingRecord) {
+  if (calvingRecord.ai_record_id) {
+    const { error: aiError } = await supabase
+      .from("ai_records")
+      .update({ pregnancy_result: "positive" })
+      .eq("id", calvingRecord.ai_record_id)
+      .eq("farm_id", farmId);
+
+    if (aiError) {
+      throw aiError;
+    }
+
+    return closeAiPregnancyLifecycleReminders(supabase, farmId, calvingRecord.ai_record_id);
+  }
+
+  const donePayload = {
+    is_done: true,
+    skipped: true,
+    done_at: new Date().toISOString()
+  };
+  const fallbackPayload = {
+    is_done: true,
+    skipped: true
+  };
+
+  const runUpdate = (payload) =>
+    supabase
+      .from("reminders")
+      .update(payload)
+      .eq("farm_id", farmId)
+      .eq("cow_id", calvingRecord.cow_id)
+      .eq("type", "दूध बंद")
+      .eq("is_done", false)
+      .lte("reminder_date", calvingRecord.actual_date)
+      .select();
+
+  let result = await runUpdate(donePayload);
+
+  if (result.error && String(result.error.message || "").includes("done_at")) {
+    result = await runUpdate(fallbackPayload);
+  }
+
+  if (result.error) {
+    throw result.error;
   }
 
   return result.data || [];
@@ -158,13 +178,26 @@ export async function POST(request) {
     if (body.reminder_id && !isUuid(body.reminder_id)) {
       return NextResponse.json({ error: "आठवण क्रमांक चुकीचा आहे." }, { status: 400 });
     }
+    if (body.ai_record_id && !isUuid(body.ai_record_id)) {
+      return NextResponse.json({ error: "रेतन नोंद क्रमांक चुकीचा आहे." }, { status: 400 });
+    }
+    if (!isValidISODate(body.actual_date)) {
+      return NextResponse.json({ error: "व्यायण तारीख चुकीची आहे." }, { status: 400 });
+    }
+    if (body.expected_date && !isValidISODate(body.expected_date)) {
+      return NextResponse.json({ error: "अपेक्षित व्यायण तारीख चुकीची आहे." }, { status: 400 });
+    }
 
     if (!allowedCalfGenders.has(body.calf_gender)) {
       return NextResponse.json({ error: "वासराचे लिंग नर किंवा मादी असावे." }, { status: 400 });
     }
 
     const { farmId } = await verifyFarmAccess(request, body.cow_id);
-    const calfCount = Math.max(1, Math.min(2, Number(body.calf_count || 1)));
+    const requestedCalfCount = Number(body.calf_count || 1);
+    if (!Number.isInteger(requestedCalfCount) || requestedCalfCount < 1 || requestedCalfCount > 2) {
+      return NextResponse.json({ error: "वासरांची संख्या १ किंवा २ असावी." }, { status: 400 });
+    }
+    const calfCount = requestedCalfCount;
     const payload = {
       ...pickFields(body),
       calf_gender: body.calf_gender,
@@ -172,6 +205,24 @@ export async function POST(request) {
       farm_id: farmId
     };
     const supabase = getSupabaseServerClient();
+
+    if (body.ai_record_id) {
+      const { data: aiRecord, error: aiError } = await supabase
+        .from("ai_records")
+        .select("id, cow_id")
+        .eq("id", body.ai_record_id)
+        .eq("farm_id", farmId)
+        .single();
+
+      if (aiError || !aiRecord) {
+        return NextResponse.json({ error: "रेतन नोंद सापडली नाही." }, { status: 404 });
+      }
+
+      if (aiRecord.cow_id !== body.cow_id) {
+        return NextResponse.json({ error: "रेतन नोंद निवडलेल्या गायीशी जुळत नाही." }, { status: 400 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("calving_records")
       .insert(payload)
@@ -199,19 +250,24 @@ export async function POST(request) {
       throw cowError;
     }
 
-    const [reminder, completedReminders] = await Promise.all([
-      ensureDryOffReminder(supabase, farmId, data, cow?.name),
-      markCalvingRemindersDone(supabase, farmId, body.reminder_id, body.cow_id)
-    ]);
+    const completedReminders = await markCalvingRemindersDone(
+      supabase,
+      farmId,
+      body.reminder_id,
+      body.cow_id
+    );
+    const completedLifecycleReminders = await closePregnancyLifecycleAfterCalving(supabase, farmId, data);
+    const followupReminder = await ensureNextBreedingReadinessReminder(supabase, farmId, data);
 
     return NextResponse.json({
       data: {
         ...data,
         calves,
         cow,
-        reminder,
         completedReminder: completedReminders[0] || null,
-        completedReminders
+        completedReminders,
+        completedLifecycleReminders,
+        followupReminder
       }
     }, { status: 201 });
   } catch (error) {

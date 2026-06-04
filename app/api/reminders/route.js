@@ -1,22 +1,47 @@
 import { NextResponse } from "next/server";
 import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
+import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
-import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
+import {
+  addDaysToISODate,
+  getTodayISODate,
+  HEAT_CHECK_REMINDER_TYPE,
+  MISSED_PREGNANCY_REMINDER_TYPE,
+  NEXT_BREEDING_READY_REMINDER_TYPE,
+  PREGNANCY_CHECK_REMINDER_TYPE,
+  REPEAT_BREEDING_REMINDER_TYPE
+} from "@/lib/reminderUtils";
+import {
+  closeAiPregnancyLifecycleReminders,
+  ensureRepeatBreedingReminder
+} from "@/lib/reproductiveReminderServer";
+import { removeResolvedReproductiveReminders } from "@/lib/reproductiveReminderDisplay";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 
 const allowedReminderTypes = new Set([
-  "माज तपासणी",
-  "गर्भधारणा तपासणी",
+  HEAT_CHECK_REMINDER_TYPE,
+  PREGNANCY_CHECK_REMINDER_TYPE,
+  MISSED_PREGNANCY_REMINDER_TYPE,
+  REPEAT_BREEDING_REMINDER_TYPE,
+  NEXT_BREEDING_READY_REMINDER_TYPE,
   "व्यायण",
   "लसीकरण",
   "जंतनाशक",
   "तपासणी",
   "दूध बंद",
+  "शिंग काढणे",
   "वासरी दूध कमी",
   "वासरी दूध बंद"
+]);
+const allowedPatchActions = new Set([
+  "done",
+  "skip",
+  "snooze",
+  "pregnancy-positive",
+  "pregnancy-negative"
 ]);
 
 function monthRange(month, year) {
@@ -75,8 +100,100 @@ function sortReminderRows(reminders) {
   });
 }
 
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 async function enrichReminderRows(supabase, farmId, reminders, today = getTodayISODate()) {
-  return enrichActiveCalfMilkReminders(supabase, farmId, reminders || [], { today });
+  const reproductiveRows = await removeResolvedReproductiveReminders(supabase, farmId, reminders || []);
+  const validRows = await removePostCalvingDryOffReminders(supabase, farmId, reproductiveRows);
+  return enrichActiveCalfMilkReminders(supabase, farmId, validRows, { today });
+}
+
+async function updatePregnancyResultFromReminder(supabase, farmId, reminderId, pregnancyResult) {
+  const { data: reminder, error: reminderError } = await supabase
+    .from("reminders")
+    .select("id, cow_id, related_record_id, reminder_date, type")
+    .eq("id", reminderId)
+    .eq("farm_id", farmId)
+    .single();
+
+  if (reminderError || !reminder) {
+    return { data: null, error: new Error("आठवण सापडली नाही.") };
+  }
+
+  if (
+    ![PREGNANCY_CHECK_REMINDER_TYPE, MISSED_PREGNANCY_REMINDER_TYPE].includes(reminder.type) ||
+    !reminder.related_record_id
+  ) {
+    return { data: null, error: new Error("ही गर्भधारणा तपासणीची आठवण नाही.") };
+  }
+
+  const { data: aiRecord, error: aiError } = await supabase
+    .from("ai_records")
+    .update({ pregnancy_result: pregnancyResult })
+    .eq("id", reminder.related_record_id)
+    .eq("farm_id", farmId)
+    .select()
+    .single();
+
+  if (aiError || !aiRecord) {
+    return { data: null, error: aiError || new Error("रेतन नोंद सापडली नाही.") };
+  }
+
+  const reminderUpdate = await updateReminder(
+    supabase,
+    farmId,
+    reminder.id,
+    { is_done: true, skipped: false, done_at: new Date().toISOString() },
+    { is_done: true }
+  );
+
+  if (reminderUpdate.error) {
+    return { data: null, error: reminderUpdate.error };
+  }
+
+  if (pregnancyResult === "negative") {
+    await closeAiPregnancyLifecycleReminders(supabase, farmId, aiRecord.id);
+    const cowUpdate = await supabase
+      .from("cows")
+      .update({ status: "रिकामी" })
+      .eq("id", aiRecord.cow_id)
+      .eq("farm_id", farmId);
+    if (cowUpdate.error) {
+      return { data: null, error: cowUpdate.error };
+    }
+    await ensureRepeatBreedingReminder(supabase, farmId, aiRecord, getTodayISODate());
+  } else {
+    await closeAiPregnancyLifecycleReminders(
+      supabase,
+      farmId,
+      aiRecord.id,
+      [HEAT_CHECK_REMINDER_TYPE, PREGNANCY_CHECK_REMINDER_TYPE, MISSED_PREGNANCY_REMINDER_TYPE]
+    );
+    const cowUpdate = await supabase
+      .from("cows")
+      .update({ status: "गाभण" })
+      .eq("id", aiRecord.cow_id)
+      .eq("farm_id", farmId);
+    if (cowUpdate.error) {
+      return { data: null, error: cowUpdate.error };
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("reminders")
+    .select("*, cows(id, name, breed, date_of_birth, status, color)")
+    .eq("id", reminder.id)
+    .eq("farm_id", farmId)
+    .single();
+
+  return { data, error };
 }
 
 async function runDoneQuery(request, supabase, farmId, searchParams, useDoneAt = true) {
@@ -86,7 +203,7 @@ async function runDoneQuery(request, supabase, farmId, searchParams, useDoneAt =
     return { data: null, error: new Error("महिना किंवा वर्ष चुकीचे आहे.") };
   }
 
-  let query = supabase
+  let primaryQuery = supabase
     .from("reminders")
     .select("*, cows(id, name, breed, date_of_birth, status, color)")
     .eq("farm_id", farmId)
@@ -94,13 +211,48 @@ async function runDoneQuery(request, supabase, farmId, searchParams, useDoneAt =
     .order(useDoneAt ? "done_at" : "reminder_date", { ascending: false })
     .order("created_at", { ascending: false });
 
-  query = useDoneAt
-    ? query.gte("done_at", range.start).lt("done_at", range.end)
-    : query.gte("reminder_date", range.start).lt("reminder_date", range.end);
+  primaryQuery = useDoneAt
+    ? primaryQuery.gte("done_at", range.start).lt("done_at", range.end)
+    : primaryQuery.gte("reminder_date", range.start).lt("reminder_date", range.end);
 
-  query = await applyCommonFilters(request, query, searchParams);
-  const { data, error } = await query;
-  return { data, error };
+  primaryQuery = await applyCommonFilters(request, primaryQuery, searchParams);
+  const primaryResult = await primaryQuery;
+
+  if (primaryResult.error || !useDoneAt) {
+    return primaryResult;
+  }
+
+  let legacyQuery = supabase
+    .from("reminders")
+    .select("*, cows(id, name, breed, date_of_birth, status, color)")
+    .eq("farm_id", farmId)
+    .eq("is_done", true)
+    .is("done_at", null)
+    .gte("reminder_date", range.start)
+    .lt("reminder_date", range.end)
+    .order("reminder_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  legacyQuery = await applyCommonFilters(request, legacyQuery, searchParams);
+  const legacyResult = await legacyQuery;
+
+  if (legacyResult.error) {
+    return primaryResult;
+  }
+
+  const byId = new Map();
+  [...(primaryResult.data || []), ...(legacyResult.data || [])].forEach((row) => {
+    byId.set(row.id, row);
+  });
+
+  return {
+    data: [...byId.values()].sort((first, second) =>
+      String(second.done_at || second.reminder_date || "").localeCompare(
+        String(first.done_at || first.reminder_date || "")
+      )
+    ),
+    error: null
+  };
 }
 
 export async function GET(request) {
@@ -225,10 +377,16 @@ export async function PATCH(request) {
     }
 
     const action = body.action || "done";
+    if (!allowedPatchActions.has(action)) {
+      return NextResponse.json({ error: "आठवणीची action चुकीची आहे." }, { status: 400 });
+    }
     const supabase = getSupabaseServerClient();
 
     if (action === "snooze") {
       const days = Number(body.days || 1);
+      if (!Number.isInteger(days) || days < 1 || days > 30) {
+        return NextResponse.json({ error: "आठवण १ ते ३० दिवसांपर्यंतच पुढे ढकलता येते." }, { status: 400 });
+      }
       const { data: reminder, error: reminderError } = await supabase
         .from("reminders")
         .select("id, reminder_date")
@@ -276,6 +434,21 @@ export async function PATCH(request) {
       return NextResponse.json({ data });
     }
 
+    if (action === "pregnancy-positive" || action === "pregnancy-negative") {
+      const result = await updatePregnancyResultFromReminder(
+        supabase,
+        farmId,
+        body.id,
+        action === "pregnancy-positive" ? "positive" : "negative"
+      );
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      return NextResponse.json({ data: result.data });
+    }
+
     const { data, error } = await updateReminder(
       supabase,
       farmId,
@@ -302,6 +475,10 @@ export async function POST(request) {
       return NextResponse.json({ error: "तारीख, प्रकार आणि संदेश आवश्यक आहे." }, { status: 400 });
     }
 
+    if (!isValidISODate(body.reminder_date)) {
+      return NextResponse.json({ error: "आठवणीची तारीख चुकीची आहे." }, { status: 400 });
+    }
+
     if (!allowedReminderTypes.has(body.type)) {
       return NextResponse.json({ error: "आठवणीचा प्रकार चुकीचा आहे." }, { status: 400 });
     }
@@ -322,6 +499,8 @@ export async function POST(request) {
         .eq("farm_id", farmId)
         .eq("related_record_id", body.related_record_id)
         .eq("type", body.type)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
 
       if (existingError) {

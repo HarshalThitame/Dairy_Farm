@@ -1,7 +1,8 @@
 BEGIN;
 
--- After multitenancy, reminders.farm_id is NOT NULL. These triggers must copy
--- the farm from the source record, otherwise health/AI saves fail while creating reminders.
+-- Cow dry-off reminders must be based on the AI/retention date:
+-- AI date + 210 days = expected calving date - 60 days.
+-- They must not be created after the calf is born.
 
 CREATE OR REPLACE FUNCTION public.create_ai_reminders()
 RETURNS TRIGGER
@@ -62,68 +63,41 @@ ON public.ai_records
 FOR EACH ROW
 EXECUTE FUNCTION public.create_ai_reminders();
 
-CREATE OR REPLACE FUNCTION public.create_health_reminder()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SET search_path = public
-AS $$
-DECLARE
-  cow_name TEXT;
-  reminder_type TEXT;
-  reminder_message TEXT;
-BEGIN
-  IF NEW.next_due_date IS NULL THEN
-    RETURN NEW;
-  END IF;
+-- Remove only wrong pending cow dry-off reminders that were linked to calving
+-- records. Done reminders are preserved as history.
+DELETE FROM public.reminders AS reminder
+USING public.calving_records AS calving
+WHERE reminder.related_record_id = calving.id
+  AND reminder.type = 'दूध बंद'
+  AND reminder.is_done = false;
 
-  SELECT name
-  INTO cow_name
-  FROM public.cows
-  WHERE id = NEW.cow_id;
-
-  IF cow_name IS NULL THEN
-    RETURN NEW;
-  END IF;
-
-  reminder_type := CASE
-    WHEN NEW.type = 'जंतनाशक' THEN 'जंतनाशक'
-    WHEN NEW.type = 'लसीकरण' THEN 'लसीकरण'
-    ELSE 'तपासणी'
-  END;
-
-  reminder_message := CASE
-    WHEN NEW.type = 'जंतनाशक' AND NEW.vaccine_name IS NOT NULL AND btrim(NEW.vaccine_name) <> '' THEN
-      cow_name || ' ला ' || NEW.vaccine_name || ' देण्याची वेळ झाली'
-    WHEN NEW.type = 'जंतनाशक' THEN
-      cow_name || ' ला जंतनाशक देण्याची वेळ झाली'
-    WHEN NEW.type = 'लसीकरण' AND NEW.vaccine_name IS NOT NULL AND btrim(NEW.vaccine_name) <> '' THEN
-      cow_name || ' ला ' || NEW.vaccine_name || ' लस देण्याची वेळ झाली'
-    WHEN NEW.type = 'लसीकरण' THEN
-      cow_name || ' ला लस देण्याची वेळ झाली'
-    ELSE
-      cow_name || ' ची पुढील तपासणी करा'
-  END;
-
-  INSERT INTO public.reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
-  VALUES (NEW.farm_id, NEW.cow_id, NEW.next_due_date, reminder_type, reminder_message, NEW.id);
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS health_records_create_reminder ON public.health_records;
-CREATE TRIGGER health_records_create_reminder
-AFTER INSERT
-ON public.health_records
-FOR EACH ROW
-EXECUTE FUNCTION public.create_health_reminder();
-
-UPDATE public.reminders AS reminders
-SET farm_id = cows.farm_id
-FROM public.cows AS cows
-WHERE reminders.farm_id IS NULL
-  AND reminders.cow_id = cows.id;
-
-CREATE INDEX IF NOT EXISTS idx_reminders_farm_id ON public.reminders(farm_id);
+-- Backfill missing AI-based dry-off reminders for pregnant cows/records that
+-- still need the 60-days-before-calving reminder.
+INSERT INTO public.reminders (farm_id, cow_id, reminder_date, type, message, related_record_id, is_done)
+SELECT
+  ai.farm_id,
+  ai.cow_id,
+  ai.ai_date + 210,
+  'दूध बंद',
+  COALESCE(cow.name, 'गाय') || ' चे दूध काढणे बंद करण्याची वेळ जवळ आली आहे',
+  ai.id,
+  false
+FROM public.ai_records AS ai
+JOIN public.cows AS cow ON cow.id = ai.cow_id AND cow.farm_id = ai.farm_id
+WHERE cow.status = 'गाभण'
+  AND COALESCE(ai.pregnancy_result, 'pending') <> 'negative'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.calving_records AS calving
+    WHERE calving.farm_id = ai.farm_id
+      AND calving.ai_record_id = ai.id
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.reminders AS existing
+    WHERE existing.farm_id = ai.farm_id
+      AND existing.related_record_id = ai.id
+      AND existing.type = 'दूध बंद'
+  );
 
 COMMIT;

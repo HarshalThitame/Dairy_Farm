@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
   cow_id UUID REFERENCES cows(id) ON DELETE CASCADE,
   reminder_date DATE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'तपासणी', 'दूध बंद', 'वासरी दूध कमी', 'वासरी दूध बंद')),
+  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'पुन्हा रेतन सूचना', 'पुढील रेतन तयारी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'तपासणी', 'दूध बंद', 'शिंग काढणे', 'वासरी दूध कमी', 'वासरी दूध बंद')),
   message TEXT NOT NULL,
   is_done BOOLEAN DEFAULT false,
   done_at TIMESTAMP,
@@ -211,6 +211,9 @@ CREATE INDEX IF NOT EXISTS finance_records_date_idx ON finance_records (date DES
 CREATE INDEX IF NOT EXISTS feed_expenses_date_section_idx ON feed_expenses (date DESC, section);
 CREATE INDEX IF NOT EXISTS reminders_due_idx ON reminders (is_done, reminder_date, cow_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_farm_id ON reminders(farm_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reminders_unique_related_type
+  ON reminders (farm_id, related_record_id, type)
+  WHERE related_record_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS calves_farm_status_idx ON calves(farm_id, status, birth_date DESC);
 CREATE INDEX IF NOT EXISTS calves_mother_idx ON calves(mother_cow_id, birth_date DESC);
 CREATE INDEX IF NOT EXISTS calves_farm_sold_date_idx ON calves(farm_id, sold_date DESC) WHERE status = 'sold';
@@ -283,11 +286,36 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
-  VALUES
-    (NEW.farm_id, NEW.cow_id, NEW.ai_date + 21, 'माज तपासणी', cow_name || ' माजावर आली का तपासा', NEW.id),
-    (NEW.farm_id, NEW.cow_id, NEW.ai_date + 60, 'गर्भधारणा तपासणी', cow_name || ' ची गर्भधारणा तपासणी करा', NEW.id),
-    (NEW.farm_id, NEW.cow_id, NEW.ai_date + 270, 'व्यायण', cow_name || ' व्यायण्याची वेळ जवळ आली आहे', NEW.id);
+  IF COALESCE(NEW.pregnancy_result, 'pending') = 'negative' THEN
+    INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
+    VALUES (
+      NEW.farm_id,
+      NEW.cow_id,
+      COALESCE(NEW.pregnancy_check_date, NEW.ai_date + 61),
+      'पुन्हा रेतन सूचना',
+      cow_name || ' पुन्हा रेतनासाठी तयार असू शकते.',
+      NEW.id
+    );
+  ELSE
+    INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
+    VALUES
+      (NEW.farm_id, NEW.cow_id, NEW.ai_date + 21, 'माज तपासणी', cow_name || ' माजावर आली का तपासा', NEW.id),
+      (NEW.farm_id, NEW.cow_id, NEW.ai_date + 60, 'गर्भधारणा तपासणी', cow_name || ' ची गर्भधारणा तपासणी करा', NEW.id),
+      (NEW.farm_id, NEW.cow_id, NEW.ai_date + 210, 'दूध बंद', cow_name || ' चे दूध काढणे बंद करण्याची वेळ जवळ आली आहे', NEW.id),
+      (NEW.farm_id, NEW.cow_id, NEW.ai_date + 270, 'व्यायण', cow_name || ' व्यायण्याची वेळ जवळ आली आहे', NEW.id);
+
+    IF COALESCE(NEW.pregnancy_result, 'pending') = 'pending' THEN
+      INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
+      VALUES (
+        NEW.farm_id,
+        NEW.cow_id,
+        NEW.ai_date + 61,
+        'गर्भधारणा तपासणी बाकी',
+        cow_name || ' साठी ६० दिवस झाले आहेत. गर्भधारणा तपासणी नोंद करा.',
+        NEW.id
+      );
+    END IF;
+  END IF;
 
   RETURN NEW;
 END;

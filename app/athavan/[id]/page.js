@@ -10,7 +10,11 @@ import StatusBadge from "@/components/StatusBadge";
 import { getCalvingRecordHref, isCalvingReminder } from "@/lib/calvingReminder";
 import {
   getReminderEmoji,
-  getReminderDayDistance
+  getReminderDayDistance,
+  MISSED_PREGNANCY_REMINDER_TYPE,
+  NEXT_BREEDING_READY_REMINDER_TYPE,
+  PREGNANCY_CHECK_REMINDER_TYPE,
+  REPEAT_BREEDING_REMINDER_TYPE
 } from "@/lib/reminderUtils";
 import {
   calculateAgeMarathi,
@@ -41,7 +45,14 @@ function routeForReminder(reminder) {
     return `/nondi/dudh?${query}`;
   }
 
-  if (reminder.type === "वासरी दूध कमी" || reminder.type === "वासरी दूध बंद") {
+  if (
+    reminder.type === NEXT_BREEDING_READY_REMINDER_TYPE ||
+    reminder.type === REPEAT_BREEDING_REMINDER_TYPE
+  ) {
+    return `/nondi/ai?${query}`;
+  }
+
+  if (reminder.type === "शिंग काढणे" || reminder.type === "वासरी दूध कमी" || reminder.type === "वासरी दूध बंद") {
     return "/vasare";
   }
 
@@ -100,6 +111,22 @@ export default function AthavanDetailPage() {
     }
   }
 
+  async function recordPregnancyResult(result) {
+    const action = result === "positive" ? "pregnancy-positive" : "pregnancy-negative";
+    const successMessage =
+      result === "positive"
+        ? "गर्भधारणा झाली म्हणून नोंद झाली."
+        : "गर्भधारणा नाही म्हणून नोंद झाली. पुन्हा रेतन सूचना तयार झाली.";
+
+    try {
+      await updateReminderAction(reminder.id, action);
+      setMessage(successMessage);
+      window.setTimeout(() => router.back(), 900);
+    } catch (patchError) {
+      setError(patchError.message || "गर्भधारणा निकाल जतन झाला नाही.");
+    }
+  }
+
   if (loading) {
     return <LoadingState text="आठवण लोड होत आहे..." />;
   }
@@ -111,6 +138,9 @@ export default function AthavanDetailPage() {
   const cow = cowProfile?.cow || reminder.cows;
   const overdueDays = Math.abs(Math.min(getReminderDayDistance(reminder.reminder_date), 0));
   const calvingReminder = isCalvingReminder(reminder);
+  const pregnancyReminder =
+    reminder.type === PREGNANCY_CHECK_REMINDER_TYPE ||
+    reminder.type === MISSED_PREGNANCY_REMINDER_TYPE;
 
   return (
     <div className="space-y-5">
@@ -161,7 +191,24 @@ export default function AthavanDetailPage() {
       ) : null}
 
       <section className="grid gap-3">
-        {calvingReminder ? (
+        {pregnancyReminder ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => recordPregnancyResult("positive")}
+              className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
+            >
+              ✅ गर्भधारणा झाली
+            </button>
+            <button
+              type="button"
+              onClick={() => recordPregnancyResult("negative")}
+              className="min-h-[56px] rounded-lg border-2 border-orange-200 bg-orange-50 px-4 text-[20px] font-extrabold text-orange-900 active:bg-orange-100"
+            >
+              🔁 गर्भधारणा नाही
+            </button>
+          </div>
+        ) : calvingReminder ? (
           <Link
             href={getCalvingRecordHref(reminder)}
             className="flex min-h-[56px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
@@ -177,7 +224,7 @@ export default function AthavanDetailPage() {
             ✅ हे काम झाले
           </button>
         )}
-        {!calvingReminder ? (
+        {!calvingReminder && !pregnancyReminder ? (
           <Link
             href={routeForReminder(reminder)}
             className="flex min-h-[56px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-4 text-[20px] font-extrabold text-sheti active:bg-green-100"

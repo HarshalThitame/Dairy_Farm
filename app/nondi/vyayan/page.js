@@ -194,6 +194,10 @@ export default function VyayanNondPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [success, setSuccess] = useState("");
+  const nextBreedingReadyDate = useMemo(
+    () => toISODate(addDaysToDate(form.actual_date, 60)),
+    [form.actual_date]
+  );
 
   const fetchPregnantCows = useCallback(async () => {
     setLoading(true);
@@ -300,10 +304,6 @@ export default function VyayanNondPage() {
     setSuccess("");
   }
 
-  const dryOffDate = useMemo(() => {
-    return toISODate(addDaysToDate(form.actual_date, 60));
-  }, [form.actual_date]);
-
   async function saveCalving(event) {
     event.preventDefault();
 
@@ -337,7 +337,6 @@ export default function VyayanNondPage() {
           form.calf_gender === "मादी" && form.raise_female_calf === "हो"
             ? form.calf_breed.trim() || selectedCow.breed || null
             : null,
-        dryOffDate,
         reminderId
       });
 
@@ -560,6 +559,14 @@ export default function VyayanNondPage() {
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                <p className="text-[18px] font-extrabold text-green-900">
+                  पुढील रेतन तयारी
+                </p>
+                <p className="mt-1 text-[17px] font-bold text-green-800">
+                  {formatMarathiDate(nextBreedingReadyDate)} रोजी “पुढील रेतनासाठी गाय तयार आहे का तपासा” अशी आठवण तयार होईल.
+                </p>
+              </div>
 
               <div>
                 <p className="mb-2 text-[20px] font-extrabold text-slate-900">
@@ -682,9 +689,6 @@ export default function VyayanNondPage() {
                 />
               </FormField>
 
-              <p className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-[19px] font-extrabold text-yellow-900">
-                दूध बंद आठवण: {formatMarathiDate(dryOffDate)}
-              </p>
             </div>
           </section>
 

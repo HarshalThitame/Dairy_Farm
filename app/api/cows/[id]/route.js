@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
+import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
+import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
+import { removeResolvedReproductiveReminders } from "@/lib/reproductiveReminderDisplay";
+import { getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
@@ -124,6 +128,23 @@ export async function GET(request, { params }) {
       throw relatedError;
     }
 
+    const reproductiveReminders = await removeResolvedReproductiveReminders(
+      supabase,
+      farmId,
+      reminders.data || []
+    );
+    const dryOffFilteredReminders = await removePostCalvingDryOffReminders(
+      supabase,
+      farmId,
+      reproductiveReminders
+    );
+    const visibleReminders = await enrichActiveCalfMilkReminders(
+      supabase,
+      farmId,
+      dryOffFilteredReminders,
+      { today: getTodayISODate() }
+    );
+
     return NextResponse.json({
       data: {
         cow,
@@ -134,7 +155,7 @@ export async function GET(request, { params }) {
           health_records: healthRecords.data || [],
           finance_records: financeRecords.data || [],
           calves: calves.data || [],
-          reminders: reminders.data || []
+          reminders: visibleReminders
         }
       }
     });

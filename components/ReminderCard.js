@@ -6,7 +6,9 @@ import { getCalvingRecordHref, isCalvingReminder } from "@/lib/calvingReminder";
 import {
   getReminderDayDistance,
   getReminderEmoji,
-  getUrgencyLevel
+  getUrgencyLevel,
+  MISSED_PREGNANCY_REMINDER_TYPE,
+  PREGNANCY_CHECK_REMINDER_TYPE
 } from "@/lib/reminderUtils";
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
 
@@ -58,6 +60,9 @@ export default function ReminderCard({
   const actionLabel = reminder.action_label || reminder.actionLabel || "उघडा";
   const canComplete = !actionHref && (urgency === "overdue" || urgency === "today");
   const calvingReminder = isCalvingReminder(reminder);
+  const pregnancyReminder =
+    reminder.type === PREGNANCY_CHECK_REMINDER_TYPE ||
+    reminder.type === MISSED_PREGNANCY_REMINDER_TYPE;
 
   const colorClass =
     compact && urgency === "today" ? "border-l-athavan bg-yellow-50" : cardStyles[urgency];
@@ -132,7 +137,16 @@ export default function ReminderCard({
           </Link>
         ) : null}
 
-        {canComplete && !calvingReminder && onDone ? (
+        {canComplete && pregnancyReminder ? (
+          <Link
+            href={`/athavan/${reminder.id}`}
+            className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white shadow-sm active:bg-green-700"
+          >
+            🤰 निकाल नोंदवा
+          </Link>
+        ) : null}
+
+        {canComplete && !calvingReminder && !pregnancyReminder && onDone ? (
           <button
             type="button"
             onClick={() => onDone(reminder)}

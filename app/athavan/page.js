@@ -10,6 +10,9 @@ import {
   getMarathiDayName,
   getTodayISODate,
   groupRemindersByDate,
+  MISSED_PREGNANCY_REMINDER_TYPE,
+  NEXT_BREEDING_READY_REMINDER_TYPE,
+  REPEAT_BREEDING_REMINDER_TYPE,
   sortRemindersByUrgency
 } from "@/lib/reminderUtils";
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
@@ -19,11 +22,15 @@ const typeFilters = [
   { value: "सर्व", label: "सर्व" },
   { value: "माज तपासणी", label: "माज तपासणी" },
   { value: "गर्भधारणा तपासणी", label: "गर्भधारणा" },
+  { value: MISSED_PREGNANCY_REMINDER_TYPE, label: "तपासणी बाकी" },
+  { value: REPEAT_BREEDING_REMINDER_TYPE, label: "पुन्हा रेतन" },
+  { value: NEXT_BREEDING_READY_REMINDER_TYPE, label: "रेतन तयारी" },
   { value: "व्यायण", label: "व्यायण" },
   { value: "लसीकरण", label: "लसीकरण" },
   { value: "जंतनाशक", label: "जंतनाशक" },
   { value: "तपासणी", label: "तपासणी" },
   { value: "दूध बंद", label: "दूध बंद" },
+  { value: "शिंग काढणे", label: "शिंग काढणे" },
   { value: "वासरी दूध कमी", label: "वासरी दूध" },
   { value: "वासरी दूध बंद", label: "वासरी दूध बंद" }
 ];
