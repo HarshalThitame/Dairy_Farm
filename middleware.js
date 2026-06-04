@@ -28,7 +28,9 @@ export function middleware(request) {
   const token = request.cookies.get("goshala_token")?.value;
   const adminToken = request.cookies.get("super_admin_token")?.value;
   const authorization = request.headers.get("authorization") || "";
-  const adminAuthorization = authorization.startsWith("Bearer ");
+  const bearerToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const hasUserAuth = Boolean(token || bearerToken);
+  const adminAuthorization = Boolean(bearerToken);
 
   if (isPublic(pathname)) {
     if (pathname === "/admin-login" && (adminToken || adminAuthorization)) {
@@ -38,7 +40,7 @@ export function middleware(request) {
       return NextResponse.redirect(adminUrl);
     }
 
-    if ((pathname === "/login" || pathname === "/signup") && (token || authorization.startsWith("Bearer "))) {
+    if ((pathname === "/login" || pathname === "/signup") && hasUserAuth) {
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = "/";
       homeUrl.search = "";
@@ -67,18 +69,15 @@ export function middleware(request) {
     return NextResponse.redirect(adminLoginUrl);
   }
 
-  if (token || authorization.startsWith("Bearer ")) {
+  if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "लॉगिन आवश्यक आहे." }, { status: 401 });
+  if (hasUserAuth) {
+    return NextResponse.next();
   }
 
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = "/login";
-  loginUrl.searchParams.set("from", pathname);
-  return NextResponse.redirect(loginUrl);
+  return NextResponse.json({ error: "लॉगिन आवश्यक आहे." }, { status: 401 });
 }
 
 export const config = {

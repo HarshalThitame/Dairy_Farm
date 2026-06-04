@@ -5,6 +5,7 @@ import {
   normalizeUser,
   signFarmToken
 } from "@/lib/farmGuard";
+import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { readJsonBody } from "@/lib/apiSafety";
 
@@ -163,7 +164,7 @@ export async function POST(request) {
 
     const token = signFarmToken(user, farm);
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         token,
@@ -173,6 +174,8 @@ export async function POST(request) {
       },
       { status: 201 }
     );
+
+    return setFarmAuthCookie(response, token);
   } catch (error) {
     return NextResponse.json(
       { error: error.message || "नोंदणी करताना त्रुटी झाली." },

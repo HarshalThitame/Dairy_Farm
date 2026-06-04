@@ -1,6 +1,14 @@
 const defaultRuntimeCaching = require("next-pwa/cache");
 const runtimeCaching = [
   {
+    urlPattern: /^https?:\/\/.*\/api\/auth\/.*/,
+    handler: "NetworkOnly"
+  },
+  {
+    urlPattern: /^https?:\/\/.*\/api\/admin\/auth\/.*/,
+    handler: "NetworkOnly"
+  },
+  {
     urlPattern: /^https?:\/\/.*\/api\/reports\/.*/,
     handler: "NetworkOnly"
   },

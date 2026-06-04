@@ -5,6 +5,7 @@ import {
   normalizeUser,
   signFarmToken
 } from "@/lib/farmGuard";
+import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { getRequestIp, parseDevice } from "@/lib/userSettings";
 import { readJsonBody } from "@/lib/apiSafety";
@@ -164,11 +165,13 @@ export async function POST(request) {
 
     const token = signFarmToken(user, farm, session?.id || null);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       token,
       user: normalizeUser(user),
       farm: normalizeFarm(farm)
     });
+
+    return setFarmAuthCookie(response, token);
   } catch (error) {
     return NextResponse.json(
       { error: error.message || "लॉगिन करताना चूक झाली." },

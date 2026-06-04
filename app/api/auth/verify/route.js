@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import {
   farmErrorResponse,
+  getAuthToken,
   normalizeFarm,
   normalizeUser,
   verifyFarmAccess
 } from "@/lib/farmGuard";
+import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,7 @@ export async function GET(request) {
       throw error;
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       valid: true,
       user: normalizeUser({
         ...auth.user,
@@ -35,6 +37,8 @@ export async function GET(request) {
       }),
       farm: normalizeFarm(farm)
     });
+
+    return setFarmAuthCookie(response, getAuthToken(request));
   } catch (error) {
     return farmErrorResponse(error);
   }
