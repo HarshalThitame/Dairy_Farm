@@ -122,7 +122,7 @@ export default function SuperAdminDashboard() {
                   <td className="px-4 py-4">{farm.total_cows || 0}</td>
                   <td className="px-4 py-4">{farm.is_active ? farm.subscription_status : "suspended"}</td>
                   <td className="px-4 py-4">
-                    <Link href={`/admin/farms/${farm.id}`} className="font-bold text-green-700 hover:underline">
+                    <Link href={`/admin/farms/${encodeURIComponent(String(farm.id || ""))}`} className="font-bold text-green-700 hover:underline">
                       View
                     </Link>
                   </td>
@@ -149,7 +149,7 @@ function AlertList({ title, items = [], tone }) {
       {items.length ? (
         <div className="mt-2 space-y-2">
           {items.slice(0, 4).map((farm) => (
-            <Link key={farm.id} href={`/admin/farms/${farm.id}`} className="block text-[15px] font-bold hover:underline">
+            <Link key={farm.id} href={`/admin/farms/${encodeURIComponent(String(farm.id || ""))}`} className="block text-[15px] font-bold hover:underline">
               {farm.farm_name} - {farm.owner_name}
             </Link>
           ))}

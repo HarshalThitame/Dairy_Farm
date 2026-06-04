@@ -6,13 +6,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
-import PageHeader from "@/components/PageHeader";
 import AIReadingProgress from "@/components/slip-scan/AIReadingProgress";
 import ExtractionForm from "@/components/slip-scan/ExtractionForm";
 import SaveProgress from "@/components/slip-scan/SaveProgress";
 import { showToast } from "@/components/Toast";
 import { GAP_FILLING_MESSAGES } from "@/lib/marathiLabels";
-import { toMarathiCurrency } from "@/lib/marathiUtils";
+import { toMarathiCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 import { extractSlipUpload, saveSlipScanRecord } from "@/lib/offlineActions";
 
 function gapMethodLabel(method) {
@@ -43,6 +42,32 @@ function formatGapValue(value) {
   }
 
   return String(value ?? "-");
+}
+
+function confidencePercent(value) {
+  const raw = Number(value || 0);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.round(raw > 1 ? raw : raw * 100);
+}
+
+function slipTypeLabel(type) {
+  return type === "settlement" ? "१५ दिवसांचे देयक" : "दूध स्लिप";
+}
+
+function PreviewMetric({ label, value, tone = "slate" }) {
+  const tones = {
+    green: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    blue: "border-sky-200 bg-sky-50 text-sky-900",
+    yellow: "border-amber-200 bg-amber-50 text-amber-900",
+    slate: "border-white/20 bg-white/12 text-white"
+  };
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 shadow-sm ${tones[tone] || tones.slate}`}>
+      <p className="text-[13px] font-black uppercase tracking-wide opacity-75">{label}</p>
+      <p className="mt-1 text-[20px] font-black leading-tight">{value}</p>
+    </div>
+  );
 }
 
 export default function SlipScanPreviewPage() {
@@ -124,10 +149,46 @@ export default function SlipScanPreviewPage() {
   }
 
   const dataToUse = useFilledData && filledData ? filledData : originalData || data?.extractedData;
+  const activeConfidence = confidencePercent(
+    dataToUse?.confidence_after_filling || dataToUse?.confidence_score || data?.confidence_score || data?.upload?.ai_confidence
+  );
 
   return (
-    <div className="space-y-5 pb-24">
-      <PageHeader title="✅ AI ने माहिती वाचली आहे" subtitle="कृपया तपासा आणि मगच जतन करा" />
+    <div className="space-y-5 pb-28">
+      <section className="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-gradient-to-br from-slate-950 via-emerald-950 to-sky-900 p-5 text-white shadow-xl">
+        <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/10" />
+        <div className="absolute -bottom-16 left-8 h-36 w-36 rounded-full bg-emerald-300/20" />
+
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/accounting/slip-scan" className="inline-flex min-h-[38px] items-center rounded-full bg-white/12 px-3 text-[14px] font-black text-emerald-50 backdrop-blur active:bg-white/20">
+              ← स्कॅन पेज
+            </Link>
+            <span className="rounded-full bg-white/12 px-3 py-1 text-[13px] font-black text-emerald-50 backdrop-blur">
+              Auto-save बंद
+            </span>
+          </div>
+
+          <div className="mt-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[15px] font-black text-emerald-200">AI review screen</p>
+              <h1 className="mt-2 text-[34px] font-black leading-tight">माहिती तपासा</h1>
+              <p className="mt-2 max-w-2xl text-[17px] font-bold leading-snug text-emerald-50">
+                AI ने वाचलेली माहिती खाली editable आहे. तुम्ही तपासल्याशिवाय database मध्ये जतन होत नाही.
+              </p>
+            </div>
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/15 text-[34px] shadow-sm backdrop-blur" aria-hidden="true">
+              ✅
+            </span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <PreviewMetric label="प्रकार" value={slipTypeLabel(dataToUse?.slip_type)} />
+            <PreviewMetric label="AI विश्वास" value={activeConfidence ? `${toMarathiNumerals(activeConfidence)}%` : "तपासा"} />
+            <PreviewMetric label="स्थिती" value={loading ? "वाचत आहे" : dataToUse ? "तयार" : "तपासा"} />
+          </div>
+        </div>
+      </section>
 
       {loading ? (
         <AIReadingProgress
@@ -146,47 +207,52 @@ export default function SlipScanPreviewPage() {
       {saving || saveResult ? <SaveProgress done={Boolean(saveResult)} /> : null}
 
       {!loading && data?.imageUrl ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <section className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-soft">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-[22px] font-extrabold text-slate-950">स्लिप फोटो</h2>
+            <div className="p-4 pb-0">
+              <p className="text-[14px] font-black uppercase tracking-wide text-sky-700">Original image</p>
+              <h2 className="mt-1 text-[24px] font-black text-slate-950">स्लिप फोटो</h2>
+              <p className="mt-1 text-[15px] font-bold text-slate-600">फोटो मोठा करून आकडे स्वतः जुळवा.</p>
+            </div>
             <button
               type="button"
               onClick={() => loadExtraction({ force: true })}
-              className="min-h-[46px] rounded-lg border-2 border-blue-200 bg-blue-50 px-3 text-[16px] font-extrabold text-blue-800 active:bg-blue-100"
+              className="mx-4 mt-4 min-h-[48px] rounded-2xl border border-sky-200 bg-sky-50 px-4 text-[16px] font-black text-sky-900 shadow-sm active:bg-sky-100"
             >
               🤖 AI पुन्हा वाचा
             </button>
           </div>
-          <div className="mt-3 max-h-[360px] overflow-auto rounded-lg border border-slate-200 bg-slate-100">
+          <div className="m-4 max-h-[420px] overflow-auto rounded-[22px] border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-50">
             <img src={data.imageUrl} alt="स्लिप फोटो" className="w-full object-contain" />
           </div>
         </section>
       ) : null}
 
       {!loading && gapsFilled.length > 0 ? (
-        <section className="rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-yellow-950 shadow-soft">
+        <section className="rounded-[26px] border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-50 p-4 text-amber-950 shadow-soft">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-[22px] font-extrabold">{GAP_FILLING_MESSAGES.gaps_detected}</h2>
+              <p className="text-[14px] font-black uppercase tracking-wide text-amber-700">AI gap filling</p>
+              <h2 className="mt-1 text-[24px] font-black">{GAP_FILLING_MESSAGES.gaps_detected}</h2>
               <p className="mt-1 text-[17px] font-bold leading-snug">
                 {gapsFilled.length} फील्ड {GAP_FILLING_MESSAGES.ai_filled}. स्वीकार करण्यापूर्वी आकडे तपासा.
               </p>
             </div>
-            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[16px] font-extrabold text-yellow-900">
+            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[15px] font-black text-amber-900 shadow-sm">
               {useFilledData ? "AI डेटा" : "मूळ डेटा"}
             </span>
           </div>
 
-          <div className="mt-3 max-h-56 space-y-2 overflow-auto rounded-lg border border-yellow-200 bg-white p-3">
+          <div className="mt-4 max-h-60 space-y-2 overflow-auto rounded-[20px] border border-amber-200 bg-white p-3">
             {gapsFilled.map((gap, index) => (
-              <div key={`${gap.field}-${index}`} className="border-b border-yellow-100 pb-2 text-[16px] font-bold last:border-b-0 last:pb-0">
+              <div key={`${gap.field}-${index}`} className="rounded-2xl border border-amber-100 bg-amber-50/45 p-3 text-[16px] font-bold">
                 <div className="flex justify-between gap-3">
-                  <span className="font-extrabold text-yellow-950">{gapFieldLabel(gap.field)}</span>
-                  <span className="text-right text-yellow-900">{formatGapValue(gap.filled_value)}</span>
+                  <span className="font-black text-amber-950">{gapFieldLabel(gap.field)}</span>
+                  <span className="text-right text-amber-900">{formatGapValue(gap.filled_value)}</span>
                 </div>
-                <p className="mt-1 text-[14px] text-yellow-800">
+                <p className="mt-1 text-[14px] text-amber-800">
                   पद्धत: {gapMethodLabel(gap.method)}
-                  {gap.confidence ? ` · विश्वास ${Math.round(Number(gap.confidence) * 100)}%` : ""}
+                  {gap.confidence ? ` · विश्वास ${toMarathiNumerals(Math.round(Number(gap.confidence) * 100))}%` : ""}
                 </p>
                 {gap.formula ? <p className="mt-1 text-[14px] text-slate-600">सूत्र: {gap.formula}</p> : null}
                 {gap.note ? <p className="mt-1 text-[14px] text-slate-600">{gap.note}</p> : null}
@@ -196,13 +262,13 @@ export default function SlipScanPreviewPage() {
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-[15px] font-extrabold">
-            <div className="rounded-lg bg-blue-50 p-3 text-blue-900">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3 text-sky-900">
               <p>मूळ विश्वास</p>
-              <p className="mt-1 text-[22px]">{Math.round(Number(originalData?.confidence_score || data?.confidence_score || 0) * 100)}%</p>
+              <p className="mt-1 text-[24px] font-black">{toMarathiNumerals(confidencePercent(originalData?.confidence_score || data?.confidence_score))}%</p>
             </div>
-            <div className="rounded-lg bg-green-50 p-3 text-green-900">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-900">
               <p>भरल्यानंतर</p>
-              <p className="mt-1 text-[22px]">{Math.round(Number(filledData?.confidence_after_filling || filledData?.confidence_score || 0) * 100)}%</p>
+              <p className="mt-1 text-[24px] font-black">{toMarathiNumerals(confidencePercent(filledData?.confidence_after_filling || filledData?.confidence_score))}%</p>
             </div>
           </div>
 
@@ -210,8 +276,8 @@ export default function SlipScanPreviewPage() {
             <button
               type="button"
               onClick={() => setUseFilledData(true)}
-              className={`min-h-[52px] rounded-lg px-3 text-[17px] font-extrabold ${
-                useFilledData ? "bg-sheti text-white" : "border-2 border-green-200 bg-white text-sheti"
+              className={`min-h-[54px] rounded-2xl px-3 text-[17px] font-black transition active:scale-[0.99] ${
+                useFilledData ? "bg-emerald-600 text-white shadow-sm" : "border border-emerald-200 bg-white text-emerald-800"
               }`}
             >
               {GAP_FILLING_MESSAGES.accept_filled}
@@ -219,8 +285,8 @@ export default function SlipScanPreviewPage() {
             <button
               type="button"
               onClick={() => setUseFilledData(false)}
-              className={`min-h-[52px] rounded-lg px-3 text-[17px] font-extrabold ${
-                !useFilledData ? "bg-slate-700 text-white" : "border-2 border-slate-200 bg-white text-slate-700"
+              className={`min-h-[54px] rounded-2xl px-3 text-[17px] font-black transition active:scale-[0.99] ${
+                !useFilledData ? "bg-slate-800 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-700"
               }`}
             >
               {GAP_FILLING_MESSAGES.use_original}
@@ -241,13 +307,14 @@ export default function SlipScanPreviewPage() {
       ) : null}
 
       {!loading && !dataToUse && !error ? (
-        <section className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-900">
-          <p className="text-[20px] font-extrabold">AI ला स्लिप वाचता आली नाही.</p>
+        <section className="rounded-[26px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 text-amber-900 shadow-soft">
+          <p className="text-[22px] font-black">AI ला स्लिप वाचता आली नाही.</p>
+          <p className="mt-2 text-[16px] font-bold text-amber-800">फोटो पुन्हा घ्या किंवा स्वतः दूध नोंद करा.</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <Link href="/accounting/slip-scan/camera" className="flex min-h-[54px] items-center justify-center rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white">
+            <Link href="/accounting/slip-scan/camera" className="flex min-h-[56px] items-center justify-center rounded-2xl bg-emerald-600 px-4 text-[18px] font-black text-white shadow-sm">
               पुन्हा घ्या
             </Link>
-            <Link href="/nondi/dudh?date=today" className="flex min-h-[54px] items-center justify-center rounded-lg border-2 border-yellow-300 bg-white px-4 text-[18px] font-extrabold text-yellow-900">
+            <Link href="/nondi/dudh?date=today" className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300 bg-white px-4 text-[18px] font-black text-amber-900 shadow-sm">
               स्वतः नोंद करा
             </Link>
           </div>
@@ -255,8 +322,8 @@ export default function SlipScanPreviewPage() {
       ) : null}
 
       {saveResult ? (
-        <section className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
-          <p className="text-[21px] font-extrabold">✅ {saveResult.message || "डेटा जतन झाली!"}</p>
+        <section className="rounded-[26px] border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-green-50 p-5 text-emerald-900 shadow-soft">
+          <p className="text-[22px] font-black">✅ {saveResult.message || "डेटा जतन झाली!"}</p>
           <p className="mt-2 text-[18px] font-bold">मुख्यपृष्ठावर जात आहे...</p>
         </section>
       ) : null}

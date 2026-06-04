@@ -63,7 +63,7 @@ export default function FarmsTable({ farms = [], onSuspend, loadingFarmId = null
           {farms.map((farm) => (
             <tr key={farm.id} className={`hover:bg-slate-50 ${loadingFarmId === farm.id ? "opacity-70" : ""}`}>
               <td className="px-4 py-4 font-extrabold text-slate-950">
-                <Link href={`/admin/farms/${farm.id}`} className="text-green-700 hover:underline">
+                <Link href={`/admin/farms/${encodeURIComponent(String(farm.id || ""))}`} className="text-green-700 hover:underline">
                   {farm.farm_name}
                 </Link>
               </td>
@@ -82,7 +82,7 @@ export default function FarmsTable({ farms = [], onSuspend, loadingFarmId = null
               <td className="px-4 py-4">
                 <div className="flex gap-2">
                   <Link
-                    href={`/admin/farms/${farm.id}`}
+                    href={`/admin/farms/${encodeURIComponent(String(farm.id || ""))}`}
                     className="rounded-lg bg-slate-900 px-3 py-2 text-[15px] font-bold text-white"
                   >
                     View

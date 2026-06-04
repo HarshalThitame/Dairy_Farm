@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isUuid } from "@/lib/apiSafety";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, toCsv, verifySuperAdmin } from "@/lib/superAdminGuard";
 
@@ -76,23 +77,44 @@ export async function GET(request) {
     const { adminId } = await verifySuperAdmin(request);
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "farms";
-    const config = configs[type] || configs.farms;
+    const farmId = searchParams.get("farm_id")?.trim() || "";
+
+    if (!configs[type]) {
+      const error = new Error("Invalid export type");
+      error.status = 400;
+      throw error;
+    }
+
+    if (farmId && !isUuid(farmId)) {
+      const error = new Error("Invalid farm id");
+      error.status = 400;
+      throw error;
+    }
+
+    const config = configs[type];
     const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from(config.table)
       .select(config.select)
       .limit(type === "milk" ? 5000 : 2000);
+
+    if (farmId) {
+      query = type === "farms" ? query.eq("id", farmId) : query.eq("farm_id", farmId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
     }
 
-    await logAdminAction(request, adminId, "exported_data", null, { type });
+    await logAdminAction(request, adminId, "exported_data", farmId || null, { type, farmId: farmId || null });
     const csv = toCsv(data || [], config.columns);
+    const file = farmId ? config.file.replace(".csv", `-${farmId}.csv`) : config.file;
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename=${config.file}`
+        "Content-Disposition": `attachment; filename=${file}`
       }
     });
   } catch (error) {

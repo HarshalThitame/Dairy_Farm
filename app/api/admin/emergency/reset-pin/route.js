@@ -47,7 +47,7 @@ export async function POST(request) {
       mobile_masked: maskMobile(user.mobile)
     });
 
-    return NextResponse.json({ success: true, newPin });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return superAdminErrorResponse(error);
   }

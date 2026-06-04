@@ -23,7 +23,7 @@ import { logUserSettingsAction } from "@/lib/userSettings";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeBackupRow(row = {}) {
   return {
@@ -48,7 +48,7 @@ async function getBackupById(supabase, farmId, backupId) {
     missing.status = 400;
     throw missing;
   }
-  if (!uuidPattern.test(String(backupId))) {
+  if (!uuidPattern.test(String(backupId ?? "").trim())) {
     const invalid = new Error("Backup record चुकीचा आहे.");
     invalid.status = 400;
     throw invalid;

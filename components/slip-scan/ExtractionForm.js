@@ -9,7 +9,7 @@ import { getTodayISODate, toMarathiCurrency } from "@/lib/marathiUtils";
 import { estimateThermalPaperAge, getClrQuality, validateDairySlipData } from "@/lib/thermalPrinterQuality";
 
 const inputClass =
-  "min-h-[56px] w-full rounded-lg border-2 bg-white px-4 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100";
+  "min-h-[58px] w-full rounded-2xl border-2 bg-white/95 px-4 text-[20px] font-black text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100";
 
 const missingMap = {
   dairy_name: ["dairy_name", "डेअरीचे नाव"],
@@ -168,8 +168,8 @@ function sourceLabel(row) {
 }
 
 function sourceBadgeClass(row) {
-  if (row?.source === "daily_slip") return "border-green-200 bg-green-50 text-green-800";
-  if (row?.source === "settlement_ocr") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (row?.source === "daily_slip") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (row?.source === "settlement_ocr") return "border-sky-200 bg-sky-50 text-sky-800";
   if (row?.source === "missing") return "border-amber-200 bg-amber-50 text-amber-800";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
@@ -425,18 +425,18 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <section className="rounded-[26px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-emerald-50 p-4 shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[24px] font-extrabold text-slate-950">AI ने वाचलेली माहिती</h2>
             <p className="mt-1 text-[17px] font-bold text-slate-600">प्रत्येक आकडा तपासूनच जतन करा.</p>
             {paperQuality.warning ? (
-              <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-[15px] font-extrabold text-yellow-900">
+              <p className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[15px] font-black text-amber-900">
                 {paperQuality.warning}
               </p>
             ) : null}
             {upload?.retried ? (
-              <p className="mt-2 inline-flex rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[14px] font-extrabold text-blue-800">
+              <p className="mt-2 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[14px] font-black text-sky-800">
                 GPT fallback वापरला
               </p>
             ) : null}
@@ -453,8 +453,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
               key={value}
               type="button"
               onClick={() => updateField("slip_type", value)}
-              className={`min-h-[54px] rounded-lg border-2 px-3 text-[18px] font-extrabold ${
-                form.slip_type === value ? "border-green-300 bg-green-100 text-sheti" : "border-slate-200 bg-white text-slate-700"
+              className={`min-h-[56px] rounded-2xl border px-3 text-[18px] font-black shadow-sm transition active:scale-[0.99] ${
+                form.slip_type === value ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200 bg-white text-slate-700"
               }`}
             >
               {label}
@@ -464,20 +464,20 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
       </section>
 
       {requiresManualReview ? (
-        <section className="rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-yellow-950 shadow-soft">
-          <h2 className="text-[22px] font-extrabold">⚠️ आर्थिक माहिती तपासा</h2>
+        <section className="rounded-[26px] border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-50 p-4 text-amber-950 shadow-soft">
+          <h2 className="text-[23px] font-black">⚠️ आर्थिक माहिती तपासा</h2>
           <p className="mt-1 text-[17px] font-bold">
             AI result पूर्ण खात्रीशीर नाही. सेव्ह करण्यापूर्वी summary मधील एकूण लिटर, दूध उत्पन्न, कपात आणि निव्वळ रक्कम जुळवा.
           </p>
           {settlementErrors.length ? (
-            <div className="mt-3 rounded-lg border border-red-200 bg-white p-3 text-[16px] font-extrabold text-red-900">
+            <div className="mt-3 rounded-2xl border border-red-200 bg-white p-3 text-[16px] font-black text-red-900">
               {settlementErrors.map((item) => (
                 <p key={item}>• {item}</p>
               ))}
             </div>
           ) : null}
           {settlementWarnings.length ? (
-            <div className="mt-3 rounded-lg border border-yellow-200 bg-white p-3 text-[16px] font-bold text-yellow-900">
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-white p-3 text-[16px] font-bold text-amber-900">
               {settlementWarnings.map((item) => (
                 <p key={item}>• {item}</p>
               ))}
@@ -485,12 +485,12 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
           ) : null}
           {settlementValidation.daily_liters_sum || settlementValidation.daily_amount_sum ? (
             <div className="mt-3 grid grid-cols-2 gap-2 text-[15px] font-extrabold">
-              <div className="rounded-lg bg-white p-3">
+              <div className="rounded-2xl border border-white bg-white p-3 shadow-sm">
                 <p className="text-slate-500">दैनिक बेरीज</p>
                 <p>{Number(settlementValidation.daily_liters_sum || 0).toFixed(2)} लि.</p>
                 <p>{toMarathiCurrency(numberValue(settlementValidation.daily_amount_sum))}</p>
               </div>
-              <div className="rounded-lg bg-white p-3">
+              <div className="rounded-2xl border border-white bg-white p-3 shadow-sm">
                 <p className="text-slate-500">Summary वापरले</p>
                 <p>{Number(settlementValidation.summary_total_liters || 0).toFixed(2)} लि.</p>
                 <p>{toMarathiCurrency(numberValue(settlementValidation.summary_total_income))}</p>
@@ -501,8 +501,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
       ) : null}
 
       {Array.isArray(extractedData?.ai_warnings) && extractedData.ai_warnings.length ? (
-        <section className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-950 shadow-soft">
-          <h2 className="text-[21px] font-extrabold">AI सूचना</h2>
+        <section className="rounded-[24px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50 p-4 text-amber-950 shadow-soft">
+          <h2 className="text-[22px] font-black">AI सूचना</h2>
           {extractedData.ai_warnings.map((item) => (
             <p key={item} className="mt-1 text-[16px] font-bold">• {item}</p>
           ))}
@@ -510,8 +510,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
       ) : null}
 
       {form.slip_type === "daily" ? (
-        <section className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-950 shadow-soft">
-          <h2 className="text-[22px] font-extrabold">थर्मल स्लिप सारांश</h2>
+        <section className="rounded-[26px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-4 text-emerald-950 shadow-soft">
+          <h2 className="text-[23px] font-black">थर्मल स्लिप सारांश</h2>
           <div className="mt-3 space-y-2 text-[18px] font-bold">
             <div className="flex justify-between gap-3"><span>तारीख</span><span>{displaySlipDate(form.slip_date)}</span></div>
             <div className="flex justify-between gap-3"><span>वेळ</span><span>{form.slip_time || "नोंद नाही"}</span></div>
@@ -524,17 +524,17 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             <div className="flex justify-between gap-3"><span>कोड</span><span>{form.dairy_member_code || form.member_number || "नोंद नाही"}</span></div>
           </div>
           {amountStatus === "matched" ? (
-            <p className="mt-3 rounded-lg border border-green-200 bg-white px-3 py-2 text-[17px] font-extrabold text-green-800">
+            <p className="mt-3 rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-[17px] font-black text-emerald-800">
               ✅ रक्कम जुळली: लिटर x दर = स्लिपवरील रक्कम
             </p>
           ) : null}
           {amountStatus === "missing" ? (
-            <p className="mt-3 rounded-lg border border-yellow-200 bg-white px-3 py-2 text-[17px] font-extrabold text-yellow-900">
+            <p className="mt-3 rounded-2xl border border-amber-200 bg-white px-3 py-2 text-[17px] font-black text-amber-900">
               ⚠️ स्लिपवरील रक्कम स्पष्ट वाचता आली नाही. हिशोबाने आलेली रक्कम वापरली जाईल.
             </p>
           ) : null}
           {amountStatus === "mismatch" ? (
-            <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-[17px] font-extrabold text-red-900">
+            <div className="mt-3 rounded-2xl border border-red-200 bg-white px-3 py-2 text-[17px] font-black text-red-900">
               <p>⚠️ रक्कम जुळत नाही. आकडे तपासा.</p>
               <p className="mt-1">स्लिपवर: {toMarathiCurrency(printedAmount)} | हिशोबाने: {toMarathiCurrency(totalAmount)}</p>
               <p className="mt-1">फरक: {toMarathiCurrency(Math.abs(amountDifference || 0))}</p>
@@ -543,7 +543,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
         </section>
       ) : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-4">
           <FormField label="डेअरीचे नाव">
             <MarathiTextInput value={form.dairy_name} onValueChange={(value) => updateField("dairy_name", value)} className={fieldClass("dairy_name")} />
@@ -562,8 +562,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
 
       {form.slip_type === "daily" ? (
         <>
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="mb-3 text-[21px] font-extrabold text-slate-950">तारीख आणि वेळ</h2>
+          <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-3 text-[22px] font-black text-slate-950">तारीख आणि वेळ</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="तारीख" required>
                 <input type="date" value={form.slip_date} onChange={(event) => updateField("slip_date", event.target.value)} className={fieldClass("slip_date", true)} />
@@ -579,8 +579,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                       key={session}
                       type="button"
                       onClick={() => updateField("session", session)}
-                      className={`min-h-[56px] rounded-lg border-2 px-2 text-[17px] font-extrabold ${
-                        form.session === session ? "border-green-300 bg-green-100 text-sheti" : "border-slate-200 bg-white text-slate-700"
+                      className={`min-h-[56px] rounded-2xl border px-2 text-[17px] font-black shadow-sm transition active:scale-[0.99] ${
+                        form.session === session ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200 bg-white text-slate-700"
                       }`}
                     >
                       {session}
@@ -591,8 +591,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="mb-3 text-[21px] font-extrabold text-slate-950">दुधाची माहिती</h2>
+          <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-3 text-[22px] font-black text-slate-950">दुधाची माहिती</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <p className="mb-2 text-[20px] font-extrabold text-slate-900">दुधाचा प्रकार</p>
@@ -605,8 +605,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                       key={value}
                       type="button"
                       onClick={() => updateField("milk_type", value)}
-                      className={`min-h-[56px] rounded-lg border-2 px-2 text-[18px] font-extrabold ${
-                        form.milk_type === value ? "border-green-300 bg-green-100 text-sheti" : "border-slate-200 bg-white text-slate-700"
+                      className={`min-h-[56px] rounded-2xl border px-2 text-[18px] font-black shadow-sm transition active:scale-[0.99] ${
+                        form.milk_type === value ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200 bg-white text-slate-700"
                       }`}
                     >
                       {label}
@@ -653,26 +653,26 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                 />
               </FormField>
               <FormField label="हिशोबाने रक्कम">
-                <div className="flex min-h-[56px] items-center rounded-lg border-2 border-slate-200 bg-slate-50 px-4 text-[22px] font-extrabold text-green-800">
+                <div className="flex min-h-[58px] items-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-[22px] font-black text-emerald-800 shadow-sm">
                   {toMarathiCurrency(totalAmount)}
                 </div>
               </FormField>
             </div>
             {amountStatus === "matched" ? (
-              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[17px] font-extrabold text-green-800">
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-[17px] font-black text-emerald-800">
                 ✅ रक्कम बरोबर आहे.
               </div>
             ) : null}
             {amountStatus === "mismatch" ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[17px] font-extrabold text-red-900">
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-[17px] font-black text-red-900">
                 ⚠️ स्लिपवरील रक्कम आणि हिशोबाने रक्कम जुळत नाही. लिटर, दर किंवा स्लिपवरील रक्कम तपासा.
               </div>
             ) : null}
-            <div className={`mt-3 rounded-lg border p-3 text-[17px] font-extrabold ${clrQuality.className}`}>
+            <div className={`mt-3 rounded-2xl border p-3 text-[17px] font-black ${clrQuality.className}`}>
               CLR: {form.clr_score || form.clr_degree || "नोंद नाही"} - {clrQuality.label}
             </div>
             {!slipValidation.valid ? (
-              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-[16px] font-bold text-yellow-900">
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[16px] font-bold text-amber-900">
                 {slipValidation.errors.map((item) => (
                   <p key={item}>{item}</p>
                 ))}
@@ -682,8 +682,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
         </>
       ) : (
         <>
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="mb-3 text-[21px] font-extrabold text-slate-950">सेटलमेंट माहिती</h2>
+          <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft">
+            <h2 className="mb-3 text-[22px] font-black text-slate-950">सेटलमेंट माहिती</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="सेटलमेंट तारीख">
                 <input type="date" value={form.settlement_date} onChange={(event) => updateField("settlement_date", event.target.value)} className={fieldClass("settlement_date")} />
@@ -731,8 +731,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[22px] font-extrabold text-slate-950">कपात तपशील</h2>
+          <section className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-emerald-50 p-4 shadow-soft">
+            <h2 className="text-[23px] font-black text-slate-950">कपात तपशील</h2>
             <div className="mt-4 space-y-3">
               <FormField label="दूध उत्पन्न" required>
                 <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${fieldClass("total_milk_income", true)} text-[26px]`} />
@@ -745,31 +745,39 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                   <input type="number" inputMode="decimal" min="0" step="0.01" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={fieldClass("other_deductions")} />
                 </FormField>
                 <FormField label="एकूण कपात">
-                  <div className="flex min-h-[56px] items-center rounded-lg border-2 border-red-100 bg-red-50 px-4 text-[22px] font-extrabold text-red-800">
+                  <div className="flex min-h-[58px] items-center rounded-2xl border border-red-200 bg-red-50 px-4 text-[22px] font-black text-red-800 shadow-sm">
                     {toMarathiCurrency(totalDeductions)}
                   </div>
                 </FormField>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[17px] font-extrabold text-slate-800">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 text-[17px] font-black text-slate-800 shadow-sm">
                 <div className="flex justify-between gap-3"><span>दूध उत्पन्न</span><span>{toMarathiCurrency(numberValue(form.total_milk_income))}</span></div>
                 <div className="mt-2 flex justify-between gap-3 text-red-800"><span>(-) खाद्य कपात</span><span>{toMarathiCurrency(numberValue(form.cattle_feed_deduction))}</span></div>
                 <div className="mt-2 flex justify-between gap-3 text-red-800"><span>(-) इतर कपात</span><span>{toMarathiCurrency(effectiveOtherDeductions)}</span></div>
               </div>
-              <div className={`rounded-lg border-2 p-4 ${netPayable >= 0 ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-900"}`}>
-                <p className="text-[18px] font-extrabold">शुद्ध देय</p>
-                <p className="mt-1 text-[30px] font-extrabold">{toMarathiCurrency(netPayable)}</p>
+              <div className={`rounded-[22px] border p-4 shadow-sm ${netPayable >= 0 ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-red-200 bg-red-50 text-red-900"}`}>
+                <p className="text-[18px] font-black">शुद्ध देय</p>
+                <p className="mt-1 text-[32px] font-black">{toMarathiCurrency(netPayable)}</p>
               </div>
             </div>
           </section>
 
           {form.daily_entries?.length > 0 ? (
-            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-              <h2 className="text-[22px] font-extrabold text-slate-950">दैनिक तक्ता</h2>
+            <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-soft">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[14px] font-black uppercase tracking-wide text-emerald-700">१५ दिवसांचा तपशील</p>
+                  <h2 className="mt-1 text-[24px] font-black text-slate-950">दैनिक तक्ता</h2>
+                </div>
+                <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-[13px] font-black text-slate-700">
+                  {form.daily_entries.length} दिवस
+                </span>
+              </div>
               <p className="mt-1 text-[17px] font-bold text-slate-600">
                 AI ने {form.daily_entries.length} दिवसांच्या नोंदी वाचल्या. ज्या दिवशी daily slip आहे तिथे तीच माहिती वापरली आहे.
               </p>
               {extractedData?.daily_slip_merge?.applied ? (
-                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[15px] font-extrabold text-green-900">
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-[15px] font-black text-emerald-900">
                   <p>
                     Daily slip वरून {extractedData.daily_slip_merge.trusted_daily_slip_rows || 0} session rows वापरले.
                     सेटलमेंट OCR rows {extractedData.daily_slip_merge.settlement_ocr_rows || 0}.
@@ -782,29 +790,29 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                 </div>
               ) : null}
               <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-[15px] font-extrabold text-amber-800">🌅 सकाळचे एकूण दूध</p>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
+                  <p className="text-[15px] font-black text-amber-800">🌅 सकाळचे एकूण दूध</p>
                   <p className="mt-1 text-[24px] font-black text-slate-950">
                     {morningSessionTotal === null ? "वाचता आले नाही" : `${morningSessionTotal.toFixed(2)} लि.`}
                   </p>
                 </div>
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-                  <p className="text-[15px] font-extrabold text-indigo-800">🌆 संध्याकाळचे एकूण दूध</p>
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 shadow-sm">
+                  <p className="text-[15px] font-black text-indigo-800">🌆 संध्याकाळचे एकूण दूध</p>
                   <p className="mt-1 text-[24px] font-black text-slate-950">
                     {eveningSessionTotal === null ? "वाचता आले नाही" : `${eveningSessionTotal.toFixed(2)} लि.`}
                   </p>
                 </div>
               </div>
               {combinedSessionTotal !== null ? (
-                <p className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[16px] font-extrabold text-green-900">
+                <p className="mt-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[16px] font-black text-emerald-900">
                   सकाळ + संध्याकाळ = {combinedSessionTotal.toFixed(2)} लि.
                 </p>
               ) : morningSessionTotal !== null || eveningSessionTotal !== null ? (
-                <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-[16px] font-extrabold text-yellow-900">
+                <p className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[16px] font-black text-amber-900">
                   दोन्ही session totals वाचले नाहीत. Final एकूण दूध field स्लिपवरून तपासा.
                 </p>
               ) : null}
-              <div className="mt-3 max-h-[520px] overflow-auto rounded-lg border border-slate-200">
+              <div className="mt-3 max-h-[560px] overflow-auto rounded-[22px] border border-slate-200 bg-slate-50">
                 {form.daily_entries.map((entry, index) => {
                   const morning = sessionLine("सकाळ", entry.morning);
                   const evening = sessionLine("संध्याकाळ", entry.evening);
@@ -816,8 +824,8 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                   return (
                     <div
                       key={`${entry.date || index}-${index}`}
-                      className={`border-b p-3 text-[16px] font-bold last:border-b-0 ${
-                        suspicious ? "border-red-100 bg-red-50 text-red-900" : "border-slate-100 text-slate-700"
+                      className={`m-2 rounded-2xl border p-3 text-[16px] font-bold shadow-sm ${
+                        suspicious ? "border-red-100 bg-red-50 text-red-900" : "border-slate-100 bg-white text-slate-700"
                       }`}
                     >
                       <div className="flex justify-between gap-3">
@@ -854,7 +862,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                   );
                 })}
               </div>
-              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[18px] font-extrabold text-green-900">
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-[18px] font-black text-emerald-900">
                 दैनिक तक्त्याची बेरीज: {form.daily_entries.reduce((sum, entry) => sum + entryLiters(entry), 0).toFixed(2)} लि. ·{" "}
                 {toMarathiCurrency(form.daily_entries.reduce((sum, entry) => sum + entryAmount(entry), 0))}
                 <p className="mt-1 text-[13px] text-green-800">
@@ -866,19 +874,19 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
         </>
       )}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft">
         <FormField label="नोंद">
-          <MarathiTextInput multiline rows={3} value={form.notes} onValueChange={(value) => updateField("notes", value)} className="min-h-[100px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-[20px] font-bold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100" />
+          <MarathiTextInput multiline rows={3} value={form.notes} onValueChange={(value) => updateField("notes", value)} className="min-h-[110px] w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-[20px] font-bold text-slate-950 shadow-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100" />
         </FormField>
       </section>
 
-      {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-[19px] font-extrabold text-red-800">{error}</p> : null}
+      {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-[19px] font-black text-red-800 shadow-sm">{error}</p> : null}
 
-      <div className="sticky bottom-24 z-20 grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-soft backdrop-blur">
-        <button type="button" onClick={onRetry} disabled={saving} className="min-h-[56px] rounded-lg border-2 border-slate-200 bg-white px-4 text-[18px] font-extrabold text-slate-700 active:bg-slate-100">
+      <div className="sticky bottom-24 z-20 grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <button type="button" onClick={onRetry} disabled={saving} className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-4 text-[18px] font-black text-slate-700 shadow-sm transition active:scale-[0.99] active:bg-slate-100">
           🔄 पुन्हा स्कॅन
         </button>
-        <button type="submit" disabled={saving} className="min-h-[56px] rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white disabled:opacity-70 active:bg-green-700">
+        <button type="submit" disabled={saving} className="min-h-[58px] rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-4 text-[18px] font-black text-white shadow-md transition active:scale-[0.99] disabled:opacity-70">
           {saving ? "💾 जतन चालू आहे..." : "✅ तपासले, जतन करा"}
         </button>
       </div>

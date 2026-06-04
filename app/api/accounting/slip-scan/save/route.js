@@ -17,7 +17,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function readJsonBody(request) {
   const body = await request.json().catch(() => null);
@@ -501,7 +501,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "स्लिप फोटो ID आवश्यक आहे." }, { status: 400 });
     }
 
-    if (!UUID_PATTERN.test(String(uploadId))) {
+    if (!UUID_PATTERN.test(String(uploadId ?? "").trim())) {
       return NextResponse.json({ error: "स्लिप फोटो ID चुकीचा आहे." }, { status: 400 });
     }
 

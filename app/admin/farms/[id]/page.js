@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ActivityTimeline from "@/components/admin/ActivityTimeline";
-import StatsCard from "@/components/admin/StatsCard";
+import FarmMonitoringDashboard from "@/components/admin/FarmMonitoringDashboard";
 import { getSuperAdminAuthHeader } from "@/context/SuperAdminContext";
 
 const tabs = ["overview", "data", "users", "activity", "notes"];
@@ -26,22 +26,36 @@ function buildSubscriptionForm(farm = {}) {
   };
 }
 
+function getFarmIdFromParams(params = {}) {
+  const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  return rawId ? decodeURIComponent(String(rawId)) : "";
+}
+
 export default function AdminFarmDetailPage({ params }) {
   const [data, setData] = useState(null);
   const [farmData, setFarmData] = useState(null);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
+  const [farmDataLoading, setFarmDataLoading] = useState(false);
+  const [farmDataAttempted, setFarmDataAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
   const [notes, setNotes] = useState("");
   const [subscriptionForm, setSubscriptionForm] = useState(buildSubscriptionForm());
   const [error, setError] = useState("");
+  const farmId = useMemo(() => getFarmIdFromParams(params), [params]);
+  const farmApiId = useMemo(() => encodeURIComponent(farmId), [farmId]);
 
   const loadFarm = useCallback(async () => {
+    if (!farmId) {
+      setError("Farm ID चुकीचा आहे.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/admin/farms/${params.id}`, {
+      const response = await fetch(`/api/admin/farms/${farmApiId}`, {
         cache: "no-store",
         headers: getSuperAdminAuthHeader()
       });
@@ -55,27 +69,39 @@ export default function AdminFarmDetailPage({ params }) {
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [farmApiId, farmId]);
 
   const loadFarmData = useCallback(async () => {
-    const response = await fetch(`/api/admin/farms/${params.id}/data?type=all`, {
-      cache: "no-store",
-      headers: getSuperAdminAuthHeader()
-    });
-    const result = await response.json();
-    if (response.ok) setFarmData(result);
-  }, [params.id]);
+    if (!farmId) return;
+    setFarmDataLoading(true);
+    setFarmDataAttempted(true);
+    try {
+      const response = await fetch(`/api/admin/farms/${farmApiId}/data?type=all`, {
+        cache: "no-store",
+        headers: getSuperAdminAuthHeader()
+      });
+      const result = await response.json();
+      if (response.ok) setFarmData(result);
+    } finally {
+      setFarmDataLoading(false);
+    }
+  }, [farmApiId, farmId]);
 
   useEffect(() => {
     loadFarm();
-    loadFarmData();
-  }, [loadFarm, loadFarmData]);
+  }, [loadFarm]);
+
+  useEffect(() => {
+    if (tab === "data" && !farmData && !farmDataLoading && !farmDataAttempted) {
+      loadFarmData();
+    }
+  }, [farmData, farmDataAttempted, farmDataLoading, loadFarmData, tab]);
 
   async function patchFarm(action, body = {}) {
     setSaving(true);
     setActionLoading(action);
     try {
-      const response = await fetch(`/api/admin/farms/${params.id}`, {
+      const response = await fetch(`/api/admin/farms/${farmApiId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
         body: JSON.stringify({ action, ...body })
@@ -119,7 +145,7 @@ export default function AdminFarmDetailPage({ params }) {
   async function saveNotes() {
     setSaving(true);
     try {
-      const response = await fetch(`/api/admin/farms/${params.id}`, {
+      const response = await fetch(`/api/admin/farms/${farmApiId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
         body: JSON.stringify({ admin_notes: notes })
@@ -159,11 +185,45 @@ export default function AdminFarmDetailPage({ params }) {
       window.alert(result.error || "PIN reset failed");
       return;
     }
-    window.alert(`PIN reset successful. New PIN: ${result.newPin}`);
+    window.alert("PIN reset successful.");
+  }
+
+  async function updateUserStatus(user, action) {
+    const labels = {
+      activate: "activate",
+      deactivate: "deactivate",
+      force_logout: "force logout"
+    };
+    if (!window.confirm(`${user.name || user.mobile} user ${labels[action]} करायचा आहे का?`)) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
+        body: JSON.stringify({ action })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "User action failed");
+      await loadFarm();
+      if (farmData) await loadFarmData();
+    } catch (err) {
+      window.alert(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading && !data) {
-    return <div className="text-[22px] font-extrabold text-slate-700">Loading farm...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="h-36 animate-pulse rounded-3xl bg-slate-200" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-slate-200" />)}
+        </div>
+        <div className="h-64 animate-pulse rounded-3xl bg-slate-200" />
+      </div>
+    );
   }
 
   if (error) {
@@ -171,7 +231,7 @@ export default function AdminFarmDetailPage({ params }) {
   }
 
   const farm = data?.farm || {};
-  const stats = data?.stats || {};
+  const ownerUser = data?.users?.find((user) => user.is_farm_owner) || data?.users?.[0] || null;
 
   return (
     <div className="space-y-6">
@@ -214,35 +274,14 @@ export default function AdminFarmDetailPage({ params }) {
 
       {tab === "overview" ? (
         <div className="space-y-6">
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatsCard title="Cows" value={stats.cowCount || 0} subtext="Current records" tone="green" icon="🐄" />
-            <StatsCard title="Milk Records" value={stats.milkCount || 0} subtext={stats.lastMilkEntry?.date || "No entries"} tone="blue" icon="🥛" />
-            <StatsCard title="AI Records" value={stats.aiCount || 0} subtext="Total AI entries" tone="yellow" icon="💉" />
-            <StatsCard title="Users" value={stats.userCount || 0} subtext={stats.lastLogin?.userName ? `Last: ${stats.lastLogin.userName}` : "No login"} tone="slate" icon="👥" />
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-2">
-            <InfoCard title="Farm Information" rows={[
-              ["Farm name", farm.farm_name],
-              ["Owner", farm.owner_name],
-              ["Mobile", farm.owner_mobile],
-              ["Village", farm.village_name],
-              ["Taluka", farm.taluka_name],
-              ["District", farm.district_name],
-              ["Address", farm.farm_address],
-              ["Dairy", farm.dairy_name],
-              ["Vet", farm.vet_name],
-              ["Vet Mobile", farm.vet_mobile]
-            ]} />
-            <InfoCard title="Subscription" rows={[
-              ["Status", farm.is_active ? farm.subscription_status : "suspended"],
-              ["Trial ends", farm.trial_ends_at ? new Date(farm.trial_ends_at).toLocaleString() : "-"],
-              ["Subscription started", farm.subscription_started_at ? new Date(farm.subscription_started_at).toLocaleString() : "-"],
-              ["Subscription ends", farm.subscription_ends_at ? new Date(farm.subscription_ends_at).toLocaleString() : "-"],
-              ["Suspended reason", farm.suspended_reason || "-"],
-              ["Created", farm.created_at ? new Date(farm.created_at).toLocaleString() : "-"]
-            ]} />
-          </section>
+          <FarmMonitoringDashboard
+            data={data}
+            farmData={farmData}
+            saving={saving}
+            actionLoading={actionLoading}
+            onFarmAction={confirmAndPatchFarm}
+            onResetOwnerPin={() => ownerUser ? resetPin(ownerUser) : window.alert("Owner user not found")}
+          />
 
           <section className="rounded-xl border border-green-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -336,6 +375,7 @@ export default function AdminFarmDetailPage({ params }) {
 
       {tab === "data" ? (
         <div className="space-y-6">
+          {farmDataLoading ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-[18px] font-extrabold text-slate-600">Loading farm data...</div> : null}
           <DataTable title="Cows List" rows={farmData?.cows || []} columns={["name", "breed", "status", "date_of_birth"]} />
           <DataTable title="Recent Milk Records" rows={farmData?.milk || []} columns={["date", "morning_litres", "evening_litres", "total_litres"]} />
           <DataTable title="Recent AI Records" rows={farmData?.ai || []} columns={["ai_date", "bull_code", "bull_breed", "pregnancy_result"]} />
@@ -344,12 +384,13 @@ export default function AdminFarmDetailPage({ params }) {
 
       {tab === "users" ? (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-[850px] w-full text-left">
+          <table className="min-w-[1100px] w-full text-left">
             <thead className="bg-slate-50 text-[14px] uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Mobile</th>
                 <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Owner</th>
                 <th className="px-4 py-3">Last Login</th>
                 <th className="px-4 py-3">Action</th>
@@ -361,10 +402,18 @@ export default function AdminFarmDetailPage({ params }) {
                   <td className="px-4 py-4 font-extrabold">{user.name}</td>
                   <td className="px-4 py-4">{user.mobile}</td>
                   <td className="px-4 py-4">{user.role}</td>
+                  <td className="px-4 py-4">{user.is_active !== false ? "Active" : "Inactive"}</td>
                   <td className="px-4 py-4">{user.is_farm_owner ? "Yes" : "No"}</td>
                   <td className="px-4 py-4">{user.last_login ? new Date(user.last_login).toLocaleString() : "-"}</td>
                   <td className="px-4 py-4">
-                    <button onClick={() => resetPin(user)} className="rounded-lg bg-slate-900 px-3 py-2 text-[15px] font-bold text-white">Reset PIN</button>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={`/admin/users?search=${encodeURIComponent(user.mobile || user.name || "")}`} className="rounded-lg bg-blue-600 px-3 py-2 text-[15px] font-bold text-white">View</Link>
+                      <button onClick={() => resetPin(user)} className="rounded-lg bg-slate-900 px-3 py-2 text-[15px] font-bold text-white">Reset PIN</button>
+                      <button onClick={() => updateUserStatus(user, user.is_active === false ? "activate" : "deactivate")} className={`rounded-lg px-3 py-2 text-[15px] font-bold text-white ${user.is_active === false ? "bg-green-600" : "bg-red-600"}`}>
+                        {user.is_active === false ? "Activate" : "Deactivate"}
+                      </button>
+                      <button onClick={() => updateUserStatus(user, "force_logout")} className="rounded-lg bg-yellow-600 px-3 py-2 text-[15px] font-bold text-white">Force Logout</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -392,22 +441,6 @@ export default function AdminFarmDetailPage({ params }) {
         </section>
       ) : null}
     </div>
-  );
-}
-
-function InfoCard({ title, rows }) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-[24px] font-extrabold text-slate-950">{title}</h2>
-      <div className="mt-4 divide-y divide-slate-100">
-        {rows.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-[180px_1fr] gap-4 py-3 text-[17px]">
-            <div className="font-bold text-slate-500">{label}</div>
-            <div className="font-semibold text-slate-950">{value || "-"}</div>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 

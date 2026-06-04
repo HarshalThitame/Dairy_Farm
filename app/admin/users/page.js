@@ -105,7 +105,7 @@ export default function AdminUsersPage() {
                   <td className="px-4 py-4 font-extrabold">{user.name}</td>
                   <td className="px-4 py-4">{user.mobile_masked}</td>
                   <td className="px-4 py-4">
-                    {user.farms?.id ? <Link href={`/admin/farms/${user.farms.id}`} className="font-bold text-green-700 hover:underline">{user.farms.farm_name}</Link> : "-"}
+                    {user.farms?.id ? <Link href={`/admin/farms/${encodeURIComponent(String(user.farms.id || ""))}`} className="font-bold text-green-700 hover:underline">{user.farms.farm_name}</Link> : "-"}
                   </td>
                   <td className="px-4 py-4">{user.is_farm_owner ? "Farm Owner" : user.role}</td>
                   <td className="px-4 py-4">{user.last_login ? new Date(user.last_login).toLocaleString() : "-"}</td>

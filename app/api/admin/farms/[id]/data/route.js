@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 
@@ -28,6 +29,10 @@ async function fetchType(supabase, farmId, type) {
 
 export async function GET(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Farm ID चुकीचा आहे.");
+    }
+
     const { adminId } = await verifySuperAdmin(request);
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "all";
