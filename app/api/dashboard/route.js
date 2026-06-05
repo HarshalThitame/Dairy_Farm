@@ -150,6 +150,109 @@ function buildFinanceSummaryFromMonthlySummary(summary, financeRecords = []) {
   };
 }
 
+async function buildMonthlyDashboardReports(supabase, farmId, monthInput) {
+  const monthRange = getMonthRange(monthInput.month, monthInput.year);
+  const [monthlySummaryResult, monthlyIncomeRecordsResult] = await Promise.all([
+    supabase
+      .from("monthly_summary")
+      .select("total_liters, total_milk_income, total_all_income, total_other_income, total_all_expenses, total_dairy_deductions, net_profit")
+      .eq("farm_id", farmId)
+      .eq("month_year", monthYearKey(monthInput.month, monthInput.year))
+      .maybeSingle(),
+    supabase
+      .from("finance_records")
+      .select("id, farm_id, date, type, category, amount, accounting_period")
+      .eq("farm_id", farmId)
+      .gte("date", monthRange.start)
+      .lt("date", monthRange.end)
+  ]);
+
+  const monthlyIncomeRecords = assertQuery(monthlyIncomeRecordsResult);
+  const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
+  let monthlyLitres = Number(monthlySummary?.total_liters || 0);
+  let monthlyFinanceReport = monthlySummary
+    ? buildFinanceSummaryFromMonthlySummary(monthlySummary, monthlyIncomeRecords)
+    : null;
+
+  if (!monthlySummary) {
+    const [
+      monthDairySlipsResult,
+      financeResult,
+      healthResult,
+      aiResult,
+      monthlyExpensesResult,
+      settlementsResult
+    ] = await Promise.all([
+      supabase
+        .from("dairy_slips")
+        .select("*")
+        .eq("farm_id", farmId)
+        .gte("slip_date", monthRange.start)
+        .lt("slip_date", monthRange.end),
+      supabase
+        .from("finance_records")
+        .select("id, date, type, category, amount, accounting_period, description")
+        .eq("farm_id", farmId)
+        .gte("date", monthRange.start)
+        .lt("date", monthRange.end),
+      supabase
+        .from("health_records")
+        .select("id, date, cost")
+        .eq("farm_id", farmId)
+        .gt("cost", 0)
+        .gte("date", monthRange.start)
+        .lt("date", monthRange.end),
+      supabase
+        .from("ai_records")
+        .select("id, ai_date, cost")
+        .eq("farm_id", farmId)
+        .gt("cost", 0)
+        .gte("ai_date", monthRange.start)
+        .lt("ai_date", monthRange.end),
+      supabase
+        .from("monthly_expenses")
+        .select("id, expense_date, category, amount")
+        .eq("farm_id", farmId)
+        .gte("expense_date", monthRange.start)
+        .lt("expense_date", monthRange.end),
+      supabase
+        .from("dairy_settlements")
+        .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
+        .eq("farm_id", farmId)
+        .gte("period_end", monthRange.start)
+        .lt("period_end", monthRange.end)
+    ]);
+
+    const monthDairySlips = assertQuery(monthDairySlipsResult);
+    const financeRecords = assertQuery(financeResult);
+    const healthRecords = assertQuery(healthResult);
+    const aiRecords = assertQuery(aiResult);
+    const monthlyExpenses = assertQuery(monthlyExpensesResult);
+    const settlements = assertQuery(settlementsResult);
+    const milkIncomeSummary = summarizeMilkIncomeForMonth(monthDairySlips, settlements);
+
+    monthlyLitres = milkIncomeSummary.totalLiters;
+    monthlyFinanceReport = buildFinanceSummary({
+      financeRecords,
+      milkRecords: [],
+      healthRecords,
+      aiRecords,
+      monthlyExpenses,
+      settlements,
+      milkIncomeSummary
+    });
+  }
+
+  return {
+    monthlyMilkReport: {
+      month: monthInput.month,
+      year: monthInput.year,
+      totalLitres: roundMoney(monthlyLitres)
+    },
+    monthlyFinanceReport
+  };
+}
+
 export async function GET(request) {
   try {
     const { farmId } = await verifyFarmAccess(request);
@@ -162,8 +265,20 @@ export async function GET(request) {
 
     const today = getTodayISODate();
     const weekEnd = addDaysToISODate(today, 7);
-    const monthRange = getMonthRange(monthInput.month, monthInput.year);
     const supabase = getSupabaseServerClient();
+    const scope = searchParams.get("scope") || "";
+
+    if (scope === "monthly") {
+      const monthlyReports = await buildMonthlyDashboardReports(supabase, farmId, monthInput);
+
+      return NextResponse.json({
+        data: {
+          ...monthlyReports,
+          generatedAt: new Date().toISOString()
+        }
+      });
+    }
+
     const [
       cowsResult,
       todayMilkResult,
@@ -171,8 +286,7 @@ export async function GET(request) {
       overdueRemindersResult,
       upcomingRemindersResult,
       calvesResult,
-      monthlySummaryResult,
-      monthlyIncomeRecordsResult,
+      monthlyReports,
       dailyGoalSettingsResult,
       pendingSettlementSlipPeriodsResult
     ] = await Promise.all([
@@ -215,18 +329,7 @@ export async function GET(request) {
         .from("calves")
         .select("id, status, is_raised, milk_feeding_status")
         .eq("farm_id", farmId),
-      supabase
-        .from("monthly_summary")
-        .select("total_liters, total_milk_income, total_all_expenses, total_dairy_deductions, net_profit")
-        .eq("farm_id", farmId)
-        .eq("month_year", monthYearKey(monthInput.month, monthInput.year))
-        .maybeSingle(),
-      supabase
-        .from("finance_records")
-        .select("id, farm_id, date, type, category, amount, accounting_period")
-        .eq("farm_id", farmId)
-        .gte("date", monthRange.start)
-        .lt("date", monthRange.end),
+      buildMonthlyDashboardReports(supabase, farmId, monthInput),
       supabase
         .from("farm_goal_settings")
         .select("daily_milk_goal, enabled")
@@ -238,12 +341,12 @@ export async function GET(request) {
     const cows = assertQuery(cowsResult);
     const todayMilkRecords = assertQuery(todayMilkResult);
     const pendingSettlementSlipPeriods = pendingSettlementSlipPeriodsResult || [];
-    const todayReminders = await enrichDashboardReminders(supabase, farmId, assertQuery(todayRemindersResult), today);
-    const overdueReminders = await enrichDashboardReminders(supabase, farmId, assertQuery(overdueRemindersResult), today);
-    const upcomingReminders = await enrichDashboardReminders(supabase, farmId, assertQuery(upcomingRemindersResult), today);
+    const [todayReminders, overdueReminders, upcomingReminders] = await Promise.all([
+      enrichDashboardReminders(supabase, farmId, assertQuery(todayRemindersResult), today),
+      enrichDashboardReminders(supabase, farmId, assertQuery(overdueRemindersResult), today),
+      enrichDashboardReminders(supabase, farmId, assertQuery(upcomingRemindersResult), today)
+    ]);
     const calves = assertQuery(calvesResult);
-    const monthlyIncomeRecords = assertQuery(monthlyIncomeRecordsResult);
-    const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
     const todayMilkTotal = todayMilkRecords.reduce(
       (total, record) => total + getRecordMilkTotal(record),
       0
@@ -255,79 +358,6 @@ export async function GET(request) {
     const dailyGoalRow = dailyGoalSettingsResult.error ? null : dailyGoalSettingsResult.data;
     const dailyGoalTarget = Number(dailyGoalRow?.daily_milk_goal || 300);
     const dailyGoalEnabled = dailyGoalRow?.enabled !== false;
-    let monthlyLitres = Number(monthlySummary?.total_liters || 0);
-    let monthlyFinanceReport = monthlySummary
-      ? buildFinanceSummaryFromMonthlySummary(monthlySummary, monthlyIncomeRecords)
-      : null;
-
-    if (!monthlySummary) {
-      const [
-        monthDairySlipsResult,
-        financeResult,
-        healthResult,
-        aiResult,
-        monthlyExpensesResult,
-        settlementsResult
-      ] = await Promise.all([
-        supabase
-          .from("dairy_slips")
-          .select("*")
-          .eq("farm_id", farmId)
-          .gte("slip_date", monthRange.start)
-          .lt("slip_date", monthRange.end),
-        supabase
-          .from("finance_records")
-          .select("id, date, type, category, amount, accounting_period, description")
-          .eq("farm_id", farmId)
-          .gte("date", monthRange.start)
-          .lt("date", monthRange.end),
-        supabase
-          .from("health_records")
-          .select("id, date, cost")
-          .eq("farm_id", farmId)
-          .gt("cost", 0)
-          .gte("date", monthRange.start)
-          .lt("date", monthRange.end),
-        supabase
-          .from("ai_records")
-          .select("id, ai_date, cost")
-          .eq("farm_id", farmId)
-          .gt("cost", 0)
-          .gte("ai_date", monthRange.start)
-          .lt("ai_date", monthRange.end),
-        supabase
-          .from("monthly_expenses")
-          .select("id, expense_date, category, amount")
-          .eq("farm_id", farmId)
-          .gte("expense_date", monthRange.start)
-          .lt("expense_date", monthRange.end),
-        supabase
-          .from("dairy_settlements")
-          .select("id, settlement_date, period_start, period_end, total_liters, total_milk_income, cattle_feed_deduction, other_deductions, ai_raw_data")
-          .eq("farm_id", farmId)
-          .gte("period_end", monthRange.start)
-          .lt("period_end", monthRange.end)
-      ]);
-
-      const monthDairySlips = assertQuery(monthDairySlipsResult);
-      const financeRecords = assertQuery(financeResult);
-      const healthRecords = assertQuery(healthResult);
-      const aiRecords = assertQuery(aiResult);
-      const monthlyExpenses = assertQuery(monthlyExpensesResult);
-      const settlements = assertQuery(settlementsResult);
-      const milkIncomeSummary = summarizeMilkIncomeForMonth(monthDairySlips, settlements);
-
-      monthlyLitres = milkIncomeSummary.totalLiters;
-      monthlyFinanceReport = buildFinanceSummary({
-        financeRecords,
-        milkRecords: [],
-        healthRecords,
-        aiRecords,
-        monthlyExpenses,
-        settlements,
-        milkIncomeSummary
-      });
-    }
 
     return NextResponse.json({
       data: {
@@ -362,12 +392,8 @@ export async function GET(request) {
           periods: pendingSettlementSlipPeriods.slice(0, 4)
         },
         calvesSummary: buildCalvesSummary(calves),
-        monthlyMilkReport: {
-          month: monthInput.month,
-          year: monthInput.year,
-          totalLitres: roundMoney(monthlyLitres)
-        },
-        monthlyFinanceReport,
+        monthlyMilkReport: monthlyReports.monthlyMilkReport,
+        monthlyFinanceReport: monthlyReports.monthlyFinanceReport,
         generatedAt: new Date().toISOString(),
         nextRefreshAfter: addDaysToISODate(today, 1)
       }

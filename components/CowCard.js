@@ -4,7 +4,7 @@ import Link from "next/link";
 /* eslint-disable @next/next/no-img-element */
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getStatusBorderClass } from "@/components/StatusBadge";
+import StatusBadge, { getStatusBorderClass } from "@/components/StatusBadge";
 import { cacheCowSnapshot } from "@/lib/cowInstantCache";
 import {
   calculateAgeMarathi,
@@ -43,11 +43,6 @@ export default function CowCard({ cow }) {
       label: "जन्म",
       value: compactDate(cow.date_of_birth),
       tone: "bg-slate-50 text-slate-900 ring-slate-100"
-    },
-    {
-      label: "खरेदी",
-      value: compactDate(cow.purchased_on),
-      tone: "bg-amber-50 text-amber-950 ring-amber-100"
     },
     {
       label: "शेवटचे रेतन",
@@ -97,25 +92,24 @@ export default function CowCard({ cow }) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="min-w-0">
-              <h2 className="break-words text-[25px] font-extrabold leading-tight text-slate-950">
-                {cow.name}
-              </h2>
-              <p className="mt-1 break-words text-[17px] font-bold leading-snug text-slate-500">
-                {formatCowBreed(cow.breed)}
-                {cow.color ? ` • ${cow.color}` : ""}
-              </p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="break-words text-[25px] font-extrabold leading-tight text-slate-950">
+                  {cow.name}
+                </h2>
+                <p className="mt-1 break-words text-[17px] font-bold leading-snug text-slate-500">
+                  {formatCowBreed(cow.breed)}
+                  {cow.color ? ` • ${cow.color}` : ""}
+                </p>
+              </div>
+              <div className="shrink-0">
+                <StatusBadge status={cow.status} />
+              </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 text-[16px] font-bold leading-snug text-slate-700">
-              <div className="rounded-lg bg-slate-50 px-3 py-2 shadow-sm ring-1 ring-slate-100">
-                <span className="block text-[13px] font-extrabold text-slate-400">वय</span>
-                {calculateAgeMarathi(cow.date_of_birth)}
-              </div>
-              <div className="rounded-lg bg-green-50 px-3 py-2 text-green-900 shadow-sm ring-1 ring-green-100">
-                <span className="block text-[13px] font-extrabold text-green-500">शेवटचे दूध</span>
-                {compactDate(cow.latest_milk_record?.date)}
-              </div>
+            <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-[16px] font-bold leading-snug text-slate-700 shadow-sm ring-1 ring-slate-100">
+              <span className="block text-[13px] font-extrabold text-slate-400">वय</span>
+              {calculateAgeMarathi(cow.date_of_birth)}
             </div>
           </div>
         </div>
@@ -124,7 +118,7 @@ export default function CowCard({ cow }) {
           <p className="mb-2 text-[14px] font-black uppercase tracking-wide text-slate-400">
             महत्त्वाच्या तारखा
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {importantDates.map((item) => (
               <div
                 key={item.label}

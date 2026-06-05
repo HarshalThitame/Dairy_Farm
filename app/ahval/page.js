@@ -129,6 +129,14 @@ const accountingLinks = [
     accent: "from-violet-500 to-purple-400"
   },
   {
+    href: "/accounting/payment-slips",
+    title: "Payment Slip स्थिती",
+    description: "वर्षानुसार १५ दिवसांच्या slips upload झाल्या का",
+    emoji: "📅",
+    color: "border-teal-100 bg-gradient-to-br from-teal-50 via-white to-emerald-50 text-teal-950",
+    accent: "from-teal-500 to-emerald-400"
+  },
+  {
     href: "/accounting/profit",
     title: "नफा/तोटा",
     description: "महिन्याचा हिशोब आणि analysis",

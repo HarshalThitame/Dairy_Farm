@@ -919,6 +919,175 @@ input::placeholder {
   animation-delay: 280ms;
 }
 
+.ai-slip-loader {
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.92)),
+    linear-gradient(135deg, rgba(16, 185, 129, 0.12), transparent 38%),
+    linear-gradient(225deg, rgba(14, 165, 233, 0.12), transparent 42%);
+  animation: dashboardFadeUp 380ms ease-out both;
+}
+
+.ai-slip-loader::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 0.35rem;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(90deg, #10b981, #06b6d4, #f59e0b);
+}
+
+.ai-slip-loader-sheen {
+  position: absolute;
+  top: -25%;
+  bottom: -25%;
+  left: -32%;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  transform: rotate(12deg) translateX(-90%);
+  animation: aiSlipLoaderSheen 4.2s ease-in-out infinite;
+}
+
+.ai-slip-scan-console {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(140deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)),
+    linear-gradient(135deg, rgba(20, 184, 166, 0.18), transparent 44%);
+}
+
+.ai-slip-scan-console::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(125, 211, 252, 0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(125, 211, 252, 0.07) 1px, transparent 1px);
+  background-size: 1.4rem 1.4rem;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 108%);
+}
+
+.ai-slip-scan-stage {
+  position: relative;
+  display: grid;
+  min-height: 15rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 1.2rem;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.28), rgba(15, 23, 42, 0.72)),
+    radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.22), transparent 56%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -18px 42px rgba(2, 6, 23, 0.55);
+}
+
+.ai-slip-document {
+  position: relative;
+  width: clamp(10.5rem, 54vw, 13rem);
+  aspect-ratio: 0.76;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 253, 250, 0.96)),
+    repeating-linear-gradient(0deg, transparent 0 1.65rem, rgba(14, 165, 233, 0.08) 1.65rem 1.7rem);
+  box-shadow:
+    0 22px 50px rgba(0, 0, 0, 0.32),
+    0 0 0 0.55rem rgba(255, 255, 255, 0.04);
+}
+
+.ai-slip-document::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2.35rem;
+  content: "";
+  background: linear-gradient(90deg, #0f172a, #0f766e);
+}
+
+.ai-slip-document-fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  width: 2rem;
+  height: 2rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0 50%, rgba(148, 163, 184, 0.5) 50% 100%);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+
+.ai-slip-reader-lines {
+  position: absolute;
+  inset: 3.45rem 1rem 1.2rem;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.68rem;
+}
+
+.ai-slip-reader-lines span {
+  display: block;
+  height: 0.68rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.68), rgba(14, 165, 233, 0.2));
+  animation: aiSlipLinePulse 1.9s ease-in-out infinite;
+}
+
+.ai-slip-reader-lines span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.ai-slip-reader-lines span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.ai-slip-reader-lines span:nth-child(4) {
+  animation-delay: 360ms;
+}
+
+.ai-slip-reader-lines span:nth-child(5) {
+  animation-delay: 480ms;
+}
+
+.ai-slip-reader-lines span:nth-child(6) {
+  animation-delay: 600ms;
+}
+
+.ai-slip-scan-beam {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: 4.2rem;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.2), transparent);
+  transform: translateY(-120%);
+  animation: aiSlipScanBeam 2.45s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.ai-slip-scan-beam::after {
+  position: absolute;
+  right: 0;
+  bottom: 50%;
+  left: 0;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.95), rgba(16, 185, 129, 0.9), transparent);
+  box-shadow:
+    0 0 18px rgba(34, 211, 238, 0.75),
+    0 0 28px rgba(16, 185, 129, 0.42);
+}
+
 @keyframes dashboardFadeUp {
   from {
     opacity: 0;
@@ -1155,6 +1324,52 @@ input::placeholder {
   }
 }
 
+@keyframes aiSlipLoaderSheen {
+  0%,
+  46% {
+    transform: rotate(12deg) translateX(-95%);
+  }
+
+  100% {
+    transform: rotate(12deg) translateX(520%);
+  }
+}
+
+@keyframes aiSlipScanBeam {
+  0%,
+  14% {
+    opacity: 0;
+    transform: translateY(-120%);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  78% {
+    opacity: 1;
+    transform: translateY(360%);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(420%);
+  }
+}
+
+@keyframes aiSlipLinePulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleX(0.98);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: scaleX(1);
+  }
+}
+
 @media (max-width: 640px) {
   .dashboard-hero::before,
   .dashboard-scan::after,
@@ -1195,7 +1410,11 @@ input::placeholder {
   .loading-state-ring-outer,
   .loading-state-ring-inner,
   .loading-state-meter-fill,
-  .loading-state-dot {
+  .loading-state-dot,
+  .ai-slip-loader,
+  .ai-slip-loader-sheen,
+  .ai-slip-scan-beam,
+  .ai-slip-reader-lines span {
     animation: none;
   }
 

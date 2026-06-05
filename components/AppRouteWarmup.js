@@ -25,8 +25,8 @@ const ROUTE_GROUPS = {
   "/vasare": ["/gayi", "/nondi/vyayan"],
   "/nondi": ["/nondi/dudh", "/nondi/ai", "/nondi/vyayan", "/nondi/arogya", "/nondi/lasikaran", "/nondi/chara"],
   "/athavan": ["/nondi/ai", "/nondi/vyayan", "/nondi/lasikaran", "/nondi/arogya", "/vasare"],
-  "/ahval": ["/ahval/dudh", "/ahval/utpanna", "/ahval/kharch", "/ahval/nafa", "/ahval/hishob", "/ahval/varshik"],
-  "/accounting": ["/accounting/slip-scan", "/accounting/dairy-slips", "/accounting/settlements", "/accounting/profit"],
+  "/ahval": ["/ahval/dudh", "/ahval/utpanna", "/ahval/kharch", "/ahval/nafa", "/ahval/hishob", "/ahval/varshik", "/accounting/payment-slips"],
+  "/accounting": ["/accounting/slip-scan", "/accounting/dairy-slips", "/accounting/settlements", "/accounting/payment-slips", "/accounting/profit"],
   "/accounting/slip-scan": ["/accounting/slip-scan/camera", "/accounting/slip-scan/upload"]
 };
 
@@ -47,6 +47,7 @@ export default function AppRouteWarmup() {
 
     const routes = routesForPath(pathname);
     let cancelled = false;
+    const delayBeforeWarmup = pathname === "/" ? 1800 : 350;
 
     const prefetchRoutes = () => {
       routes.forEach((route, index) => {
@@ -59,14 +60,16 @@ export default function AppRouteWarmup() {
     };
 
     if ("requestIdleCallback" in window) {
-      const idleId = window.requestIdleCallback(prefetchRoutes, { timeout: 1200 });
+      const idleId = window.requestIdleCallback(() => {
+        window.setTimeout(prefetchRoutes, delayBeforeWarmup);
+      }, { timeout: pathname === "/" ? 2500 : 1200 });
       return () => {
         cancelled = true;
         window.cancelIdleCallback?.(idleId);
       };
     }
 
-    const timeoutId = window.setTimeout(prefetchRoutes, 250);
+    const timeoutId = window.setTimeout(prefetchRoutes, delayBeforeWarmup);
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);

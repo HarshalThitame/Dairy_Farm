@@ -19,12 +19,51 @@ import {
 import { addMonths, getIndiaMonthParts, getMonthName } from "@/lib/reportUtils";
 import { isOnline } from "@/lib/networkStatus";
 import {
+  safeParseLocalStorageJson,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
+import {
   fetchCows as fetchCowsOffline,
   fetchJson,
   fetchMilkByDate,
   fetchRemindersByFilter,
   markReminderDone as markReminderDoneOffline
 } from "@/lib/offlineActions";
+
+const DASHBOARD_CACHE_PREFIX = "majhi_dashboard_snapshot_v3";
+const DASHBOARD_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+function dashboardCacheKey(farmId, month, year) {
+  return `${DASHBOARD_CACHE_PREFIX}:${farmId || "farm"}:${year}-${String(month).padStart(2, "0")}`;
+}
+
+function readDashboardCache(farmId, month, year) {
+  const cached = safeParseLocalStorageJson(dashboardCacheKey(farmId, month, year), null);
+
+  if (!cached?.snapshot || !cached.savedAt) {
+    return null;
+  }
+
+  if (Date.now() - Number(cached.savedAt) > DASHBOARD_CACHE_MAX_AGE_MS) {
+    return null;
+  }
+
+  return cached.snapshot;
+}
+
+function writeDashboardCache(farmId, month, year, snapshot) {
+  if (!snapshot) {
+    return;
+  }
+
+  safeSetLocalStorageItem(
+    dashboardCacheKey(farmId, month, year),
+    JSON.stringify({
+      savedAt: Date.now(),
+      snapshot
+    })
+  );
+}
 
 export default function DashboardPage() {
   const { farm } = useAuth();
@@ -47,45 +86,79 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const applyDashboardSnapshot = useCallback((snapshot) => {
+    setCows([]);
+    setCowsSummary(snapshot.cowsSummary || { total: 0, pregnant: 0 });
+    setMilkRecords(snapshot.todayMilk?.records || []);
+    setTodayReminders(snapshot.reminders?.today || []);
+    setOverdueReminders(snapshot.reminders?.overdue || []);
+    setUpcomingReminders(snapshot.reminders?.upcoming || []);
+    setReminderCounts({
+      today: snapshot.reminders?.todayCount || 0,
+      overdue: snapshot.reminders?.overdueCount || 0,
+      upcoming: snapshot.reminders?.upcomingCount || 0
+    });
+    setCalvesSummary(snapshot.calvesSummary || null);
+    setMonthlyMilkReport(snapshot.monthlyMilkReport || null);
+    setMonthlyFinanceReport(snapshot.monthlyFinanceReport || null);
+    setPendingSettlementSlips(snapshot.settlementSlipStatus || null);
+    setDailyGoal(snapshot.dailyGoal || null);
+    setTodayIncome(snapshot.todayIncome || 0);
+  }, []);
+
+  const applyPreviousDashboardSnapshot = useCallback((snapshot) => {
+    setPreviousMonthlyMilkReport(snapshot?.monthlyMilkReport || null);
+    setPreviousMonthlyFinanceReport(snapshot?.monthlyFinanceReport || null);
+  }, []);
+
+  const refreshPreviousDashboard = useCallback(async () => {
+    if (!farm?.id) {
+      return;
+    }
+
+    const previousMonth = addMonths(currentMonth.month, currentMonth.year, -1);
+    const cachedPrevious = readDashboardCache(farm.id, previousMonth.month, previousMonth.year);
+
+    if (cachedPrevious) {
+      applyPreviousDashboardSnapshot(cachedPrevious);
+    }
+
+    try {
+      const previousSnapshot = await fetchJson(
+        `/api/dashboard?scope=monthly&month=${previousMonth.month}&year=${previousMonth.year}`,
+        { cacheTtlMs: 60 * 1000 }
+      );
+
+      writeDashboardCache(farm.id, previousMonth.month, previousMonth.year, previousSnapshot);
+      applyPreviousDashboardSnapshot(previousSnapshot);
+    } catch {
+      // Previous month data is secondary. Keep current dashboard fast and usable.
+    }
+  }, [applyPreviousDashboardSnapshot, currentMonth.month, currentMonth.year, farm?.id]);
+
   const fetchDashboard = useCallback(async () => {
-    setLoading(true);
+    const cachedSnapshot = farm?.id ? readDashboardCache(farm.id, currentMonth.month, currentMonth.year) : null;
+
+    if (cachedSnapshot) {
+      applyDashboardSnapshot(cachedSnapshot);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     setError("");
 
     try {
       const reportQuery = `month=${currentMonth.month}&year=${currentMonth.year}`;
       try {
-        const snapshot = await fetchJson(`/api/dashboard?${reportQuery}`, { cacheTtlMs: 10 * 1000 });
-        const previousMonth = addMonths(currentMonth.month, currentMonth.year, -1);
-        let previousSnapshot = null;
+        const snapshot = await fetchJson(`/api/dashboard?${reportQuery}`, { cacheTtlMs: 60 * 1000 });
 
-        try {
-          previousSnapshot = await fetchJson(
-            `/api/dashboard?month=${previousMonth.month}&year=${previousMonth.year}`,
-            { cacheTtlMs: 30 * 1000 }
-          );
-        } catch {
-          previousSnapshot = null;
+        applyDashboardSnapshot(snapshot);
+        if (farm?.id) {
+          writeDashboardCache(farm.id, currentMonth.month, currentMonth.year, snapshot);
         }
-
-        setCows([]);
-        setCowsSummary(snapshot.cowsSummary || { total: 0, pregnant: 0 });
-        setMilkRecords(snapshot.todayMilk?.records || []);
-        setTodayReminders(snapshot.reminders?.today || []);
-        setOverdueReminders(snapshot.reminders?.overdue || []);
-        setUpcomingReminders(snapshot.reminders?.upcoming || []);
-        setReminderCounts({
-          today: snapshot.reminders?.todayCount || 0,
-          overdue: snapshot.reminders?.overdueCount || 0,
-          upcoming: snapshot.reminders?.upcomingCount || 0
-        });
-        setCalvesSummary(snapshot.calvesSummary || null);
-        setMonthlyMilkReport(snapshot.monthlyMilkReport || null);
-        setMonthlyFinanceReport(snapshot.monthlyFinanceReport || null);
-        setPendingSettlementSlips(snapshot.settlementSlipStatus || null);
-        setDailyGoal(snapshot.dailyGoal || null);
-        setTodayIncome(snapshot.todayIncome || 0);
-        setPreviousMonthlyMilkReport(previousSnapshot?.monthlyMilkReport || null);
-        setPreviousMonthlyFinanceReport(previousSnapshot?.monthlyFinanceReport || null);
+        setLoading(false);
+        refreshPreviousDashboard();
         return;
       } catch (dashboardError) {
         if (isOnline()) {
@@ -132,11 +205,19 @@ export default function DashboardPage() {
       setPreviousMonthlyMilkReport(null);
       setPreviousMonthlyFinanceReport(null);
     } catch (fetchError) {
-      setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
+      if (!cachedSnapshot) {
+        setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [currentMonth.month, currentMonth.year]);
+  }, [
+    applyDashboardSnapshot,
+    currentMonth.month,
+    currentMonth.year,
+    farm?.id,
+    refreshPreviousDashboard
+  ]);
 
   useEffect(() => {
     fetchDashboard();
