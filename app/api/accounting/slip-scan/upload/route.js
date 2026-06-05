@@ -81,7 +81,9 @@ async function compressServerSide(imageFile) {
     { width: 1600, quality: 86 },
     { width: 1400, quality: 82 },
     { width: 1280, quality: 76 },
-    { width: 1100, quality: 70 }
+    { width: 1100, quality: 70 },
+    { width: 960, quality: 64 },
+    { width: 840, quality: 58 }
   ];
   let bestBuffer = null;
   let bestAttempt = attempts[attempts.length - 1];
@@ -113,6 +115,52 @@ async function compressServerSide(imageFile) {
     skippedCompression: false,
     contentType: "image/webp",
     extension: "webp",
+    quality: bestAttempt.quality
+  };
+}
+
+async function recompressBufferServerSide(buffer, originalContentType = "image/jpeg") {
+  const sharp = (await import("sharp")).default;
+  const attempts = [
+    { width: 1600, quality: 82 },
+    { width: 1400, quality: 76 },
+    { width: 1280, quality: 70 },
+    { width: 1100, quality: 64 },
+    { width: 960, quality: 58 },
+    { width: 840, quality: 54 }
+  ];
+  let bestBuffer = null;
+  let bestAttempt = attempts[attempts.length - 1];
+
+  for (const attempt of attempts) {
+    const compressed = await sharp(buffer, { failOn: "none" })
+      .rotate()
+      .resize(attempt.width, attempt.width, {
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .webp({ quality: attempt.quality, smartSubsample: true })
+      .toBuffer();
+
+    bestBuffer = compressed;
+    bestAttempt = attempt;
+
+    if (compressed.length <= 1000000) {
+      break;
+    }
+  }
+
+  return {
+    buffer: bestBuffer,
+    originalSize: buffer.length,
+    compressedSize: bestBuffer.length,
+    compressionRatio: Math.max(0, Math.round((1 - bestBuffer.length / buffer.length) * 100)),
+    serverCompressed: true,
+    clientRecompressed: true,
+    skippedCompression: false,
+    contentType: "image/webp",
+    extension: "webp",
+    originalContentType,
     quality: bestAttempt.quality
   };
 }
@@ -194,6 +242,11 @@ export async function POST(request) {
         contentType,
         extension: getExtensionFromType(contentType)
       };
+
+      if (compressed.compressedSize > 1000000) {
+        compressed = await recompressBufferServerSide(imageBuffer, contentType);
+        compressed.originalSize = originalSizeFromForm || imageFile.size || imageBuffer.length;
+      }
     } else {
       compressed = await compressServerSide(imageFile);
     }
