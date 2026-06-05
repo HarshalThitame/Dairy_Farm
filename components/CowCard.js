@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
 /* eslint-disable @next/next/no-img-element */
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import StatusBadge, { getStatusBorderClass } from "@/components/StatusBadge";
+import { cacheCowSnapshot } from "@/lib/cowInstantCache";
 import {
   calculateAgeMarathi,
   formatCowBreed,
@@ -8,11 +13,24 @@ import {
 } from "@/lib/marathiUtils";
 
 export default function CowCard({ cow }) {
+  const router = useRouter();
   const borderClass = getStatusBorderClass(cow.status);
+  const href = `/gayi/${cow.id}`;
+
+  const warmCowDetails = useCallback(() => {
+    cacheCowSnapshot(cow);
+    router.prefetch(href);
+  }, [cow, href, router]);
 
   return (
     <Link
-      href={`/gayi/${cow.id}`}
+      href={href}
+      prefetch
+      onClick={warmCowDetails}
+      onFocus={warmCowDetails}
+      onMouseEnter={warmCowDetails}
+      onPointerDown={warmCowDetails}
+      onTouchStart={warmCowDetails}
       className={`dashboard-card group block overflow-hidden rounded-lg border border-l-4 border-slate-200 bg-white/95 shadow-soft backdrop-blur active:bg-green-50 ${borderClass}`}
       aria-label={`${cow.name} माहिती बघा`}
     >

@@ -4,12 +4,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdminOnly from "@/components/AdminOnly";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import StatusBadge from "@/components/StatusBadge";
 import { calfStatuses, getCalfMilkStatus } from "@/lib/calfLifecycle";
+import { cacheCowSnapshot, getCowSnapshot } from "@/lib/cowInstantCache";
 import {
   calculateAgeMarathi,
   formatCowBreed,
@@ -24,6 +25,23 @@ const pregnancyLabels = {
   negative: "गर्भधारणा नाही",
   pending: "प्रलंबित"
 };
+
+function emptyCowRecords() {
+  return {
+    ai_records: [],
+    calving_records: [],
+    milk_records: [],
+    health_records: [],
+    finance_records: [],
+    calves: [],
+    reminders: []
+  };
+}
+
+function instantProfileForCow(cowId) {
+  const cow = getCowSnapshot(cowId);
+  return cow ? { cow, records: emptyCowRecords(), instant: true } : null;
+}
 
 function Section({ title, subtitle, actionHref, actionText, children }) {
   return (
@@ -96,28 +114,44 @@ function DetailPill({ label, value }) {
 export default function GayDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cowId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const [profile, setProfile] = useState(() => instantProfileForCow(cowId));
+  const hasInstantProfile = useRef(Boolean(profile?.cow));
+  const [loading, setLoading] = useState(() => !profile?.cow);
+  const [refreshing, setRefreshing] = useState(() => Boolean(profile?.cow));
   const [error, setError] = useState("");
+  const [refreshError, setRefreshError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
 
-  const fetchCow = useCallback(async () => {
-    setLoading(true);
+  const fetchCow = useCallback(async (background = false) => {
+    if (!background) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     setError("");
+    setRefreshError("");
 
     try {
-      const result = await fetchCowProfile(params.id);
+      const result = await fetchCowProfile(cowId);
       setProfile(result.data);
+      cacheCowSnapshot(result.data?.cow);
     } catch (fetchError) {
-      setError(fetchError.message || "गायीची माहिती मिळाली नाही.");
+      const message = fetchError.message || "गायीची माहिती मिळाली नाही.";
+      if (background) {
+        setRefreshError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [params.id]);
+  }, [cowId]);
 
   useEffect(() => {
-    fetchCow();
+    fetchCow(hasInstantProfile.current);
   }, [fetchCow]);
 
   const records = profile?.records || {};
@@ -154,7 +188,7 @@ export default function GayDetailPage() {
     setDeleteMessage("");
 
     try {
-      const result = await deleteCow(params.id, cow.name);
+      const result = await deleteCow(cowId, cow.name);
 
       if (result.offline) {
         setDeleteMessage("⏳ गाय फोनवरून काढली. इंटरनेट आल्यावर बदल समक्रमित होईल.");
@@ -177,6 +211,18 @@ export default function GayDetailPage() {
 
   return (
     <div className="space-y-5">
+      {refreshing || refreshError ? (
+        <div
+          className={`sticky top-20 z-20 rounded-lg border px-4 py-3 text-[16px] font-extrabold shadow-sm ${
+            refreshError
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-green-200 bg-green-50 text-green-900"
+          }`}
+        >
+          {refreshError ? `Cached माहिती दाखवत आहे. ${refreshError}` : "ताजी माहिती लोड होत आहे..."}
+        </div>
+      ) : null}
+
       <section className="dashboard-hero overflow-hidden rounded-lg p-4 text-white shadow-soft">
         <div className="relative z-10">
           <div className="flex items-center justify-between gap-3">

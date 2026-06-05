@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminOnly from "@/components/AdminOnly";
 import CowCard from "@/components/CowCard";
@@ -11,6 +12,7 @@ import {
   getStatusFilterClass,
   getStatusMeta
 } from "@/components/StatusBadge";
+import { cacheCowSnapshot } from "@/lib/cowInstantCache";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 import { fetchCows as fetchCowsOffline } from "@/lib/offlineActions";
 
@@ -23,6 +25,7 @@ const statusLabels = {
 };
 
 export default function GayiPage() {
+  const router = useRouter();
   const [cows, setCows] = useState([]);
   const [fromCache, setFromCache] = useState(false);
   const [fetchedAt, setFetchedAt] = useState("");
@@ -78,6 +81,25 @@ export default function GayiPage() {
       return matchesStatus && matchesSearch;
     });
   }, [cows, query, statusFilter]);
+
+  useEffect(() => {
+    if (!filteredCows.length) return;
+
+    const warmVisibleCows = () => {
+      filteredCows.slice(0, 30).forEach((cow) => {
+        cacheCowSnapshot(cow);
+        router.prefetch(`/gayi/${cow.id}`);
+      });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(warmVisibleCows, { timeout: 800 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(warmVisibleCows, 100);
+    return () => window.clearTimeout(timeoutId);
+  }, [filteredCows, router]);
 
   if (loading) {
     return <LoadingState text="गायी लोड होत आहेत..." />;
