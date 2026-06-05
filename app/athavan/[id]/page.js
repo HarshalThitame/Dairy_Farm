@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
@@ -23,6 +23,22 @@ import {
   toMarathiNumerals
 } from "@/lib/marathiUtils";
 import { fetchReminderDetail, updateReminderAction } from "@/lib/offlineActions";
+import { cacheReminderSnapshot, getReminderSnapshot } from "@/lib/reminderInstantCache";
+
+function emptyCowRecords() {
+  return {
+    ai_records: [],
+    calving_records: [],
+    milk_records: [],
+    health_records: [],
+    finance_records: [],
+    reminders: []
+  };
+}
+
+function cowProfileFromReminder(reminder) {
+  return reminder?.cows ? { cow: reminder.cows, records: emptyCowRecords() } : null;
+}
 
 function routeForReminder(reminder) {
   const cowQuery = reminder.cow_id ? `cow_id=${reminder.cow_id}` : "";
@@ -62,30 +78,47 @@ function routeForReminder(reminder) {
 export default function AthavanDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [reminder, setReminder] = useState(null);
-  const [cowProfile, setCowProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const reminderId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const initialReminder = getReminderSnapshot(reminderId);
+  const [reminder, setReminder] = useState(initialReminder);
+  const [cowProfile, setCowProfile] = useState(() => cowProfileFromReminder(initialReminder));
+  const hasInstantReminder = useRef(Boolean(initialReminder));
+  const [loading, setLoading] = useState(() => !initialReminder);
+  const [refreshing, setRefreshing] = useState(() => Boolean(initialReminder));
   const [actionLoading, setActionLoading] = useState("");
   const [error, setError] = useState("");
+  const [refreshError, setRefreshError] = useState("");
   const [message, setMessage] = useState("");
 
-  const fetchReminder = useCallback(async () => {
-    setLoading(true);
+  const fetchReminder = useCallback(async (background = false) => {
+    if (!background) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     setError("");
+    setRefreshError("");
 
     try {
-      const result = await fetchReminderDetail(params.id);
+      const result = await fetchReminderDetail(reminderId);
       setReminder(result.reminder);
       setCowProfile(result.cowProfile);
+      cacheReminderSnapshot(result.reminder);
     } catch (fetchError) {
-      setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
+      const nextError = fetchError.message || "माहिती मिळवताना चूक झाली.";
+      if (background) {
+        setRefreshError(nextError);
+      } else {
+        setError(nextError);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [params.id]);
+  }, [reminderId]);
 
   useEffect(() => {
-    fetchReminder();
+    fetchReminder(hasInstantReminder.current);
   }, [fetchReminder]);
 
   const lastAI = useMemo(() => {
@@ -168,6 +201,18 @@ export default function AthavanDetailPage() {
 
   return (
     <div className="space-y-5">
+      {refreshing || refreshError ? (
+        <div
+          className={`sticky top-20 z-20 rounded-lg border px-4 py-3 text-[16px] font-extrabold shadow-sm ${
+            refreshError
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-green-200 bg-green-50 text-green-900"
+          }`}
+        >
+          {refreshError ? `Cached आठवण दाखवत आहे. ${refreshError}` : "ताजी आठवण माहिती लोड होत आहे..."}
+        </div>
+      ) : null}
+
       <PageHeader
         title={`${getReminderEmoji(reminder.type)} ${reminder.type}`}
         subtitle={formatMarathiDate(reminder.reminder_date)}

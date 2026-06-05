@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { isCalfMilkReminder } from "@/lib/calfReminderDisplay";
 import { getCalvingRecordHref, isCalvingReminder } from "@/lib/calvingReminder";
+import { cacheCowSnapshot } from "@/lib/cowInstantCache";
+import { cacheReminderSnapshot } from "@/lib/reminderInstantCache";
 import {
   getReminderDayDistance,
   getReminderEmoji,
@@ -50,6 +54,7 @@ export default function ReminderCard({
   onSkip,
   compact = false
 }) {
+  const router = useRouter();
   const urgency = getUrgencyLevel(reminder.reminder_date);
   const emoji = getReminderEmoji(reminder.type);
   const calfReminder = isCalfMilkReminder(reminder);
@@ -65,12 +70,28 @@ export default function ReminderCard({
   const pregnancyReminder =
     reminder.type === PREGNANCY_CHECK_REMINDER_TYPE ||
     reminder.type === MISSED_PREGNANCY_REMINDER_TYPE;
+  const detailHref = `/athavan/${reminder.id}`;
+
+  const warmReminderRoutes = useCallback(() => {
+    cacheReminderSnapshot(reminder);
+    if (reminder.cows) {
+      cacheCowSnapshot(reminder.cows);
+    }
+    if (detailHref) router.prefetch(detailHref);
+    if (infoHref) router.prefetch(infoHref);
+    if (actionHref) router.prefetch(actionHref);
+    if (calvingReminder) router.prefetch(getCalvingRecordHref(reminder));
+  }, [actionHref, calvingReminder, detailHref, infoHref, reminder, router]);
 
   const colorClass =
     compact && urgency === "today" ? "border-l-athavan bg-yellow-50" : cardStyles[urgency];
 
   return (
     <article
+      onMouseEnter={warmReminderRoutes}
+      onFocus={warmReminderRoutes}
+      onPointerDown={warmReminderRoutes}
+      onTouchStart={warmReminderRoutes}
       className={`dashboard-card relative overflow-hidden rounded-lg border border-l-4 border-slate-200 p-4 shadow-soft ${
         colorClass
       }`}
@@ -122,6 +143,8 @@ export default function ReminderCard({
         {actionHref ? (
           <Link
             href={actionHref}
+            prefetch
+            onClick={warmReminderRoutes}
             className={`flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white shadow-sm active:bg-green-700 ${
               compact ? "" : "col-span-2"
             }`}
@@ -133,6 +156,8 @@ export default function ReminderCard({
         {canComplete && calvingReminder ? (
           <Link
             href={getCalvingRecordHref(reminder)}
+            prefetch
+            onClick={warmReminderRoutes}
             className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white shadow-sm active:bg-green-700"
           >
             🐄 व्यायण नोंद
@@ -141,7 +166,9 @@ export default function ReminderCard({
 
         {canComplete && pregnancyReminder ? (
           <Link
-            href={`/athavan/${reminder.id}`}
+            href={detailHref}
+            prefetch
+            onClick={warmReminderRoutes}
             className="flex min-h-[52px] items-center justify-center rounded-lg bg-sheti px-4 text-center text-[18px] font-extrabold text-white shadow-sm active:bg-green-700"
           >
             🤰 निकाल नोंदवा
@@ -161,6 +188,8 @@ export default function ReminderCard({
         {infoHref ? (
           <Link
             href={infoHref}
+            prefetch
+            onClick={warmReminderRoutes}
             className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-white px-4 text-center text-[18px] font-extrabold text-sheti shadow-sm active:bg-green-100"
           >
             {infoLabel}

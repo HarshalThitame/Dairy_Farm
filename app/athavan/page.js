@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import ReminderCard from "@/components/ReminderCard";
@@ -17,6 +18,8 @@ import {
 } from "@/lib/reminderUtils";
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
 import { fetchRemindersByFilter, updateReminderAction } from "@/lib/offlineActions";
+import { cacheCowSnapshot } from "@/lib/cowInstantCache";
+import { cacheReminderSnapshot } from "@/lib/reminderInstantCache";
 
 const typeFilters = [
   { value: "सर्व", label: "सर्व" },
@@ -127,6 +130,7 @@ function pillClass(active, tone = "green") {
 }
 
 export default function AthavanPage() {
+  const router = useRouter();
   const today = getTodayISODate();
   const tomorrow = addDaysToISODate(today, 1);
   const [weekReminders, setWeekReminders] = useState([]);
@@ -203,14 +207,6 @@ export default function AthavanPage() {
     }, 50);
   }
 
-  if (loading) {
-    return <LoadingState text="आठवणी लोड होत आहेत..." />;
-  }
-
-  if (error) {
-    return <ErrorState message={error} onRetry={fetchReminders} />;
-  }
-
   const filteredToday = filterByType(todayReminders, typeFilter);
   const filteredTomorrow = filterByType(tomorrowReminders, typeFilter);
   const filteredWeek = filterByType(laterWeekReminders, typeFilter);
@@ -218,6 +214,45 @@ export default function AthavanPage() {
   const filteredDone = filterByType(doneReminders, typeFilter);
   const groupedWeek = groupRemindersByDate(filteredWeek);
   const groupDates = Object.keys(groupedWeek).sort();
+  const visibleReminders = useMemo(
+    () => [
+      ...filteredToday,
+      ...filteredTomorrow,
+      ...filteredWeek,
+      ...filteredOverdue,
+      ...(summaryFilter === "done" ? filteredDone : [])
+    ],
+    [filteredDone, filteredOverdue, filteredToday, filteredTomorrow, filteredWeek, summaryFilter]
+  );
+
+  useEffect(() => {
+    if (!visibleReminders.length) return;
+
+    const warmReminders = () => {
+      visibleReminders.slice(0, 40).forEach((reminder) => {
+        cacheReminderSnapshot(reminder);
+        if (reminder.cows) cacheCowSnapshot(reminder.cows);
+        router.prefetch(`/athavan/${reminder.id}`);
+        if (reminder.cow_id) router.prefetch(`/gayi/${reminder.cow_id}`);
+      });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(warmReminders, { timeout: 900 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(warmReminders, 100);
+    return () => window.clearTimeout(timeoutId);
+  }, [router, visibleReminders]);
+
+  if (loading) {
+    return <LoadingState text="आठवणी लोड होत आहेत..." />;
+  }
+
+  if (error) {
+    return <ErrorState message={error} onRetry={fetchReminders} />;
+  }
 
   return (
     <div className="space-y-6">

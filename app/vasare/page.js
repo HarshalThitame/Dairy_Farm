@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AnimalPhotoInput from "@/components/AnimalPhotoInput";
 import CowSelector from "@/components/CowSelector";
@@ -12,6 +13,7 @@ import LoadingState from "@/components/LoadingState";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import VeterinarianSelect from "@/components/settings/VeterinarianSelect";
 import { calfStatuses } from "@/lib/calfLifecycle";
+import { cacheCowSnapshot } from "@/lib/cowInstantCache";
 import {
   addDaysToDate,
   formatCowBreed,
@@ -129,6 +131,7 @@ function filterButtonClass(active, tone = "green") {
 }
 
 function CalfCard({ calf, onEdit, onStatusChange }) {
+  const router = useRouter();
   const canChangeStatus = ["active", "historical"].includes(calf.status);
   const statusActions = [
     { status: "sold", label: "विकली" },
@@ -227,6 +230,12 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
           {calf.converted_cow ? (
             <Link
               href={`/gayi/${calf.converted_cow.id}`}
+              prefetch
+              onClick={() => cacheCowSnapshot(calf.converted_cow)}
+              onMouseEnter={() => {
+                cacheCowSnapshot(calf.converted_cow);
+                router.prefetch(`/gayi/${calf.converted_cow.id}`);
+              }}
               className="mt-2 inline-flex min-h-[46px] items-center rounded-lg bg-white px-3 text-[18px] font-extrabold text-blue-900 shadow-sm active:bg-blue-100"
             >
               🐄 {calf.converted_cow.name} बघा
@@ -300,6 +309,7 @@ function emptyConversionForm(calf) {
 }
 
 export default function CalvesPage() {
+  const router = useRouter();
   const [calves, setCalves] = useState([]);
   const [summary, setSummary] = useState(null);
   const [statusFilter, setStatusFilter] = useState("active");
@@ -335,6 +345,29 @@ export default function CalvesPage() {
   useEffect(() => {
     fetchCalves();
   }, [fetchCalves]);
+
+  useEffect(() => {
+    const convertedCows = calves
+      .map((calf) => calf.converted_cow)
+      .filter((cow) => cow?.id);
+
+    if (!convertedCows.length) return;
+
+    const warmConvertedCowRoutes = () => {
+      convertedCows.slice(0, 20).forEach((cow) => {
+        cacheCowSnapshot(cow);
+        router.prefetch(`/gayi/${cow.id}`);
+      });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(warmConvertedCowRoutes, { timeout: 900 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(warmConvertedCowRoutes, 100);
+    return () => window.clearTimeout(timeoutId);
+  }, [calves, router]);
 
   function updateField(field, value) {
     setForm((current) => {

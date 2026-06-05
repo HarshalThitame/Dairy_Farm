@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import AppFooter from "@/components/AppFooter";
+import AppRouteWarmup from "@/components/AppRouteWarmup";
 import AuthRequired from "@/components/AuthRequired";
 import BottomNav from "@/components/BottomNav";
 import NetworkStatusBar from "@/components/NetworkStatusBar";
@@ -41,6 +42,7 @@ export default function AppChrome({ children }) {
       <main className="app-shell safe-bottom relative mx-auto min-h-screen w-full max-w-3xl px-4 pb-28 pt-5 sm:px-6">
         <AuthRequired>
           <NotificationBanner />
+          <AppRouteWarmup />
           {children}
         </AuthRequired>
       </main>
