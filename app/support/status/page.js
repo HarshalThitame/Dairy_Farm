@@ -64,8 +64,8 @@ export default function SupportStatusPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-2">
-        {(data.services || []).map((service) => (
-          <article key={service.id} className={`rounded-2xl border p-4 shadow-soft ${tone(service.status)}`}>
+        {(data.services || []).map((service, index) => (
+          <article key={service.id || service.service_name || service.name || index} className={`rounded-2xl border p-4 shadow-soft ${tone(service.status)}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-[22px] font-black">{service.service_name}</h3>

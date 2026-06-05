@@ -43,7 +43,7 @@ export default function FarmsTable({ farms = [], onSuspend, loadingFarmId = null
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-[1100px] w-full border-collapse text-left">
         <thead className="bg-slate-50 text-[15px] uppercase tracking-wide text-slate-500">
           <tr>

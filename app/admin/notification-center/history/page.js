@@ -142,7 +142,7 @@ export default function NotificationHistoryPage() {
       {error ? <div className="rounded-xl bg-red-50 p-5 text-[18px] font-bold text-red-800">{error}</div> : null}
       {loading ? <div className="text-[20px] font-extrabold text-slate-600">Loading notifications...</div> : null}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[1100px] text-left">
           <thead className="bg-slate-50 text-[14px] uppercase text-slate-500">
             <tr>

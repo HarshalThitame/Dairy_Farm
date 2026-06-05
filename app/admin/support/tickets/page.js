@@ -77,7 +77,7 @@ export default function AdminSupportTicketsPage() {
       {loading ? (
         <div className="text-[20px] font-extrabold text-slate-600">Loading tickets...</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="min-w-[1000px] w-full text-left">
             <thead className="bg-slate-50 text-[14px] uppercase text-slate-500">
               <tr>
@@ -127,4 +127,3 @@ function Stat({ label, value }) {
     </div>
   );
 }
-

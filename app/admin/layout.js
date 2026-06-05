@@ -27,27 +27,29 @@ function AdminShell({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen overflow-x-hidden bg-slate-100 text-slate-900">
       <Sidebar admin={admin} onLogout={logout} open={open} onClose={() => setOpen(false)} />
-      <div className="lg:pl-[280px]">
-        <header className="sticky top-0 z-30 flex min-h-[72px] items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm lg:px-8">
+      <div className="min-w-0 lg:pl-[280px]">
+        <header className="sticky top-0 z-30 flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm lg:flex-nowrap lg:px-8">
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="min-h-[48px] rounded-lg bg-slate-900 px-4 text-[18px] font-bold text-white lg:hidden"
+            className="min-h-[48px] shrink-0 rounded-lg bg-slate-900 px-4 text-[18px] font-bold text-white lg:hidden"
           >
             ☰ Menu
           </button>
-          <div>
-            <div className="text-[22px] font-extrabold">Platform Management</div>
-            <div className="text-[14px] font-semibold text-slate-500">{pathname}</div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[20px] font-extrabold sm:text-[22px]">Platform Management</div>
+            <div className="truncate text-[14px] font-semibold text-slate-500">{pathname}</div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <Link
               href="/admin/notification-center"
-              className="flex min-h-[48px] items-center justify-center rounded-lg bg-yellow-100 px-4 text-[16px] font-extrabold text-yellow-900 ring-1 ring-yellow-200 hover:bg-yellow-200"
+              aria-label="Notifications"
+              className="flex min-h-[48px] items-center justify-center rounded-lg bg-yellow-100 px-3 text-[16px] font-extrabold text-yellow-900 ring-1 ring-yellow-200 hover:bg-yellow-200 sm:px-4"
             >
-              🔔 Notifications
+              <span aria-hidden="true">🔔</span>
+              <span className="hidden sm:ml-2 sm:inline">Notifications</span>
             </Link>
             <div className="hidden text-right lg:block">
               <div className="text-[18px] font-extrabold">{admin?.name}</div>
@@ -55,7 +57,7 @@ function AdminShell({ children }) {
             </div>
           </div>
         </header>
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="min-w-0 max-w-full overflow-x-hidden p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
