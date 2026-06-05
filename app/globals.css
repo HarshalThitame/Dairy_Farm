@@ -541,6 +541,116 @@ input::placeholder {
   animation: activityFadeIn 420ms ease-out both;
 }
 
+.loading-state-shell {
+  position: relative;
+}
+
+.loading-state-panel {
+  box-shadow:
+    0 24px 64px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  animation: loadingStateEnter 360ms ease-out both;
+}
+
+.loading-state-panel::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(22, 163, 74, 0.12), transparent 34%),
+    linear-gradient(225deg, rgba(14, 165, 233, 0.1), transparent 36%),
+    linear-gradient(180deg, rgba(245, 158, 11, 0.09), transparent 44%);
+}
+
+.loading-state-topline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0.35rem;
+  background: linear-gradient(90deg, #16a34a, #0ea5e9, #f59e0b);
+}
+
+.loading-state-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.72) 46%, transparent 62%);
+  transform: translateX(-85%);
+  animation: loadingStateSheen 2.8s ease-in-out infinite;
+}
+
+.loading-state-brand {
+  isolation: isolate;
+}
+
+.loading-state-ring {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.loading-state-ring-outer {
+  width: 5.75rem;
+  height: 5.75rem;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+  background: conic-gradient(from 0deg, rgba(22, 163, 74, 0.2), rgba(14, 165, 233, 0.18), rgba(245, 158, 11, 0.16), rgba(22, 163, 74, 0.2));
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 59%);
+  mask: radial-gradient(circle, transparent 58%, #000 59%);
+  animation: loadingStateRotate 2.4s linear infinite;
+}
+
+.loading-state-ring-inner {
+  width: 4.35rem;
+  height: 4.35rem;
+  border: 2px solid rgba(22, 163, 74, 0.16);
+  border-top-color: rgba(22, 163, 74, 0.78);
+  border-right-color: rgba(14, 165, 233, 0.58);
+  animation: loadingStateRotate 1.45s linear infinite reverse;
+}
+
+.loading-state-meter {
+  position: relative;
+  width: min(16rem, 76vw);
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.92);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.1);
+}
+
+.loading-state-meter-fill {
+  position: absolute;
+  inset: 0;
+  width: 46%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #16a34a, #0ea5e9, #f59e0b);
+  box-shadow: 0 0 18px rgba(22, 163, 74, 0.28);
+  animation: loadingStateMeter 1.55s ease-in-out infinite;
+}
+
+.loading-state-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  animation: loadingStateDot 1.25s ease-in-out infinite;
+}
+
+.loading-state-dot-green {
+  background: #16a34a;
+}
+
+.loading-state-dot-sky {
+  background: #0ea5e9;
+  animation-delay: 140ms;
+}
+
+.loading-state-dot-amber {
+  background: #f59e0b;
+  animation-delay: 280ms;
+}
+
 @keyframes dashboardFadeUp {
   from {
     opacity: 0;
@@ -711,6 +821,62 @@ input::placeholder {
   }
 }
 
+@keyframes loadingStateEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes loadingStateSheen {
+  0%,
+  42% {
+    transform: translateX(-85%);
+  }
+
+  100% {
+    transform: translateX(85%);
+  }
+}
+
+@keyframes loadingStateRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loadingStateMeter {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  52% {
+    transform: translateX(78%);
+  }
+
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+@keyframes loadingStateDot {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translateY(0) scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.08);
+  }
+}
+
 @media (max-width: 640px) {
   .dashboard-hero::before,
   .dashboard-scan::after,
@@ -741,7 +907,13 @@ input::placeholder {
   .ai-mascot-eye,
   .activity-fade-list > *,
   .home-skeleton,
-  .empty-state-soft {
+  .empty-state-soft,
+  .loading-state-panel,
+  .loading-state-sheen,
+  .loading-state-ring-outer,
+  .loading-state-ring-inner,
+  .loading-state-meter-fill,
+  .loading-state-dot {
     animation: none;
   }
 

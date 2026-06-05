@@ -10,6 +10,7 @@ import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
 import LoadingState from "@/components/LoadingState";
 import MarathiTextInput from "@/components/MarathiTextInput";
+import VeterinarianSelect from "@/components/settings/VeterinarianSelect";
 import { calfStatuses } from "@/lib/calfLifecycle";
 import {
   addDaysToDate,
@@ -957,13 +958,11 @@ export default function CalvesPage() {
               </select>
             </FormField>
 
-            <FormField label="पशुवैद्यकाचे नाव">
-              <MarathiTextInput
-                value={conversionForm.doctor_name}
-                onValueChange={(value) => updateConversionField("doctor_name", value)}
-                className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
-              />
-            </FormField>
+            <VeterinarianSelect
+              value={conversionForm.doctor_name}
+              onChange={(value) => updateConversionField("doctor_name", value)}
+              className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti disabled:bg-slate-50 disabled:text-slate-500"
+            />
 
             <FormField label="रेतन खर्च">
               <div className="grid grid-cols-[auto_1fr] items-center rounded-lg border-2 border-green-100 bg-white focus-within:border-sheti">

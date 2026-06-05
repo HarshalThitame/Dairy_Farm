@@ -58,6 +58,8 @@ export default function ReminderCard({
     : reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
   const actionHref = reminder.action_href || reminder.actionHref || "";
   const actionLabel = reminder.action_label || reminder.actionLabel || "उघडा";
+  const infoHref = calfReminder ? "/vasare" : reminder.cow_id ? `/gayi/${reminder.cow_id}` : "";
+  const infoLabel = calfReminder ? "🐮 वासरे बघा" : "📋 माहिती बघा";
   const canComplete = !actionHref && (urgency === "overdue" || urgency === "today");
   const calvingReminder = isCalvingReminder(reminder);
   const pregnancyReminder =
@@ -156,12 +158,12 @@ export default function ReminderCard({
           </button>
         ) : null}
 
-        {reminder.cow_id ? (
+        {infoHref ? (
           <Link
-            href={`/gayi/${reminder.cow_id}`}
+            href={infoHref}
             className="flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-200 bg-white px-4 text-center text-[18px] font-extrabold text-sheti shadow-sm active:bg-green-100"
           >
-            📋 माहिती बघा
+            {infoLabel}
           </Link>
         ) : null}
 

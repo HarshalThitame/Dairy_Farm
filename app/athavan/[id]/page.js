@@ -65,6 +65,7 @@ export default function AthavanDetailPage() {
   const [reminder, setReminder] = useState(null);
   const [cowProfile, setCowProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -96,27 +97,48 @@ export default function AthavanDetailPage() {
   }, [cowProfile]);
 
   async function patchReminder(action, days) {
+    if (!reminder?.id || actionLoading) {
+      return;
+    }
+
+    setActionLoading(action);
+    setError("");
+
     try {
-      await updateReminderAction(reminder.id, action, days);
+      const result = await updateReminderAction(reminder.id, action, days);
 
       if (action === "snooze") {
-        setMessage("आठवण उद्यासाठी पुढे ढकलली");
-        fetchReminder();
+        const updatedReminder = result?.data || null;
+        setReminder((current) => ({
+          ...(current || reminder),
+          ...(updatedReminder || {}),
+          reminder_date: updatedReminder?.reminder_date || current?.reminder_date || reminder.reminder_date
+        }));
+        setMessage("आठवण पुढे ढकलली");
         return;
       }
 
       router.back();
     } catch (patchError) {
       setError(patchError.message || "आठवण बदलली नाही.");
+    } finally {
+      setActionLoading("");
     }
   }
 
   async function recordPregnancyResult(result) {
+    if (!reminder?.id || actionLoading) {
+      return;
+    }
+
     const action = result === "positive" ? "pregnancy-positive" : "pregnancy-negative";
     const successMessage =
       result === "positive"
         ? "गर्भधारणा झाली म्हणून नोंद झाली."
         : "गर्भधारणा नाही म्हणून नोंद झाली. पुन्हा रेतन सूचना तयार झाली.";
+
+    setActionLoading(action);
+    setError("");
 
     try {
       await updateReminderAction(reminder.id, action);
@@ -124,6 +146,8 @@ export default function AthavanDetailPage() {
       window.setTimeout(() => router.back(), 900);
     } catch (patchError) {
       setError(patchError.message || "गर्भधारणा निकाल जतन झाला नाही.");
+    } finally {
+      setActionLoading("");
     }
   }
 
@@ -196,16 +220,18 @@ export default function AthavanDetailPage() {
             <button
               type="button"
               onClick={() => recordPregnancyResult("positive")}
-              className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
+              disabled={Boolean(actionLoading)}
+              className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm disabled:opacity-70 active:bg-green-700"
             >
-              ✅ गर्भधारणा झाली
+              {actionLoading === "pregnancy-positive" ? "⏳ जतन होत आहे..." : "✅ गर्भधारणा झाली"}
             </button>
             <button
               type="button"
               onClick={() => recordPregnancyResult("negative")}
-              className="min-h-[56px] rounded-lg border-2 border-orange-200 bg-orange-50 px-4 text-[20px] font-extrabold text-orange-900 active:bg-orange-100"
+              disabled={Boolean(actionLoading)}
+              className="min-h-[56px] rounded-lg border-2 border-orange-200 bg-orange-50 px-4 text-[20px] font-extrabold text-orange-900 disabled:opacity-70 active:bg-orange-100"
             >
-              🔁 गर्भधारणा नाही
+              {actionLoading === "pregnancy-negative" ? "⏳ जतन होत आहे..." : "🔁 गर्भधारणा नाही"}
             </button>
           </div>
         ) : calvingReminder ? (
@@ -219,9 +245,10 @@ export default function AthavanDetailPage() {
           <button
             type="button"
             onClick={() => patchReminder("done")}
-            className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm active:bg-green-700"
+            disabled={Boolean(actionLoading)}
+            className="min-h-[56px] rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-sm disabled:opacity-70 active:bg-green-700"
           >
-            ✅ हे काम झाले
+            {actionLoading === "done" ? "⏳ जतन होत आहे..." : "✅ हे काम झाले"}
           </button>
         )}
         {!calvingReminder && !pregnancyReminder ? (
@@ -235,9 +262,10 @@ export default function AthavanDetailPage() {
         <button
           type="button"
           onClick={() => patchReminder("snooze", 1)}
-          className="min-h-[56px] rounded-lg border-2 border-yellow-200 bg-yellow-50 px-4 text-[20px] font-extrabold text-yellow-900 active:bg-yellow-100"
+          disabled={Boolean(actionLoading)}
+          className="min-h-[56px] rounded-lg border-2 border-yellow-200 bg-yellow-50 px-4 text-[20px] font-extrabold text-yellow-900 disabled:opacity-70 active:bg-yellow-100"
         >
-          ⏭️ पुढे ढकला
+          {actionLoading === "snooze" ? "⏳ पुढे ढकलत आहे..." : "⏭️ पुढे ढकला"}
         </button>
       </section>
     </div>

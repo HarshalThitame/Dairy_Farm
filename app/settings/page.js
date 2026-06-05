@@ -26,6 +26,13 @@ const settingsCards = [
     tone: "from-yellow-50 to-white border-yellow-100"
   },
   {
+    href: "/settings/veterinarians",
+    icon: "🩺",
+    title: "पशुवैद्यक",
+    subtitle: "डॉक्टरांची नावे जोडा आणि नोंदीत dropdown मधून निवडा",
+    tone: "from-rose-50 to-white border-rose-100"
+  },
+  {
     href: "/settings/appearance",
     icon: "🎨",
     title: "दिसणे आणि भाषा",

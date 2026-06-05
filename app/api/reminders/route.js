@@ -284,11 +284,10 @@ export async function GET(request) {
 
       const enriched = await enrichReminderRows(supabase, farmId, [data], today);
 
-      if (!enriched.length) {
-        return NextResponse.json({ error: "आठवण सापडली नाही." }, { status: 404 });
-      }
-
-      return NextResponse.json({ data: enriched[0] });
+      // Detail pages must still open for a real reminder even when list-level
+      // lifecycle filtering would hide it. Actions such as snooze/pregnancy
+      // result operate on the raw reminder id.
+      return NextResponse.json({ data: enriched[0] || data });
     }
 
     if (filter === "done") {
@@ -346,22 +345,23 @@ export async function GET(request) {
 }
 
 async function updateReminder(supabase, farmId, id, payload, fallbackPayload) {
-  let result = await supabase
-    .from("reminders")
-    .update(payload)
-    .eq("id", id)
-    .eq("farm_id", farmId)
-    .select()
-    .single();
-
-  if (result.error && fallbackPayload) {
-    result = await supabase
+  const runUpdate = (updatePayload) =>
+    supabase
       .from("reminders")
-      .update(fallbackPayload)
+      .update(updatePayload)
       .eq("id", id)
       .eq("farm_id", farmId)
       .select()
-      .single();
+      .maybeSingle();
+
+  let result = await runUpdate(payload);
+
+  if (result.error && fallbackPayload) {
+    result = await runUpdate(fallbackPayload);
+  }
+
+  if (!result.error && !result.data) {
+    return { data: null, error: new Error("आठवण सापडली नाही.") };
   }
 
   return result;
@@ -389,12 +389,16 @@ export async function PATCH(request) {
       }
       const { data: reminder, error: reminderError } = await supabase
         .from("reminders")
-        .select("id, reminder_date")
+        .select("id, reminder_date, is_done")
         .eq("id", body.id)
         .eq("farm_id", farmId)
-        .single();
+        .maybeSingle();
 
-      if (reminderError || !reminder) {
+      if (reminderError) {
+        throw reminderError;
+      }
+
+      if (!reminder) {
         return NextResponse.json({ error: "आठवण सापडली नाही." }, { status: 404 });
       }
 

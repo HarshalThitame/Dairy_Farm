@@ -6,6 +6,7 @@ import CowSelector from "@/components/CowSelector";
 import FormField from "@/components/FormField";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
+import VeterinarianSelect from "@/components/settings/VeterinarianSelect";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { saveHealthRecord } from "@/lib/offlineActions";
 
@@ -159,13 +160,10 @@ export default function ArogyaNondPage() {
                 />
               </FormField>
 
-              <FormField label="पशुवैद्यकाचे नाव">
-                <MarathiTextInput
-                  value={form.doctor_name}
-                  onValueChange={(value) => updateField("doctor_name", value)}
-                  className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
-                />
-              </FormField>
+              <VeterinarianSelect
+                value={form.doctor_name}
+                onChange={(value) => updateField("doctor_name", value)}
+              />
 
               <FormField label="औषधाचे नाव">
                 <MarathiTextInput
