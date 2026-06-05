@@ -85,7 +85,7 @@ export default function ExpenseForm({ initialData = null }) {
             </div>
             {form.category === "चारा" ? (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[17px] font-extrabold leading-snug text-amber-900">
-                खाद्य रक्कम इथे नोंदवली तरी ती फक्त माहितीसाठी राहील. अंतिम खाद्य खर्च 15 दिवसांच्या स्लिपवरील एकूण कपातवरूनच मोजला जातो.
+                खाद्य रक्कम इथे नोंदवल्यावर ती मासिक खर्च आणि नफा-तोट्यात धरली जाईल.
               </p>
             ) : null}
           </div>

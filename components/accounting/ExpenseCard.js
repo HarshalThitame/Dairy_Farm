@@ -44,7 +44,7 @@ export default function ExpenseCard({ expense, onDelete }) {
       ) : null}
       {expense.info_only ? (
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[16px] font-extrabold text-amber-800">
-          ही खाद्य नोंद फक्त माहितीसाठी आहे. नफा/मासिक खर्चात अंतिम खाद्य कपात 15 दिवसांच्या स्लिपवरूनच घेतली जाते.
+          ही खाद्य नोंद मासिक खर्च आणि नफा-तोट्यात धरली जाते.
         </p>
       ) : null}
     </>

@@ -434,7 +434,7 @@ export default function CharaCostPage() {
           <p className="mt-2 text-[26px] font-extrabold leading-none text-green-950">
             {formatCurrency(summary.monthlyTotal || summary.total || 0)}
           </p>
-          <p className="mt-1 text-[15px] font-bold text-green-800">फक्त माहितीसाठी, नफ्यात नाही</p>
+          <p className="mt-1 text-[15px] font-bold text-green-800">मासिक खर्चात धरले जाते</p>
         </article>
         <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="text-[18px] font-extrabold text-blue-900">वार्षिक खर्च</p>

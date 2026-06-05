@@ -222,7 +222,7 @@ function FarmerResult({ summary }) {
       <h2 className="text-[24px] font-extrabold">या वर्षाचा सोपा निकाल</h2>
       <p className="mt-3 text-[20px] font-bold leading-relaxed">
         या वर्षी दूध आणि इतर उत्पन्न {formatCurrency(summary.totalIncome)} झाले. फार्मचा खर्च {formatCurrency(totalExpense)}
-        {summary.dairyFeedDeduction > 0 ? `, डेअरी खाद्य कपात ${formatCurrency(summary.dairyFeedDeduction)}` : ""}
+        {summary.dairyFeedDeduction > 0 ? `, देयक खाद्य कपात ${formatCurrency(summary.dairyFeedDeduction)}` : ""}
         {summary.otherDeductions > 0 ? ` आणि इतर देयक कपात ${formatCurrency(summary.otherDeductions)}` : ""} धरल्यानंतर
         {result >= 0 ? " नफा " : " तोटा "}
         <span className="font-extrabold">{formatCurrency(Math.abs(result))}</span> आहे.

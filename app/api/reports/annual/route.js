@@ -124,7 +124,7 @@ function normalizeFinanceRecord(record) {
 }
 
 function isInfoOnlyKhadyaTransaction(record) {
-  return record?.type === "खर्च" && record?.source !== "dairy_settlements" && isKhadyaExpenseCategory(record.category);
+  return false;
 }
 
 function buildMilkSummary(slips, settlements, monthRows) {
@@ -343,7 +343,7 @@ function buildFeedSummary(records) {
     if (period === "annual") {
       annualTotal += amount;
     } else if (isKhadyaExpenseCategory(section)) {
-      infoOnlyMonthlyTotal += amount;
+      monthlyTotal += amount;
     } else {
       monthlyTotal += amount;
     }

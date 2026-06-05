@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
-import { isKhadyaExpenseCategory, summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
+import { summarizeMilkIncomeForMonth } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -98,7 +98,7 @@ function normalizeFinanceRecord(record) {
 }
 
 function isInfoOnlyKhadyaTransaction(record) {
-  return record?.type === "खर्च" && record?.source !== "dairy_settlements" && isKhadyaExpenseCategory(record.category);
+  return false;
 }
 
 function getSettlementAccountingDate(settlement = {}) {

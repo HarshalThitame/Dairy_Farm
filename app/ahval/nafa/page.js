@@ -160,7 +160,7 @@ export default function ProfitAnalyticsPage() {
               emoji="💸"
               title="मासिक खर्च"
               value={formatCurrency(finalMonthlyExpense)}
-              subtext="डेअरी खाद्य कपात + इतर"
+              subtext="खाद्य खर्च + इतर"
               color="red"
             />
             <SummaryCard
@@ -249,7 +249,7 @@ export default function ProfitAnalyticsPage() {
                 tone="bg-green-50 text-green-900"
               />
               <PerformanceRow
-                label="डेअरी खाद्य कपात"
+                label="खाद्य खर्च"
                 value={formatCurrency(report.settlementDeductions?.cattleFeedDeduction || 0)}
                 tone="bg-red-50 text-red-900"
               />

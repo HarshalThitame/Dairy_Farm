@@ -211,7 +211,7 @@ function isIncomeRecord(row) {
 function isDairyDeductionExpense(row) {
   const category = normalizeType(row?.category);
   return [
-    "डेअरी खाद्य कपात",
+    "देयक खाद्य कपात",
     "खाद्य कपात",
     "dairy feed deduction",
     "feed deduction"
@@ -732,7 +732,7 @@ async function getFarmDetails(supabase, farmId) {
   const settlementFeedDeduction = sumBy(currentMonthSettlementRows, (row) => row.cattle_feed_deduction);
   const settlementOtherDeduction = sumBy(currentMonthSettlementRows, (row) => row.other_deductions);
   if (settlementFeedDeduction > 0) {
-    expenseCategoryTotals["डेअरी खाद्य कपात"] = round((expenseCategoryTotals["डेअरी खाद्य कपात"] || 0) + settlementFeedDeduction);
+    expenseCategoryTotals["देयक खाद्य कपात"] = round((expenseCategoryTotals["देयक खाद्य कपात"] || 0) + settlementFeedDeduction);
   }
   if (settlementOtherDeduction > 0) {
     expenseCategoryTotals["सेटलमेंट इतर कपात"] = round((expenseCategoryTotals["सेटलमेंट इतर कपात"] || 0) + settlementOtherDeduction);

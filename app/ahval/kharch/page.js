@@ -405,7 +405,7 @@ export default function ExpenseAnalyticsPage() {
               <CompactStat
                 label="मासिक खर्च"
                 value={formatCurrency(finalMonthlyExpenseTotal)}
-                hint="डेअरी खाद्य कपात + औषध + मजुरी + इतर"
+                hint="खाद्य खर्च + औषध + मजुरी + इतर"
                 tone="red"
               />
               <CompactStat
@@ -444,7 +444,7 @@ export default function ExpenseAnalyticsPage() {
             entries={monthlyExpenses.length}
             topItem={topMonthlyExpense}
             summaryText="हा भाग निवडलेल्या महिन्याचा अंतिम खर्च दाखवतो."
-            includeText="15 दिवसांच्या स्लिपवरील खाद्य कपात, औषध, मजुरी, वीज, वाहतूक, पशुवैद्यक आणि इतर खर्च."
+            includeText="खाद्य नोंदी, 15 दिवसांच्या स्लिपवरील खाद्य कपात, औषध, मजुरी, वीज, वाहतूक, पशुवैद्यक आणि इतर खर्च."
             excludeText="मुरघास आणि भुसा इथे धरलेले नाहीत."
             breakdownTitle="मासिक खर्च विभागवार"
             breakdownItems={finalMonthlyExpenseBreakdown}

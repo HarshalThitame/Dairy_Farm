@@ -860,7 +860,7 @@ export default function DashboardPage() {
               <AnimatedNumber value={monthlyExpenseTotal} formatter={(value) => formatCurrency(value)} />
             </p>
             <p className="mt-1 text-[15px] font-bold leading-snug text-red-800">
-              डेअरी खाद्य कपात + इतर
+              खाद्य खर्च + इतर
             </p>
           </Link>
           <Link

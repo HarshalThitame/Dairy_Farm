@@ -68,7 +68,7 @@ export default function AccountingExpensesPage() {
     <div className="space-y-6">
       <PageHeader
         title="💸 मासिक खर्च"
-        subtitle="अंतिम खाद्य कपात 15 दिवसांच्या स्लिपवरून"
+        subtitle="खाद्य, औषध, मजुरी आणि इतर मासिक खर्च"
         action={
           <Link href="/accounting/expenses/new" className="flex min-h-[52px] items-center rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white active:bg-green-700">
             + नवीन
@@ -83,7 +83,7 @@ export default function AccountingExpensesPage() {
       {!loading && !error ? (
         <>
           <section className="grid grid-cols-2 gap-3">
-            <SummaryCard emoji="🌾" title="अंतिम खाद्य कपात" value={toMarathiCurrency(data?.byCategory?.["चारा"] || 0)} subtext="15 दिवसांची स्लिप" color="yellow" />
+            <SummaryCard emoji="🌾" title="खाद्य खर्च" value={toMarathiCurrency(data?.byCategory?.["चारा"] || 0)} subtext="नोंदी + देयक कपात" color="yellow" />
             <SummaryCard emoji="🥕" title="भूसा" value={toMarathiCurrency(data?.byCategory?.["भूसा"] || 0)} color="yellow" />
             <SummaryCard emoji="💊" title="औषध" value={toMarathiCurrency(data?.byCategory?.["औषध"] || 0)} color="purple" />
             <SummaryCard emoji="👷" title="मजुरी" value={toMarathiCurrency(data?.byCategory?.["मजुरी"] || 0)} color="slate" />
@@ -93,8 +93,8 @@ export default function AccountingExpensesPage() {
 
           {Number(data?.infoOnlyKhadyaTotal || 0) > 0 ? (
             <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-[18px] font-bold text-amber-900">
-              नोंदीतील खाद्य: {toMarathiCurrency(data.infoOnlyKhadyaTotal)} फक्त माहितीसाठी ठेवले आहे.
-              अंतिम खर्चात फक्त 15 दिवसांच्या स्लिपवरील कपात धरली आहे.
+              नोंदीतील खाद्य: {toMarathiCurrency(data.infoOnlyKhadyaTotal)} मासिक खर्चात धरले आहे.
+              हा आकडा एकूण खर्चात समाविष्ट आहे.
             </section>
           ) : null}
 

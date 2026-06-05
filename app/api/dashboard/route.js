@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
 import {
   applyFinanceIncomeToSummary,
-  isKhadyaExpenseCategory,
+  normalizeAccountingExpenseCategory,
+  refreshMonthlySummary,
   summarizeMilkIncomeForMonth
 } from "@/lib/accountingUtils";
 import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
@@ -80,11 +81,11 @@ function buildFinanceSummary({
     .filter((record) => record.type === "उत्पन्न")
     .reduce((total, record) => total + Number(record.amount || 0), 0);
   const manualExpense = monthlyFinance
-    .filter((record) => record.type === "खर्च" && !isKhadyaExpenseCategory(record.category))
+    .filter((record) => record.type === "खर्च")
     .reduce((total, record) => total + Number(record.amount || 0), 0);
   const healthExpense = sum(healthRecords, "cost");
   const accountingExpense = sum(
-    (monthlyExpenses || []).filter((record) => !isKhadyaExpenseCategory(record.category)),
+    (monthlyExpenses || []),
     "amount"
   );
   const aiExpense = sum(aiRecords, "cost");
@@ -150,12 +151,25 @@ function buildFinanceSummaryFromMonthlySummary(summary, financeRecords = []) {
   };
 }
 
+function getMonthlyFeedExpenseTotal({ financeRecords = [], monthlyExpenses = [] }) {
+  const financeFeed = (financeRecords || [])
+    .filter((record) => record.type === "खर्च")
+    .filter((record) => getFinanceAccountingPeriod(record) !== "annual")
+    .filter((record) => normalizeAccountingExpenseCategory(record.category) === "चारा")
+    .reduce((total, record) => total + Number(record.amount || 0), 0);
+  const directFeed = (monthlyExpenses || [])
+    .filter((record) => normalizeAccountingExpenseCategory(record.category) === "चारा")
+    .reduce((total, record) => total + Number(record.amount || 0), 0);
+
+  return roundMoney(financeFeed + directFeed);
+}
+
 async function buildMonthlyDashboardReports(supabase, farmId, monthInput) {
   const monthRange = getMonthRange(monthInput.month, monthInput.year);
-  const [monthlySummaryResult, monthlyIncomeRecordsResult] = await Promise.all([
+  const [monthlySummaryResult, monthlyIncomeRecordsResult, monthlyFeedExpensesResult] = await Promise.all([
     supabase
       .from("monthly_summary")
-      .select("total_liters, total_milk_income, total_all_income, total_other_income, total_all_expenses, total_dairy_deductions, net_profit")
+      .select("total_liters, total_milk_income, total_all_income, total_other_income, total_all_expenses, total_feed_expenses, total_dairy_deductions, net_profit")
       .eq("farm_id", farmId)
       .eq("month_year", monthYearKey(monthInput.month, monthInput.year))
       .maybeSingle(),
@@ -164,11 +178,30 @@ async function buildMonthlyDashboardReports(supabase, farmId, monthInput) {
       .select("id, farm_id, date, type, category, amount, accounting_period")
       .eq("farm_id", farmId)
       .gte("date", monthRange.start)
-      .lt("date", monthRange.end)
+      .lt("date", monthRange.end),
+    supabase
+      .from("monthly_expenses")
+      .select("id, category, amount")
+      .eq("farm_id", farmId)
+      .gte("expense_date", monthRange.start)
+      .lt("expense_date", monthRange.end)
   ]);
 
   const monthlyIncomeRecords = assertQuery(monthlyIncomeRecordsResult);
-  const monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
+  const monthlyFeedExpenses = assertQuery(monthlyFeedExpensesResult);
+  let monthlySummary = monthlySummaryResult.error ? null : monthlySummaryResult.data;
+
+  if (monthlySummary) {
+    const currentFeedTotal = Number(monthlySummary.total_feed_expenses || 0);
+    const expectedFeedTotal = getMonthlyFeedExpenseTotal({
+      financeRecords: monthlyIncomeRecords,
+      monthlyExpenses: monthlyFeedExpenses
+    });
+
+    if (expectedFeedTotal > currentFeedTotal + 0.01) {
+      monthlySummary = await refreshMonthlySummary(supabase, farmId, monthInput.month, monthInput.year);
+    }
+  }
   let monthlyLitres = Number(monthlySummary?.total_liters || 0);
   let monthlyFinanceReport = monthlySummary
     ? buildFinanceSummaryFromMonthlySummary(monthlySummary, monthlyIncomeRecords)

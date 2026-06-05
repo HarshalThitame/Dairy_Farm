@@ -89,9 +89,9 @@ function buildSettlementDeductionExpenses(settlements = []) {
         ...base,
         id: `settlement-feed-${settlement.id}`,
         category: "चारा",
-        display_category: "अंतिम डेअरी खाद्य कपात",
+        display_category: "देयक खाद्य कपात",
         amount: Number(settlement.cattle_feed_deduction || 0),
-        description: `15 दिवसांच्या स्लिपवरील एकूण कपात | ${period}`
+        description: `15 दिवसांच्या स्लिपवरील खाद्य कपात | ${period}`
       });
     }
 

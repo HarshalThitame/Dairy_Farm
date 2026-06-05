@@ -471,7 +471,7 @@ export default function FinanceReportPage() {
                 {formatCurrency(finalMonthlyExpense)}
               </p>
               <p className="mt-2 text-[16px] font-bold leading-snug text-red-800">
-                डेअरी खाद्य कपात + इतर
+                खाद्य खर्च + इतर
               </p>
             </article>
             <article className="rounded-lg border border-blue-100 bg-blue-50 p-4">
