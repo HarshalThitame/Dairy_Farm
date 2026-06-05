@@ -109,6 +109,29 @@ function isBeforeExpectedCalving(cow, today) {
   return Boolean(cow?.expected_calving_date && cow.expected_calving_date > today);
 }
 
+function getSortableCalvingDate(cow) {
+  const expectedDate = cow?.expected_calving_date;
+  if (!expectedDate) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const timestamp = new Date(`${expectedDate}T00:00:00`).getTime();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
+function sortByNearestCalvingDate(cows) {
+  return [...cows].sort((firstCow, secondCow) => {
+    const firstDate = getSortableCalvingDate(firstCow);
+    const secondDate = getSortableCalvingDate(secondCow);
+
+    if (firstDate !== secondDate) {
+      return firstDate - secondDate;
+    }
+
+    return String(firstCow.name || "").localeCompare(String(secondCow.name || ""), "mr-IN");
+  });
+}
+
 function CalvingCowPrompt({ cow, today, onConfirm, onChangeCow }) {
   if (!cow) {
     return null;
@@ -233,7 +256,7 @@ export default function VyayanNondPage() {
           };
       });
 
-      setCows(cowsWithAI);
+      setCows(sortByNearestCalvingDate(cowsWithAI));
     } catch (fetchError) {
       setError(fetchError.message || "माहिती मिळवताना चूक झाली.");
     } finally {

@@ -49,32 +49,85 @@ export async function GET(request) {
     const cowIds = (data || []).map((cow) => cow.id);
     let cowsWithLatestMilk = (data || []).map((cow) => ({
       ...cow,
-      latest_milk_record: null
+      latest_milk_record: null,
+      latest_ai_record: null,
+      latest_calving_record: null,
+      next_reminder: null
     }));
 
     if (cowIds.length > 0) {
-      const { data: milkRecords, error: milkError } = await supabase
-        .from("milk_records")
-        .select("id, cow_id, date, morning_litres, evening_litres, total_litres")
-        .eq("farm_id", farmId)
-        .in("cow_id", cowIds)
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
+      const [milkResult, aiResult, calvingResult, reminderResult] = await Promise.all([
+        supabase
+          .from("milk_records")
+          .select("id, cow_id, date, morning_litres, evening_litres, total_litres")
+          .eq("farm_id", farmId)
+          .in("cow_id", cowIds)
+          .order("date", { ascending: false })
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("ai_records")
+          .select("id, cow_id, ai_date, pregnancy_check_date, pregnancy_result")
+          .eq("farm_id", farmId)
+          .in("cow_id", cowIds)
+          .order("ai_date", { ascending: false })
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("calving_records")
+          .select("id, cow_id, expected_date, actual_date, calf_count, calf_gender")
+          .eq("farm_id", farmId)
+          .in("cow_id", cowIds)
+          .order("actual_date", { ascending: false, nullsFirst: false })
+          .order("expected_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("reminders")
+          .select("id, cow_id, reminder_date, type, message")
+          .eq("farm_id", farmId)
+          .in("cow_id", cowIds)
+          .eq("is_done", false)
+          .order("reminder_date", { ascending: true })
+          .order("created_at", { ascending: true })
+      ]);
 
-      if (milkError) {
-        throw milkError;
-      }
+      if (milkResult.error) throw milkResult.error;
+      if (aiResult.error) throw aiResult.error;
+      if (calvingResult.error) throw calvingResult.error;
+      if (reminderResult.error) throw reminderResult.error;
 
       const latestMilkByCow = new Map();
-      (milkRecords || []).forEach((record) => {
+      (milkResult.data || []).forEach((record) => {
         if (!latestMilkByCow.has(record.cow_id)) {
           latestMilkByCow.set(record.cow_id, record);
         }
       });
 
+      const latestAiByCow = new Map();
+      (aiResult.data || []).forEach((record) => {
+        if (!latestAiByCow.has(record.cow_id)) {
+          latestAiByCow.set(record.cow_id, record);
+        }
+      });
+
+      const latestCalvingByCow = new Map();
+      (calvingResult.data || []).forEach((record) => {
+        if (!latestCalvingByCow.has(record.cow_id)) {
+          latestCalvingByCow.set(record.cow_id, record);
+        }
+      });
+
+      const nextReminderByCow = new Map();
+      (reminderResult.data || []).forEach((record) => {
+        if (!nextReminderByCow.has(record.cow_id)) {
+          nextReminderByCow.set(record.cow_id, record);
+        }
+      });
+
       cowsWithLatestMilk = (data || []).map((cow) => ({
         ...cow,
-        latest_milk_record: latestMilkByCow.get(cow.id) || null
+        latest_milk_record: latestMilkByCow.get(cow.id) || null,
+        latest_ai_record: latestAiByCow.get(cow.id) || null,
+        latest_calving_record: latestCalvingByCow.get(cow.id) || null,
+        next_reminder: nextReminderByCow.get(cow.id) || null
       }));
     }
 

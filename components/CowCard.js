@@ -4,7 +4,7 @@ import Link from "next/link";
 /* eslint-disable @next/next/no-img-element */
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import StatusBadge, { getStatusBorderClass } from "@/components/StatusBadge";
+import { getStatusBorderClass } from "@/components/StatusBadge";
 import { cacheCowSnapshot } from "@/lib/cowInstantCache";
 import {
   calculateAgeMarathi,
@@ -12,10 +12,54 @@ import {
   formatMarathiDate
 } from "@/lib/marathiUtils";
 
+function compactDate(value) {
+  return value ? formatMarathiDate(value) : "नोंद नाही";
+}
+
+function getCalvingDate(cow) {
+  const calving = cow.latest_calving_record;
+  if (!calving) {
+    return "";
+  }
+
+  return calving.actual_date || calving.expected_date || "";
+}
+
+function getNextReminderText(cow) {
+  const reminder = cow.next_reminder;
+  if (!reminder) {
+    return "नाही";
+  }
+
+  return `${reminder.type || "आठवण"} · ${compactDate(reminder.reminder_date)}`;
+}
+
 export default function CowCard({ cow }) {
   const router = useRouter();
   const borderClass = getStatusBorderClass(cow.status);
   const href = `/gayi/${cow.id}`;
+  const importantDates = [
+    {
+      label: "जन्म",
+      value: compactDate(cow.date_of_birth),
+      tone: "bg-slate-50 text-slate-900 ring-slate-100"
+    },
+    {
+      label: "खरेदी",
+      value: compactDate(cow.purchased_on),
+      tone: "bg-amber-50 text-amber-950 ring-amber-100"
+    },
+    {
+      label: "शेवटचे रेतन",
+      value: compactDate(cow.latest_ai_record?.ai_date),
+      tone: "bg-blue-50 text-blue-950 ring-blue-100"
+    },
+    {
+      label: "शेवटचे व्यायण",
+      value: compactDate(getCalvingDate(cow)),
+      tone: "bg-purple-50 text-purple-950 ring-purple-100"
+    }
+  ];
 
   const warmCowDetails = useCallback(() => {
     cacheCowSnapshot(cow);
@@ -53,19 +97,14 @@ export default function CowCard({ cow }) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <h2 className="break-words text-[25px] font-extrabold leading-tight text-slate-950">
-                  {cow.name}
-                </h2>
-                <p className="mt-1 break-words text-[17px] font-bold leading-snug text-slate-500">
-                  {formatCowBreed(cow.breed)}
-                  {cow.color ? ` • ${cow.color}` : ""}
-                </p>
-              </div>
-              <div className="shrink-0">
-                <StatusBadge status={cow.status} />
-              </div>
+            <div className="min-w-0">
+              <h2 className="break-words text-[25px] font-extrabold leading-tight text-slate-950">
+                {cow.name}
+              </h2>
+              <p className="mt-1 break-words text-[17px] font-bold leading-snug text-slate-500">
+                {formatCowBreed(cow.breed)}
+                {cow.color ? ` • ${cow.color}` : ""}
+              </p>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2 text-[16px] font-bold leading-snug text-slate-700">
@@ -74,16 +113,37 @@ export default function CowCard({ cow }) {
                 {calculateAgeMarathi(cow.date_of_birth)}
               </div>
               <div className="rounded-lg bg-green-50 px-3 py-2 text-green-900 shadow-sm ring-1 ring-green-100">
-                <span className="block text-[13px] font-extrabold text-green-500">स्थिती</span>
-                {cow.status || "रिकामी"}
+                <span className="block text-[13px] font-extrabold text-green-500">शेवटचे दूध</span>
+                {compactDate(cow.latest_milk_record?.date)}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-          <p className="min-w-0 break-words text-[15px] font-bold leading-snug text-slate-500">
-            {cow.purchased_on ? `खरेदी: ${formatMarathiDate(cow.purchased_on)}` : cow.notes || "तपशील पाहण्यासाठी टॅप करा"}
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="mb-2 text-[14px] font-black uppercase tracking-wide text-slate-400">
+            महत्त्वाच्या तारखा
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {importantDates.map((item) => (
+              <div
+                key={item.label}
+                className={`min-h-[62px] rounded-lg px-3 py-2 shadow-sm ring-1 ${item.tone}`}
+              >
+                <span className="block text-[12px] font-black leading-tight opacity-70">
+                  {item.label}
+                </span>
+                <span className="mt-1 block truncate text-[15px] font-extrabold leading-tight">
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+          <p className="min-w-0 truncate text-[15px] font-extrabold leading-snug text-slate-600">
+            पुढील: {getNextReminderText(cow)}
           </p>
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[20px] font-extrabold text-white transition-transform group-hover:translate-x-0.5">
             →
