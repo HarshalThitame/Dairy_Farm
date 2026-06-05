@@ -560,12 +560,12 @@ export default function DashboardPage() {
         enabled={dailyGoal?.enabled !== false}
       />
 
-      <section className="dashboard-card ai-home-card rounded-lg border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-4 shadow-soft">
-        <div className="flex items-center gap-4">
+      <section className="dashboard-card home-ai-card rounded-lg border border-white/80 bg-white p-4 shadow-soft">
+        <div className="relative z-10 flex items-center gap-4">
           <button
             type="button"
             onClick={() => openAiAssistant()}
-            className="ai-mascot-home flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-white p-1.5 shadow-lg shadow-emerald-900/10"
+            className="ai-mascot-home home-ai-avatar flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-white p-1.5"
             aria-label="AI सहाय्यक उघडा"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -581,19 +581,19 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => openAiAssistant()}
-              className="mt-3 rounded-full bg-emerald-600 px-4 py-2 text-[16px] font-extrabold text-white shadow-sm active:bg-emerald-700"
+              className="home-primary-button mt-3 rounded-full px-4 py-2 text-[16px] font-extrabold text-white shadow-sm active:bg-emerald-700"
             >
               AI उघडा →
             </button>
           </div>
         </div>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        <div className="relative z-10 mt-4 flex gap-2 overflow-x-auto pb-1">
           {["आजचे दूध?", "या महिन्याचे उत्पन्न?", "सरासरी फॅट?", "आजच्या आठवणी?"].map((question) => (
             <button
               key={question}
               type="button"
               onClick={() => openAiAssistant(question)}
-              className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-2 text-[14px] font-extrabold text-emerald-800 shadow-sm active:bg-emerald-50"
+              className="home-question-chip shrink-0 rounded-full border border-white/80 bg-white px-3 py-2 text-[14px] font-extrabold text-emerald-800 shadow-sm active:bg-emerald-50"
             >
               {question}
             </button>
@@ -609,19 +609,19 @@ export default function DashboardPage() {
             <Link
               key={item.label}
               href={item.href}
-              className={`dashboard-card dashboard-summary-tile relative block min-h-[136px] overflow-hidden rounded-lg border p-4 shadow-soft ${tone.card}`}
+              className={`dashboard-card home-summary-card dashboard-summary-tile relative block min-h-[142px] overflow-hidden rounded-lg border p-4 shadow-soft ${tone.card}`}
             >
               <span className={`absolute left-0 top-0 h-1.5 w-full ${tone.accent}`} aria-hidden="true" />
               <div className="flex items-start justify-between gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-[28px] shadow-sm ${tone.icon}`} aria-hidden="true">
+                <div className={`home-summary-icon flex h-12 w-12 items-center justify-center rounded-lg text-[28px] shadow-sm ${tone.icon}`} aria-hidden="true">
                   {item.emoji}
                 </div>
-                <span className="rounded-full bg-white/80 px-2 py-1 text-[15px] font-extrabold text-slate-600 shadow-sm">→</span>
+                <span className="home-card-arrow rounded-full bg-white/80 px-2 py-1 text-[15px] font-extrabold text-slate-600 shadow-sm">→</span>
               </div>
               <h2 className="mt-3 text-[18px] font-bold leading-tight text-slate-700">
                 {item.label}
               </h2>
-              <p className="mt-2 text-[26px] font-extrabold leading-none text-slate-950">
+              <p className="mt-2 text-[26px] font-black leading-none text-slate-950">
                 {item.numericValue !== undefined ? (
                   <AnimatedNumber value={item.numericValue} formatter={item.formatter} />
                 ) : (
@@ -635,10 +635,10 @@ export default function DashboardPage() {
 
       <Link
         href="/accounting/slip-scan"
-        className="dashboard-card dashboard-scan block rounded-lg border border-emerald-200 bg-gradient-to-r from-green-50 via-white to-blue-50 p-4 shadow-soft active:bg-green-100"
+        className="dashboard-card home-scan-card dashboard-scan block rounded-lg border border-white/80 bg-white p-4 shadow-soft active:bg-green-100"
       >
         <div className="relative z-10 flex items-center justify-between gap-3">
-          <div className="dashboard-scan-icon flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-sheti text-[34px] text-white shadow-soft">
+          <div className="dashboard-scan-icon home-scan-icon flex h-16 w-16 shrink-0 items-center justify-center rounded-lg text-[34px] text-white shadow-soft">
             📷
           </div>
           <div className="min-w-0">
@@ -649,20 +649,20 @@ export default function DashboardPage() {
               दूध स्लिपचा फोटो काढा किंवा गॅलरीमधून अपलोड करा
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-green-800 shadow-sm">AI वाचेल</span>
-              <span className="rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-blue-800 shadow-sm">तुम्ही तपासा</span>
+              <span className="home-soft-chip rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-green-800 shadow-sm">AI वाचेल</span>
+              <span className="home-soft-chip rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-blue-800 shadow-sm">तुम्ही तपासा</span>
             </div>
           </div>
-          <span className="shrink-0 rounded-full bg-sheti px-4 py-3 text-[18px] font-extrabold text-white shadow-sm">
+          <span className="home-primary-button shrink-0 rounded-full px-4 py-3 text-[18px] font-extrabold text-white shadow-sm">
             उघडा →
           </span>
         </div>
       </Link>
 
-      <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <section className="home-panel dashboard-panel rounded-lg border border-white/80 bg-white p-4 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[27px] shadow-sm">
+            <div className="home-panel-icon home-panel-icon-red flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[27px] shadow-sm">
               🔔
             </div>
             <div className="min-w-0">
@@ -674,7 +674,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/athavan"
-            className="dashboard-card shrink-0 rounded-full bg-green-50 px-3 py-2 text-[17px] font-extrabold text-sheti ring-1 ring-green-200"
+            className="dashboard-card home-panel-action shrink-0 rounded-full px-3 py-2 text-[17px] font-extrabold text-sheti"
           >
             सर्व {toMarathiNumerals(pendingReminderCount)} →
           </Link>
@@ -704,10 +704,10 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="dashboard-panel rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+      <section className="home-panel dashboard-panel rounded-lg border border-white/80 bg-white p-4 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[27px] shadow-sm">
+            <div className="home-panel-icon home-panel-icon-blue flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[27px] shadow-sm">
               📊
             </div>
             <div className="min-w-0">
@@ -717,35 +717,35 @@ export default function DashboardPage() {
               </h2>
             </div>
           </div>
-          <p className="shrink-0 rounded-full bg-slate-100 px-3 py-2 text-[17px] font-extrabold text-slate-700">
+          <p className="home-date-pill shrink-0 rounded-full px-3 py-2 text-[17px] font-extrabold text-slate-700">
             {getMonthName(currentMonth.month)} {toMarathiNumerals(currentMonth.year)}
           </p>
         </div>
 
         <Link
           href={`/ahval/nafa?${monthlyQuery}`}
-          className={`dashboard-card mt-4 block rounded-lg border p-4 shadow-sm ${
+          className={`dashboard-card home-profit-card mt-4 block rounded-lg border p-4 shadow-sm ${
             monthlyNetProfit >= 0
-              ? "border-green-100 bg-green-50 text-green-950 active:bg-green-100"
-              : "border-red-100 bg-red-50 text-red-950 active:bg-red-100"
+              ? "home-profit-positive text-green-950 active:bg-green-100"
+              : "home-profit-negative text-red-950 active:bg-red-100"
           }`}
         >
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[16px] font-extrabold opacity-75">शुद्ध नफा / तोटा</p>
-              <p className="mt-1 text-[30px] font-extrabold leading-tight">
+              <p className="mt-1 text-[30px] font-black leading-tight">
                 <AnimatedNumber value={monthlyNetProfit} formatter={(value) => formatCurrency(value)} />
               </p>
             </div>
-            <span className="rounded-full bg-white px-4 py-2 text-[17px] font-extrabold shadow-sm">
+            <span className="home-card-arrow rounded-full bg-white px-4 py-2 text-[17px] font-extrabold shadow-sm">
               तपशील →
             </span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-extrabold leading-snug">
-            <p className="min-w-0 break-words rounded-lg bg-white/70 px-3 py-2 text-green-800">
+            <p className="home-inline-metric min-w-0 break-words rounded-lg bg-white/70 px-3 py-2 text-green-800">
               उत्पन्न: <AnimatedNumber value={monthlyIncomeTotal} formatter={(value) => formatCurrency(value)} />
             </p>
-            <p className="min-w-0 break-words rounded-lg bg-white/70 px-3 py-2 text-red-800">
+            <p className="home-inline-metric min-w-0 break-words rounded-lg bg-white/70 px-3 py-2 text-red-800">
               खर्च: <AnimatedNumber value={monthlyExpenseTotal} formatter={(value) => formatCurrency(value)} />
             </p>
           </div>
@@ -754,28 +754,28 @@ export default function DashboardPage() {
         <div className="dashboard-stagger mt-4 grid grid-cols-2 gap-3">
           <Link
             href={`/ahval/dudh?${monthlyQuery}`}
-            className="dashboard-card block rounded-lg border border-blue-100 bg-blue-50 p-3 text-blue-900 shadow-sm active:bg-blue-100"
+            className="dashboard-card home-metric-card home-metric-blue block rounded-lg border p-3 text-blue-900 shadow-sm active:bg-blue-100"
           >
             <p className="text-[18px] font-extrabold">🥛 दूध</p>
-            <p className="mt-1 text-[22px] font-extrabold">
+            <p className="mt-1 text-[22px] font-black">
               <AnimatedNumber value={monthlyMilkReport?.totalLitres || 0} formatter={(value) => `${formatLitres(value)} लिटर`} />
             </p>
           </Link>
           <Link
             href={`/ahval/utpanna?${monthlyQuery}`}
-            className="dashboard-card block rounded-lg border border-green-100 bg-green-50 p-3 text-green-900 shadow-sm active:bg-green-100"
+            className="dashboard-card home-metric-card home-metric-green block rounded-lg border p-3 text-green-900 shadow-sm active:bg-green-100"
           >
             <p className="text-[18px] font-extrabold">💰 उत्पन्न</p>
-            <p className="mt-1 text-[22px] font-extrabold">
+            <p className="mt-1 text-[22px] font-black">
               <AnimatedNumber value={monthlyFinanceReport?.totalIncome || 0} formatter={(value) => formatCurrency(value)} />
             </p>
           </Link>
           <Link
             href={`/ahval/kharch?${monthlyQuery}`}
-            className="dashboard-card block rounded-lg border border-red-100 bg-red-50 p-3 text-red-900 shadow-sm active:bg-red-100"
+            className="dashboard-card home-metric-card home-metric-red block rounded-lg border p-3 text-red-900 shadow-sm active:bg-red-100"
           >
             <p className="text-[18px] font-extrabold">💸 मासिक खर्च</p>
-            <p className="mt-1 text-[22px] font-extrabold">
+            <p className="mt-1 text-[22px] font-black">
               <AnimatedNumber value={monthlyExpenseTotal} formatter={(value) => formatCurrency(value)} />
             </p>
             <p className="mt-1 text-[15px] font-bold leading-snug text-red-800">
@@ -784,33 +784,33 @@ export default function DashboardPage() {
           </Link>
           <Link
             href={`/ahval/nafa?${monthlyQuery}`}
-            className={`dashboard-card block rounded-lg border p-3 shadow-sm ${
+            className={`dashboard-card home-metric-card block rounded-lg border p-3 shadow-sm ${
               monthlyNetProfit >= 0
-                ? "border-green-100 bg-green-50 text-green-900 active:bg-green-100"
-                : "border-red-100 bg-red-50 text-red-900 active:bg-red-100"
+                ? "home-metric-green text-green-900 active:bg-green-100"
+                : "home-metric-red text-red-900 active:bg-red-100"
             }`}
           >
             <p className="text-[18px] font-extrabold">📈 मासिक नफा</p>
-            <p className="mt-1 text-[22px] font-extrabold">
+            <p className="mt-1 text-[22px] font-black">
               <AnimatedNumber value={monthlyNetProfit} formatter={(value) => formatCurrency(value)} />
             </p>
           </Link>
         </div>
 
-        <section className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+        <section className="home-activity-card mt-4 rounded-lg border border-white/80 bg-white p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[15px] font-extrabold text-slate-500">अलीकडील हालचाल</p>
               <h3 className="text-[21px] font-extrabold text-slate-950">आजचे अपडेट</h3>
             </div>
-            <span className="rounded-full bg-green-50 px-3 py-1 text-[14px] font-extrabold text-green-800">
+            <span className="home-live-pill rounded-full px-3 py-1 text-[14px] font-extrabold text-green-800">
               Live
             </span>
           </div>
           {recentActivities.length > 0 ? (
             <div className="activity-fade-list mt-3 space-y-2">
               {recentActivities.map((activity) => (
-                <div key={`${activity.title}-${activity.detail}`} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                <div key={`${activity.title}-${activity.detail}`} className="home-activity-row flex items-center gap-3 rounded-lg border border-white/80 bg-white px-3 py-2">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[22px] shadow-sm">
                     {activity.icon}
                   </span>
@@ -829,7 +829,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="home-previous-card mt-4 rounded-lg border border-white/80 p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[15px] font-extrabold text-slate-500">मागील महिन्याचा डेटा</p>
@@ -839,22 +839,22 @@ export default function DashboardPage() {
             </div>
             <Link
               href={`/ahval?month=${previousMonth.month}&year=${previousMonth.year}`}
-              className="shrink-0 rounded-full bg-white px-3 py-2 text-[15px] font-extrabold text-sheti shadow-sm ring-1 ring-green-100"
+              className="home-panel-action shrink-0 rounded-full px-3 py-2 text-[15px] font-extrabold text-sheti shadow-sm"
             >
               तपशील →
             </Link>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-extrabold leading-snug">
-            <p className="rounded-lg bg-white px-3 py-2 text-blue-800">
+            <p className="home-inline-metric rounded-lg bg-white px-3 py-2 text-blue-800">
               दूध: {formatLitres(previousMonthlyMilkReport?.totalLitres || 0)} लि.
             </p>
-            <p className="rounded-lg bg-white px-3 py-2 text-green-800">
+            <p className="home-inline-metric rounded-lg bg-white px-3 py-2 text-green-800">
               उत्पन्न: {formatCurrency(previousMonthlyIncomeTotal)}
             </p>
-            <p className="rounded-lg bg-white px-3 py-2 text-red-800">
+            <p className="home-inline-metric rounded-lg bg-white px-3 py-2 text-red-800">
               खर्च: {formatCurrency(previousMonthlyExpenseTotal)}
             </p>
-            <p className={`rounded-lg bg-white px-3 py-2 ${previousMonthlyNetProfit >= 0 ? "text-green-900" : "text-red-900"}`}>
+            <p className={`home-inline-metric rounded-lg bg-white px-3 py-2 ${previousMonthlyNetProfit >= 0 ? "text-green-900" : "text-red-900"}`}>
               नफा: {formatCurrency(previousMonthlyNetProfit)}
             </p>
           </div>
@@ -862,7 +862,7 @@ export default function DashboardPage() {
 
         <Link
           href="/ahval"
-          className="dashboard-card mt-4 flex min-h-[54px] items-center justify-center rounded-lg border-2 border-green-200 bg-green-50 px-4 text-[19px] font-extrabold text-sheti active:bg-green-100"
+          className="dashboard-card home-full-report mt-4 flex min-h-[54px] items-center justify-center rounded-lg border px-4 text-[19px] font-extrabold text-sheti active:bg-green-100"
         >
           पूर्ण अहवाल बघा →
         </Link>
