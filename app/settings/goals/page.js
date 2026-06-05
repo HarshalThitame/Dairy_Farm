@@ -60,7 +60,7 @@ function ToggleRow({ checked, onChange, disabled = false }) {
       type="button"
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`dashboard-card flex min-h-[88px] w-full items-center justify-between gap-4 rounded-3xl border p-4 text-left shadow-soft transition active:scale-[0.99] disabled:opacity-60 ${
+      className={`dashboard-card flex min-h-[88px] w-full min-w-0 items-center justify-between gap-4 rounded-3xl border p-4 text-left shadow-soft transition active:scale-[0.99] disabled:opacity-60 ${
         checked ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50" : "border-slate-200 bg-white"
       }`}
     >
@@ -82,7 +82,7 @@ function ProgressCard({ item }) {
   const completed = item.status === "completed";
 
   return (
-    <article className="dashboard-card rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft">
+    <article className="dashboard-card min-w-0 rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[22px] font-black leading-tight text-slate-950">{item.label}</h3>
@@ -145,7 +145,7 @@ function GoalInputCard({ config, value, saving, onChange }) {
   const [key, label, unit, placeholder, icon, helper] = config;
 
   return (
-    <label className="dashboard-card block rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft">
+    <label className="dashboard-card block w-full min-w-0 rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft">
       <span className="flex items-start gap-3">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-[30px] shadow-inner">
           {icon}

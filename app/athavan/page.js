@@ -20,7 +20,6 @@ import { fetchRemindersByFilter, updateReminderAction } from "@/lib/offlineActio
 
 const typeFilters = [
   { value: "सर्व", label: "सर्व" },
-  { value: "माज तपासणी", label: "माज तपासणी" },
   { value: "गर्भधारणा तपासणी", label: "गर्भधारणा" },
   { value: MISSED_PREGNANCY_REMINDER_TYPE, label: "तपासणी बाकी" },
   { value: REPEAT_BREEDING_REMINDER_TYPE, label: "पुन्हा रेतन" },

@@ -23,6 +23,14 @@ function isPublic(pathname) {
   );
 }
 
+function withDeviceHintHeaders(response) {
+  response.headers.set("Accept-CH", "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Mobile, Sec-CH-UA-Full-Version-List");
+  response.headers.set("Critical-CH", "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version");
+  response.headers.set("Permissions-Policy", "ch-ua-model=(self), ch-ua-platform=(self), ch-ua-platform-version=(self), ch-ua-mobile=(self), ch-ua-full-version-list=(self)");
+  response.headers.set("Vary", "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Mobile, Sec-CH-UA-Full-Version-List");
+  return response;
+}
+
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("goshala_token")?.value;
@@ -37,47 +45,47 @@ export function middleware(request) {
       const adminUrl = request.nextUrl.clone();
       adminUrl.pathname = "/admin";
       adminUrl.search = "";
-      return NextResponse.redirect(adminUrl);
+      return withDeviceHintHeaders(NextResponse.redirect(adminUrl));
     }
 
     if ((pathname === "/login" || pathname === "/signup") && hasUserAuth) {
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = "/";
       homeUrl.search = "";
-      return NextResponse.redirect(homeUrl);
+      return withDeviceHintHeaders(NextResponse.redirect(homeUrl));
     }
 
-    return NextResponse.next();
+    return withDeviceHintHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/api/admin/")) {
     if (adminToken || adminAuthorization) {
-      return NextResponse.next();
+      return withDeviceHintHeaders(NextResponse.next());
     }
 
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return withDeviceHintHeaders(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
   }
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     if (adminToken || adminAuthorization) {
-      return NextResponse.next();
+      return withDeviceHintHeaders(NextResponse.next());
     }
 
     const adminLoginUrl = request.nextUrl.clone();
     adminLoginUrl.pathname = "/admin-login";
     adminLoginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(adminLoginUrl);
+    return withDeviceHintHeaders(NextResponse.redirect(adminLoginUrl));
   }
 
   if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    return withDeviceHintHeaders(NextResponse.next());
   }
 
   if (hasUserAuth) {
-    return NextResponse.next();
+    return withDeviceHintHeaders(NextResponse.next());
   }
 
-  return NextResponse.json({ error: "लॉगिन आवश्यक आहे." }, { status: 401 });
+  return withDeviceHintHeaders(NextResponse.json({ error: "लॉगिन आवश्यक आहे." }, { status: 401 }));
 }
 
 export const config = {

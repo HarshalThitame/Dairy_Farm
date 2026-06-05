@@ -8,6 +8,7 @@ import {
 import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { readJsonBody } from "@/lib/apiSafety";
+import { getRequestIp, parseDevice } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +39,54 @@ function normalizeMobile(mobile) {
 function normalizeTotalCows(value) {
   const number = Number(value || 0);
   return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
+}
+
+function deviceColumns(device) {
+  return {
+    device_name: device.deviceName,
+    browser: device.browser,
+    os: device.os,
+    device_brand: device.deviceBrand,
+    device_model: device.deviceModel,
+    device_type: device.deviceType,
+    platform_version: device.platformVersion,
+    browser_version: device.browserVersion,
+    client_hints: device.clientHints || {},
+    user_agent: device.userAgent || ""
+  };
+}
+
+async function insertSessionWithFallback(supabase, payload) {
+  const { data, error } = await supabase
+    .from("user_sessions")
+    .insert(payload)
+    .select("id")
+    .maybeSingle();
+
+  if (!error) return data;
+
+  const missingDeviceColumn = error.code === "42703"
+    || /device_brand|device_model|device_type|platform_version|browser_version|client_hints/i.test(error.message || "");
+
+  if (!missingDeviceColumn) {
+    return null;
+  }
+
+  const {
+    device_brand,
+    device_model,
+    device_type,
+    platform_version,
+    browser_version,
+    client_hints,
+    ...legacyPayload
+  } = payload;
+  const { data: fallbackData } = await supabase
+    .from("user_sessions")
+    .insert(legacyPayload)
+    .select("id")
+    .maybeSingle();
+  return fallbackData || null;
 }
 
 function validateSignup(body) {
@@ -88,6 +137,7 @@ export async function POST(request) {
 
   try {
     const body = await readJsonBody(request);
+    const deviceInfo = body.deviceInfo && typeof body.deviceInfo === "object" ? body.deviceInfo : {};
     const validated = validateSignup(body);
 
     if (validated.error) {
@@ -162,7 +212,20 @@ export async function POST(request) {
       throw userError;
     }
 
-    const token = signFarmToken(user, farm);
+    let session = null;
+    try {
+      const device = parseDevice(request.headers.get("user-agent") || "", deviceInfo, request.headers);
+      session = await insertSessionWithFallback(supabase, {
+        user_id: user.id,
+        farm_id: farm.id,
+        ...deviceColumns({ ...device, userAgent: request.headers.get("user-agent") || "" }),
+        ip_address: getRequestIp(request)
+      });
+    } catch {
+      session = null;
+    }
+
+    const token = signFarmToken(user, farm, session?.id || null);
 
     const response = NextResponse.json(
       {

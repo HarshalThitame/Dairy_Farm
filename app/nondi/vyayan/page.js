@@ -220,7 +220,6 @@ export default function VyayanNondPage() {
       const cowsWithAI = pregnantCows.map((cow) => {
           const lastAI = aiByCow.get(cow.id) || null;
           const pendingReminders = remindersByCow.get(cow.id) || [];
-          const heatCheckDate = lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 21)) : "";
           const pregnancyCheckDate =
             lastAI?.pregnancy_check_date || (lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 60)) : "");
           const expectedDate = lastAI ? toISODate(addDaysToDate(lastAI.ai_date, 270)) : "";
@@ -228,7 +227,6 @@ export default function VyayanNondPage() {
           return {
             ...cow,
             last_ai_record: lastAI,
-            heat_check_date: heatCheckDate,
             pregnancy_check_date: pregnancyCheckDate,
             pending_reminders: pendingReminders,
             expected_calving_date: expectedDate
@@ -408,7 +406,6 @@ export default function VyayanNondPage() {
             const active = selectedCow?.id === cow.id;
             const dateItems = [
               { label: "रेतन", date: cow.last_ai_record?.ai_date },
-              { label: "माज तपासणी", date: cow.heat_check_date },
               { label: "गर्भ तपासणी", date: cow.pregnancy_check_date },
               { label: "अपेक्षित व्यायण", date: cow.expected_calving_date }
             ];

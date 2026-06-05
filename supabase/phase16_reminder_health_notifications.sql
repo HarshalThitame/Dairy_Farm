@@ -7,7 +7,6 @@ ALTER TABLE public.reminders
 ADD CONSTRAINT reminders_type_check
 CHECK (
   type IN (
-    'माज तपासणी',
     'गर्भधारणा तपासणी',
     'गर्भधारणा तपासणी बाकी',
     'पुन्हा रेतन सूचना',

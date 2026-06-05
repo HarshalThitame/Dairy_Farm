@@ -7,7 +7,6 @@ ALTER TABLE public.reminders
 ADD CONSTRAINT reminders_type_check
 CHECK (
   type IN (
-    'माज तपासणी',
     'गर्भधारणा तपासणी',
     'गर्भधारणा तपासणी बाकी',
     'पुन्हा रेतन सूचना',
@@ -76,7 +75,6 @@ BEGIN
   ELSE
     INSERT INTO public.reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
     VALUES
-      (NEW.farm_id, NEW.cow_id, NEW.ai_date + 21, 'माज तपासणी', cow_name || ' माजावर आली का तपासा', NEW.id),
       (NEW.farm_id, NEW.cow_id, NEW.ai_date + 60, 'गर्भधारणा तपासणी', cow_name || ' ची गर्भधारणा तपासणी करा', NEW.id),
       (NEW.farm_id, NEW.cow_id, NEW.ai_date + 210, 'दूध बंद', cow_name || ' चे दूध काढणे बंद करण्याची वेळ जवळ आली आहे', NEW.id),
       (NEW.farm_id, NEW.cow_id, NEW.ai_date + 270, 'व्यायण', cow_name || ' व्यायण्याची वेळ जवळ आली आहे', NEW.id);
@@ -168,7 +166,7 @@ FROM public.ai_records AS ai
 WHERE reminder.farm_id = ai.farm_id
   AND reminder.related_record_id = ai.id
   AND ai.pregnancy_result = 'negative'
-  AND reminder.type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'दूध बंद', 'व्यायण')
+  AND reminder.type IN ('गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'दूध बंद', 'व्यायण')
   AND reminder.is_done = false;
 
 UPDATE public.reminders AS reminder
@@ -180,7 +178,7 @@ FROM public.ai_records AS ai
 WHERE reminder.farm_id = ai.farm_id
   AND reminder.related_record_id = ai.id
   AND ai.pregnancy_result = 'positive'
-  AND reminder.type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी')
+  AND reminder.type IN ('गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी')
   AND reminder.is_done = false;
 
 UPDATE public.ai_records AS ai
@@ -200,7 +198,7 @@ FROM public.calving_records AS calving
 WHERE calving.farm_id = reminder.farm_id
   AND calving.ai_record_id = reminder.related_record_id
   AND calving.actual_date IS NOT NULL
-  AND reminder.type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'दूध बंद', 'व्यायण')
+  AND reminder.type IN ('गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'दूध बंद', 'व्यायण')
   AND reminder.is_done = false;
 
 UPDATE public.reminders AS reminder
@@ -228,7 +226,6 @@ FROM public.ai_records AS ai
 WHERE reminder.farm_id = ai.farm_id
   AND reminder.related_record_id = ai.id
   AND reminder.type IN (
-    'माज तपासणी',
     'गर्भधारणा तपासणी',
     'गर्भधारणा तपासणी बाकी',
     'पुन्हा रेतन सूचना',

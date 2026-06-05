@@ -10,7 +10,7 @@ FROM public.ai_records ai
 WHERE r.farm_id = ai.farm_id
   AND r.related_record_id = ai.id
   AND r.is_done = false
-  AND r.type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'पुन्हा रेतन सूचना', 'दूध बंद', 'व्यायण')
+  AND r.type IN ('गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'पुन्हा रेतन सूचना', 'दूध बंद', 'व्यायण')
   AND (
     EXISTS (
       SELECT 1

@@ -5,7 +5,6 @@ import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   addDaysToISODate,
   getTodayISODate,
-  HEAT_CHECK_REMINDER_TYPE,
   MISSED_PREGNANCY_REMINDER_TYPE,
   NEXT_BREEDING_READY_REMINDER_TYPE,
   PREGNANCY_CHECK_REMINDER_TYPE,
@@ -22,7 +21,6 @@ import { isUuid, readJsonBody } from "@/lib/apiSafety";
 export const dynamic = "force-dynamic";
 
 const allowedReminderTypes = new Set([
-  HEAT_CHECK_REMINDER_TYPE,
   PREGNANCY_CHECK_REMINDER_TYPE,
   MISSED_PREGNANCY_REMINDER_TYPE,
   REPEAT_BREEDING_REMINDER_TYPE,
@@ -174,7 +172,7 @@ async function updatePregnancyResultFromReminder(supabase, farmId, reminderId, p
       supabase,
       farmId,
       aiRecord.id,
-      [HEAT_CHECK_REMINDER_TYPE, PREGNANCY_CHECK_REMINDER_TYPE, MISSED_PREGNANCY_REMINDER_TYPE]
+      [PREGNANCY_CHECK_REMINDER_TYPE, MISSED_PREGNANCY_REMINDER_TYPE]
     );
     const cowUpdate = await supabase
       .from("cows")

@@ -126,6 +126,55 @@ async function postAuth(url, body) {
   return result;
 }
 
+async function getClientDeviceInfo() {
+  if (typeof navigator === "undefined") {
+    return {};
+  }
+
+  const baseInfo = {
+    userAgent: navigator.userAgent || "",
+    platform: navigator.platform || "",
+    language: navigator.language || "",
+    mobile: false
+  };
+
+  try {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+      const highEntropy = await navigator.userAgentData.getHighEntropyValues([
+        "architecture",
+        "bitness",
+        "brands",
+        "fullVersionList",
+        "model",
+        "mobile",
+        "platform",
+        "platformVersion",
+        "uaFullVersion"
+      ]);
+      const preferredBrand = (highEntropy.brands || []).find((item) => !/Chromium|Not/i.test(item.brand));
+      const preferredFullVersion = (highEntropy.fullVersionList || []).find((item) => item.brand === preferredBrand?.brand)
+        || (highEntropy.fullVersionList || []).find((item) => !/Chromium|Not/i.test(item.brand));
+
+      return {
+        ...baseInfo,
+        ...highEntropy,
+        brand: preferredBrand?.brand || "",
+        browser: preferredBrand?.brand || "",
+        browserVersion: preferredFullVersion?.version || highEntropy.uaFullVersion || "",
+        deviceModel: highEntropy.model || "",
+        deviceType: highEntropy.mobile ? "mobile" : "desktop"
+      };
+    }
+  } catch {
+    // Device hints are best-effort. Login should never fail because hints are unavailable.
+  }
+
+  return {
+    ...baseInfo,
+    deviceType: /Mobile|Android|iPhone|iPad|iPod/i.test(baseInfo.userAgent) ? "mobile" : "desktop"
+  };
+}
+
 export function AuthProvider({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -148,10 +197,12 @@ export function AuthProvider({ children }) {
   const loginWithPin = useCallback(
     async (mobile, pin) => {
       try {
+        const deviceInfo = await getClientDeviceInfo();
         const result = await postAuth("/api/auth/login", {
           type: "pin",
           mobile,
-          pin
+          pin,
+          deviceInfo
         });
 
         applySession(result.token, result.user, result.farm);
@@ -166,7 +217,8 @@ export function AuthProvider({ children }) {
   const signup = useCallback(
     async (signupData) => {
       try {
-        const result = await postAuth("/api/auth/signup", signupData);
+        const deviceInfo = await getClientDeviceInfo();
+        const result = await postAuth("/api/auth/signup", { ...signupData, deviceInfo });
         applySession(result.token, result.user, result.farm);
 
         safeRemoveLocalStorageItem("onboarding_completed");

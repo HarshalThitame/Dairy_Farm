@@ -10,7 +10,7 @@ DROP CONSTRAINT IF EXISTS reminders_type_check;
 
 UPDATE public.reminders
 SET type = CASE
-  WHEN btrim(COALESCE(type, '')) IN ('माज', 'माज चेक', 'heat_check', 'heat check') THEN 'माज तपासणी'
+  WHEN btrim(COALESCE(type, '')) IN ('माज', 'माज चेक', 'heat_check', 'heat check') THEN 'तपासणी'
   WHEN btrim(COALESCE(type, '')) IN ('गर्भ तपासणी', 'pregnancy_check', 'pregnancy check') THEN 'गर्भधारणा तपासणी'
   WHEN btrim(COALESCE(type, '')) IN ('गर्भधारणा बाकी', 'missed_pregnancy', 'missed pregnancy') THEN 'गर्भधारणा तपासणी बाकी'
   WHEN btrim(COALESCE(type, '')) IN ('repeat_breeding', 'repeat breeding') THEN 'पुन्हा रेतन सूचना'
@@ -28,7 +28,6 @@ END
 WHERE type IS NULL
   OR btrim(type) = ''
   OR type NOT IN (
-    'माज तपासणी',
     'गर्भधारणा तपासणी',
     'गर्भधारणा तपासणी बाकी',
     'पुन्हा रेतन सूचना',
@@ -47,7 +46,6 @@ ALTER TABLE public.reminders
 ADD CONSTRAINT reminders_type_check
 CHECK (
   type IN (
-    'माज तपासणी',
     'गर्भधारणा तपासणी',
     'गर्भधारणा तपासणी बाकी',
     'पुन्हा रेतन सूचना',

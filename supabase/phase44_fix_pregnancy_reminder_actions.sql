@@ -11,7 +11,7 @@ WHERE r.farm_id = ai.farm_id
   AND r.related_record_id = ai.id
   AND r.is_done = false
   AND ai.pregnancy_result IN ('positive', 'negative')
-  AND r.type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी');
+  AND r.type IN ('गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी');
 
 -- If the cow is not pregnant, dry-off and calving reminders from that AI cycle must not remain active.
 UPDATE public.reminders r

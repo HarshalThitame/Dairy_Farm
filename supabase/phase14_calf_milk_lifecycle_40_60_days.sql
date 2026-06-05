@@ -3,7 +3,7 @@ BEGIN;
 UPDATE public.calves
 SET
   milk_reduce_date = birth_date + 40,
-  milk_stop_date = birth_date + 60,
+  milk_stop_date = birth_date + 50,
   milk_feeding_status = CASE
     WHEN is_raised = true
       AND gender = 'मादी'
@@ -13,7 +13,7 @@ SET
     WHEN is_raised = true
       AND gender = 'मादी'
       AND status = 'active'
-      AND CURRENT_DATE < birth_date + 60
+      AND CURRENT_DATE < birth_date + 50
       THEN 'दूध कमी करायचे'
     WHEN is_raised = true
       AND gender = 'मादी'
@@ -37,9 +37,9 @@ WHERE reminder.related_record_id = calf.id
 
 UPDATE public.reminders reminder
 SET
-  reminder_date = calf.birth_date + 60,
+  reminder_date = calf.birth_date + 50,
   message = COALESCE(NULLIF(calf.name, ''), 'वासरी')
-    || ' आता ६० दिवसांची झाली आहे. दूध बंद करण्याची वेळ झाली आहे.'
+    || ' आता ५० दिवसांची झाली आहे. दूध बंद करण्याची वेळ झाली आहे.'
 FROM public.calves calf
 WHERE reminder.related_record_id = calf.id
   AND reminder.type = 'वासरी दूध बंद'

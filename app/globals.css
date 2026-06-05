@@ -199,7 +199,7 @@ input::placeholder {
   transform: scale(0.985);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (min-width: 640px) {
   .dashboard-card:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);

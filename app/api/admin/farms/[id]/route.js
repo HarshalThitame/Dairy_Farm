@@ -623,13 +623,13 @@ async function getFarmDetails(supabase, farmId) {
       .limit(20),
     safeArray(supabase
       .from("user_sessions")
-      .select("id, user_id, device_name, browser, os, ip_address, login_at, last_active_at, logout_at, is_active")
+      .select("id, user_id, device_name, browser, os, device_brand, device_model, device_type, platform_version, browser_version, ip_address, login_at, last_active_at, logout_at, is_active, client_hints")
       .eq("farm_id", farmId)
       .order("last_active_at", { ascending: false })
       .limit(20), "User sessions", analyticsWarnings),
     safeArray(supabase
       .from("user_login_history")
-      .select("id, user_id, mobile, status, failure_reason, device_name, browser, os, ip_address, created_at")
+      .select("id, user_id, mobile, status, failure_reason, device_name, browser, os, device_brand, device_model, device_type, platform_version, browser_version, ip_address, created_at, client_hints")
       .eq("farm_id", farmId)
       .order("created_at", { ascending: false })
       .limit(20), "Login history", analyticsWarnings),

@@ -17,20 +17,60 @@ function publicUserSelect() {
   return "id, farm_id, mobile, email, name, role, is_active, is_farm_owner, pin_hash, profile_photo_url, profile_photo_storage_path";
 }
 
+function deviceColumns(device) {
+  return {
+    device_name: device.deviceName,
+    browser: device.browser,
+    os: device.os,
+    device_brand: device.deviceBrand,
+    device_model: device.deviceModel,
+    device_type: device.deviceType,
+    platform_version: device.platformVersion,
+    browser_version: device.browserVersion,
+    client_hints: device.clientHints || {},
+    user_agent: device.userAgent || ""
+  };
+}
+
+async function insertWithDeviceFallback(supabase, table, payload, select = "") {
+  const query = supabase.from(table).insert(payload);
+  const { data, error } = select ? await query.select(select).maybeSingle() : await query;
+
+  if (!error) {
+    return { data, error: null };
+  }
+
+  const missingDeviceColumn = error.code === "42703"
+    || /device_brand|device_model|device_type|platform_version|browser_version|client_hints/i.test(error.message || "");
+
+  if (!missingDeviceColumn) {
+    return { data: null, error };
+  }
+
+  const {
+    device_brand,
+    device_model,
+    device_type,
+    platform_version,
+    browser_version,
+    client_hints,
+    ...legacyPayload
+  } = payload;
+  const fallbackQuery = supabase.from(table).insert(legacyPayload);
+  return select ? await fallbackQuery.select(select).maybeSingle() : await fallbackQuery;
+}
+
 async function logLoginAttempt(supabase, request, payload) {
   try {
-    const device = parseDevice(request.headers.get("user-agent") || "");
-    await supabase.from("user_login_history").insert({
+    const device = parseDevice(request.headers.get("user-agent") || "", payload.deviceInfo || {}, request.headers);
+    await insertWithDeviceFallback(supabase, "user_login_history", {
       user_id: payload.userId || null,
       farm_id: payload.farmId || null,
       mobile: payload.mobile || null,
       status: payload.status,
       failure_reason: payload.failureReason || null,
-      device_name: device.deviceName,
-      browser: device.browser,
-      os: device.os,
+      ...deviceColumns({ ...device, userAgent: request.headers.get("user-agent") || "" }),
       ip_address: getRequestIp(request),
-      user_agent: request.headers.get("user-agent") || ""
     });
   } catch {
     // Login should not fail because history logging failed.
@@ -40,6 +80,7 @@ async function logLoginAttempt(supabase, request, payload) {
 export async function POST(request) {
   try {
     const body = await readJsonBody(request);
+    const deviceInfo = body.deviceInfo && typeof body.deviceInfo === "object" ? body.deviceInfo : {};
     const mobile = String(body.mobile || "").replace(/\D/g, "");
     const pin = String(body.pin || "").trim();
     const supabase = getSupabaseServerClient();
@@ -48,7 +89,8 @@ export async function POST(request) {
       await logLoginAttempt(supabase, request, {
         mobile,
         status: "failed",
-        failureReason: "invalid_input"
+        failureReason: "invalid_input",
+        deviceInfo
       });
       return NextResponse.json({ error: "मोबाइल नंबर आणि PIN तपासा." }, { status: 400 });
     }
@@ -63,7 +105,8 @@ export async function POST(request) {
       await logLoginAttempt(supabase, request, {
         mobile,
         status: "failed",
-        failureReason: "user_not_found"
+        failureReason: "user_not_found",
+        deviceInfo
       });
       return NextResponse.json({ error: "खाते सापडले नाही." }, { status: 401 });
     }
@@ -74,7 +117,8 @@ export async function POST(request) {
         farmId: user.farm_id,
         mobile,
         status: "failed",
-        failureReason: "user_inactive"
+        failureReason: "user_inactive",
+        deviceInfo
       });
       return NextResponse.json(
         { error: "हे खाते बंद केले आहे. मालकाशी संपर्क करा." },
@@ -90,7 +134,8 @@ export async function POST(request) {
         farmId: user.farm_id,
         mobile,
         status: "failed",
-        failureReason: "wrong_pin"
+        failureReason: "wrong_pin",
+        deviceInfo
       });
       return NextResponse.json({ error: "चुकीचा PIN. पुन्हा प्रयत्न करा." }, { status: 401 });
     }
@@ -107,7 +152,8 @@ export async function POST(request) {
         farmId: user.farm_id,
         mobile,
         status: "failed",
-        failureReason: "farm_not_found"
+        failureReason: "farm_not_found",
+        deviceInfo
       });
       return NextResponse.json({ error: "डेअरी सापडली नाही." }, { status: 403 });
     }
@@ -118,7 +164,8 @@ export async function POST(request) {
         farmId: user.farm_id,
         mobile,
         status: "failed",
-        failureReason: "farm_suspended"
+        failureReason: "farm_suspended",
+        deviceInfo
       });
       return NextResponse.json(
         {
@@ -135,22 +182,20 @@ export async function POST(request) {
       .update({ last_login: new Date().toISOString() })
       .eq("id", user.id);
 
-    const device = parseDevice(request.headers.get("user-agent") || "");
+    const device = parseDevice(request.headers.get("user-agent") || "", deviceInfo, request.headers);
     let session = null;
     try {
-      const { data: createdSession } = await supabase
-        .from("user_sessions")
-        .insert({
+      const { data: createdSession } = await insertWithDeviceFallback(
+        supabase,
+        "user_sessions",
+        {
           user_id: user.id,
           farm_id: user.farm_id,
-          device_name: device.deviceName,
-          browser: device.browser,
-          os: device.os,
+          ...deviceColumns({ ...device, userAgent: request.headers.get("user-agent") || "" }),
           ip_address: getRequestIp(request),
-          user_agent: request.headers.get("user-agent") || ""
-        })
-        .select("id")
-        .maybeSingle();
+        },
+        "id"
+      );
       session = createdSession;
     } catch {
       session = null;
@@ -160,7 +205,8 @@ export async function POST(request) {
       userId: user.id,
       farmId: user.farm_id,
       mobile,
-      status: "success"
+      status: "success",
+      deviceInfo
     });
 
     const token = signFarmToken(user, farm, session?.id || null);

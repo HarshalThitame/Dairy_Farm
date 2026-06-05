@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
   cow_id UUID REFERENCES cows(id) ON DELETE CASCADE,
   reminder_date DATE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('माज तपासणी', 'गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'पुन्हा रेतन सूचना', 'पुढील रेतन तयारी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'तपासणी', 'दूध बंद', 'शिंग काढणे', 'वासरी दूध कमी', 'वासरी दूध बंद')),
+  type TEXT NOT NULL CHECK (type IN ('गर्भधारणा तपासणी', 'गर्भधारणा तपासणी बाकी', 'पुन्हा रेतन सूचना', 'पुढील रेतन तयारी', 'व्यायण', 'लसीकरण', 'जंतनाशक', 'तपासणी', 'दूध बंद', 'शिंग काढणे', 'वासरी दूध कमी', 'वासरी दूध बंद')),
   message TEXT NOT NULL,
   is_done BOOLEAN DEFAULT false,
   done_at TIMESTAMP,
@@ -270,6 +270,44 @@ ON calving_records
 FOR EACH ROW
 EXECUTE FUNCTION set_calving_expected_date();
 
+CREATE OR REPLACE FUNCTION mark_superseded_ai_records_negative(
+  p_farm_id UUID,
+  p_cow_id UUID,
+  p_new_ai_id UUID,
+  p_new_ai_date DATE
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  changed_count INTEGER := 0;
+  auto_note TEXT := 'नंतरच्या रेतन नोंदीमुळे गर्भधारणा नाही म्हणून आपोआप चिन्हांकित.';
+BEGIN
+  UPDATE ai_records AS old_ai
+  SET
+    pregnancy_result = 'negative',
+    notes = CASE
+      WHEN old_ai.notes IS NOT NULL AND old_ai.notes LIKE '%' || auto_note || '%' THEN old_ai.notes
+      ELSE btrim(CONCAT_WS(E'\n', NULLIF(old_ai.notes, ''), auto_note))
+    END
+  WHERE old_ai.farm_id = p_farm_id
+    AND old_ai.cow_id = p_cow_id
+    AND old_ai.id <> p_new_ai_id
+    AND old_ai.ai_date < p_new_ai_date
+    AND COALESCE(old_ai.pregnancy_result, 'pending') = 'pending'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM calving_records AS calving
+      WHERE calving.farm_id = old_ai.farm_id
+        AND calving.ai_record_id = old_ai.id
+        AND calving.actual_date IS NOT NULL
+    );
+
+  GET DIAGNOSTICS changed_count = ROW_COUNT;
+  RETURN changed_count;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION create_ai_reminders()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -286,6 +324,13 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  PERFORM mark_superseded_ai_records_negative(
+    NEW.farm_id,
+    NEW.cow_id,
+    NEW.id,
+    NEW.ai_date
+  );
+
   IF COALESCE(NEW.pregnancy_result, 'pending') = 'negative' THEN
     INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
     VALUES (
@@ -299,7 +344,6 @@ BEGIN
   ELSE
     INSERT INTO reminders (farm_id, cow_id, reminder_date, type, message, related_record_id)
     VALUES
-      (NEW.farm_id, NEW.cow_id, NEW.ai_date + 21, 'माज तपासणी', cow_name || ' माजावर आली का तपासा', NEW.id),
       (NEW.farm_id, NEW.cow_id, NEW.ai_date + 60, 'गर्भधारणा तपासणी', cow_name || ' ची गर्भधारणा तपासणी करा', NEW.id),
       (NEW.farm_id, NEW.cow_id, NEW.ai_date + 210, 'दूध बंद', cow_name || ' चे दूध काढणे बंद करण्याची वेळ जवळ आली आहे', NEW.id),
       (NEW.farm_id, NEW.cow_id, NEW.ai_date + 270, 'व्यायण', cow_name || ' व्यायण्याची वेळ जवळ आली आहे', NEW.id);

@@ -330,7 +330,11 @@ export default function SignupPage() {
                 inputMode="numeric"
                 maxLength={10}
                 value={form.mobile}
-                onBlur={() => {
+                onBlur={(event) => {
+                  if (event.relatedTarget?.dataset?.signupNext === "true") {
+                    return;
+                  }
+
                   if (form.mobile.length === 10) {
                     checkMobile();
                   }
@@ -342,6 +346,7 @@ export default function SignupPage() {
             </label>
             <button
               type="button"
+              data-signup-next="true"
               disabled={checking}
               onClick={goFromMobile}
               className="min-h-[56px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-soft disabled:bg-slate-400"

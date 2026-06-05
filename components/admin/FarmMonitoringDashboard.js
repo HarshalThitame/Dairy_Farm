@@ -85,6 +85,29 @@ function alertTone(priority) {
   return "border-slate-200 bg-slate-50 text-slate-800";
 }
 
+function deviceDisplayName(device = {}) {
+  const model = String(device.device_model || device.client_hints?.model || "").trim();
+  const brand = String(device.device_brand || device.client_hints?.brand || "").trim();
+  const name = String(device.device_name || "").trim();
+  const os = String(device.os || "").trim();
+
+  if (brand && model && !model.toLowerCase().includes(brand.toLowerCase())) {
+    return `${brand} ${model}`;
+  }
+  if (model) return model;
+  if (name) return name;
+  if (os === "iOS") return "iPhone / iPad";
+  if (os === "Android") return "Android Phone";
+  return "Unknown Device";
+}
+
+function deviceTypeLabel(type = "") {
+  if (type === "mobile") return "Phone";
+  if (type === "tablet") return "Tablet";
+  if (type === "desktop") return "Desktop";
+  return "Device";
+}
+
 export default function FarmMonitoringDashboard({
   data,
   onFarmAction,
@@ -109,6 +132,9 @@ export default function FarmMonitoringDashboard({
   const status = statusMeta(farm, subscription);
   const farmId = String(farm.id || "");
   const warnings = analytics.warnings || [];
+  const userById = new Map((data?.users || []).map((user) => [user.id, user]));
+  const activeDeviceSessions = (devices.sessions || []).filter((session) => session.is_active !== false && !session.logout_at);
+  const recentDeviceSessions = (devices.sessions || []).slice(0, 8);
 
   async function downloadExport(type, filename) {
     if (!farmId) {
@@ -348,9 +374,11 @@ export default function FarmMonitoringDashboard({
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="text-[20px] font-black text-slate-950">Last Device</h3>
             <InfoGrid rows={[
-              ["Device", devices.lastLoginDevice?.device_name || devices.latestSession?.device_name || "-"],
+              ["Device", deviceDisplayName(devices.lastLoginDevice || devices.latestSession || {})],
+              ["Type", deviceTypeLabel(devices.lastLoginDevice?.device_type || devices.latestSession?.device_type)],
+              ["Model", devices.lastLoginDevice?.device_model || devices.latestSession?.device_model || "-"],
               ["OS", devices.lastLoginDevice?.os || devices.latestSession?.os || "-"],
-              ["Browser", devices.lastLoginDevice?.browser || devices.latestSession?.browser || "-"],
+              ["Browser", `${devices.lastLoginDevice?.browser || devices.latestSession?.browser || "-"} ${devices.lastLoginDevice?.browser_version || devices.latestSession?.browser_version || ""}`.trim()],
               ["IP", devices.lastLoginDevice?.ip_address || devices.latestSession?.ip_address || "-"],
               ["Last Sync", formatDateTime(devices.lastSyncTime)]
             ]} />
@@ -363,6 +391,61 @@ export default function FarmMonitoringDashboard({
               ["Recent Ticket", support.tickets?.[0]?.subject || "-"],
               ["Updated", formatDateTime(support.tickets?.[0]?.updated_at)]
             ]} />
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[22px] font-black text-slate-950">Active Login Devices</h3>
+              <p className="mt-1 text-[15px] font-bold text-slate-500">
+                या farm मध्ये सध्या login असलेले phones/devices. Android Chrome/Samsung Internet वर browser ने दिलेला exact model दाखवला जातो.
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-[14px] font-black text-emerald-800">
+              {activeDeviceSessions.length} active
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {(activeDeviceSessions.length ? activeDeviceSessions : recentDeviceSessions).length ? (
+              (activeDeviceSessions.length ? activeDeviceSessions : recentDeviceSessions).map((session) => {
+                const user = userById.get(session.user_id) || {};
+                const active = session.is_active !== false && !session.logout_at;
+                return (
+                  <article key={session.id} className={`rounded-2xl border p-4 ${active ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-slate-50"}`}>
+                    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-[20px] font-black text-slate-950">📱 {deviceDisplayName(session)}</p>
+                        <p className="mt-1 text-[14px] font-extrabold text-slate-500">
+                          {deviceTypeLabel(session.device_type)} · {session.device_model || session.device_name || "Model unavailable"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black uppercase text-slate-500">User</p>
+                        <p className="mt-1 text-[16px] font-extrabold text-slate-900">{user.name || user.mobile || "Unknown user"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black uppercase text-slate-500">OS / Browser</p>
+                        <p className="mt-1 text-[16px] font-extrabold text-slate-900">
+                          {session.os || "-"} {session.platform_version ? `(${session.platform_version})` : ""} · {session.browser || "-"} {session.browser_version || ""}
+                        </p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-center text-[13px] font-black ${active ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"}`}>
+                        {active ? "Active" : "Logged out"}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-[14px] font-bold text-slate-600 sm:grid-cols-3">
+                      <p>Login: {formatDateTime(session.login_at)}</p>
+                      <p>Last active: {formatDateTime(session.last_active_at)}</p>
+                      <p>IP: {session.ip_address || "-"}</p>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <EmptyText text="या farm साठी अजून device session data उपलब्ध नाही. User ने app मध्ये पुन्हा login केल्यावर phone model दिसेल." />
+            )}
           </div>
         </div>
       </CollapsibleSection>
