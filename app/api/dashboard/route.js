@@ -198,7 +198,7 @@ async function buildMonthlyDashboardReports(supabase, farmId, monthInput) {
       monthlyExpenses: monthlyFeedExpenses
     });
 
-    if (expectedFeedTotal > currentFeedTotal + 0.01) {
+    if (Math.abs(expectedFeedTotal - currentFeedTotal) > 0.01) {
       monthlySummary = await refreshMonthlySummary(supabase, farmId, monthInput.month, monthInput.year);
     }
   }

@@ -2,11 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearSuperAdminBrowserSession, isAdminJwtExpired } from "@/lib/adminSession";
 import {
   getCookieValue,
   safeGetLocalStorageItem,
   safeParseLocalStorageJson,
-  safeRemoveLocalStorageItem,
   safeSetLocalStorageItem
 } from "@/lib/clientStorage";
 
@@ -21,18 +21,6 @@ function setAdminCookie(token) {
   try {
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Max-Age=${60 * 60 * 12}; Path=/; SameSite=Lax${secure}`;
-  } catch {
-    // Ignore cookie errors.
-  }
-}
-
-function clearAdminCookie() {
-  if (typeof document === "undefined") {
-    return;
-  }
-  try {
-    const secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${TOKEN_KEY}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
   } catch {
     // Ignore cookie errors.
   }
@@ -53,9 +41,7 @@ function storeSession(token, admin) {
 }
 
 function clearSession() {
-  safeRemoveLocalStorageItem(TOKEN_KEY);
-  safeRemoveLocalStorageItem(ADMIN_KEY);
-  clearAdminCookie();
+  clearSuperAdminBrowserSession();
 }
 
 export function getSuperAdminAuthHeader() {
@@ -99,7 +85,8 @@ export function SuperAdminProvider({ children }) {
     const token = getStoredToken();
     const storedAdmin = getStoredAdmin();
 
-    if (!token || !storedAdmin) {
+    if (!token || !storedAdmin || isAdminJwtExpired(token)) {
+      clearSession();
       setAdmin(null);
       setIsLoading(false);
       return false;

@@ -149,7 +149,7 @@ function getDerivedTransactionLabel(transaction) {
   }
 
   if (transaction.source === "dairy_settlements") {
-    return "15 दिवसांच्या स्लिपवरील अंतिम डेअरी कपात";
+    return "15 दिवसांच्या स्लिपवरील देयक कपात";
   }
 
   return "आपोआप दाखवले आहे";

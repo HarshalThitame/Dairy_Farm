@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
-import { isKhadyaExpenseCategory, summarizeMilkSessionsForMonth } from "@/lib/accountingUtils";
+import { summarizeMilkSessionsForMonth } from "@/lib/accountingUtils";
 import { displayFeedSectionName } from "@/lib/feedExpenseSections";
 import { farmErrorResponse, normalizeFarm, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -331,7 +331,6 @@ function buildFeedSummary(records) {
   const bySection = {};
   let monthlyTotal = 0;
   let annualTotal = 0;
-  let infoOnlyMonthlyTotal = 0;
 
   (records || []).forEach((record) => {
     const section = displayFeedSectionName(record.section);
@@ -342,8 +341,6 @@ function buildFeedSummary(records) {
 
     if (period === "annual") {
       annualTotal += amount;
-    } else if (isKhadyaExpenseCategory(section)) {
-      monthlyTotal += amount;
     } else {
       monthlyTotal += amount;
     }
@@ -352,7 +349,7 @@ function buildFeedSummary(records) {
   return {
     monthlyTotal: roundMoney(monthlyTotal),
     annualTotal: roundMoney(annualTotal),
-    infoOnlyMonthlyTotal: roundMoney(infoOnlyMonthlyTotal),
+    infoOnlyMonthlyTotal: 0,
     total: roundMoney(monthlyTotal + annualTotal),
     bySection: groupsToArray(bySection)
   };

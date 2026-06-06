@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/admin/Sidebar";
+import { installAdminSessionRedirectInterceptor } from "@/lib/adminSession";
 import { SuperAdminProvider, useSuperAdmin } from "@/context/SuperAdminContext";
 
 function AdminShell({ children }) {
@@ -11,6 +12,10 @@ function AdminShell({ children }) {
   const pathname = usePathname();
   const { admin, isAuthenticated, isLoading, logout } = useSuperAdmin();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    installAdminSessionRedirectInterceptor();
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

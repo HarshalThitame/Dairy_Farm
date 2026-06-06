@@ -181,7 +181,7 @@ export async function GET(request) {
     }).concat(buildSettlementDeductionExpenses(settlementDeductions.data || []));
     const summary = summarizeExpenses(expenses);
     const infoOnlyKhadyaTotal = expenses
-      .filter((expense) => expense.info_only === true)
+      .filter((expense) => expense.info_only === true && normalizeAccountingExpenseCategory(expense.category) === "चारा")
       .reduce((total, expense) => total + Number(expense.amount || 0), 0);
 
     return NextResponse.json({

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { expenseCategoryMeta } from "@/lib/accountingUtils";
+import { expenseCategoryMeta, normalizeAccountingExpenseCategory } from "@/lib/accountingUtils";
 import { formatMarathiDate, toMarathiCurrency } from "@/lib/marathiUtils";
 
 export default function ExpenseCard({ expense, onDelete }) {
   const meta = expenseCategoryMeta[expense.category] || expenseCategoryMeta["इतर"];
   const canEdit = expense.editable !== false && expense.source === "monthly_expenses";
   const title = expense.display_category || meta.label || expense.category;
+  const isLegacyKhadyaInfo = expense.info_only && normalizeAccountingExpenseCategory(expense.category) === "चारा";
   const sourceLabel = expense.source === "finance_records"
     ? "हिशोब नोंदीतून"
     : expense.source === "health_records"
@@ -42,7 +43,7 @@ export default function ExpenseCard({ expense, onDelete }) {
           {sourceLabel}
         </p>
       ) : null}
-      {expense.info_only ? (
+      {isLegacyKhadyaInfo ? (
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[16px] font-extrabold text-amber-800">
           ही खाद्य नोंद मासिक खर्च आणि नफा-तोट्यात धरली जाते.
         </p>
