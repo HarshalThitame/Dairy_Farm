@@ -4,6 +4,7 @@ import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import {
   addDaysToISODate,
+  getReminderDisplayMessage,
   getTodayISODate,
   MISSED_PREGNANCY_REMINDER_TYPE,
   NEXT_BREEDING_READY_REMINDER_TYPE,
@@ -108,9 +109,14 @@ function isValidISODate(value) {
 }
 
 async function enrichReminderRows(supabase, farmId, reminders, today = getTodayISODate()) {
-  const reproductiveRows = await removeResolvedReproductiveReminders(supabase, farmId, reminders || []);
+  const reproductiveRows = await removeResolvedReproductiveReminders(supabase, farmId, reminders || [], { today });
   const validRows = await removePostCalvingDryOffReminders(supabase, farmId, reproductiveRows);
-  return enrichActiveCalfMilkReminders(supabase, farmId, validRows, { today });
+  const enrichedRows = await enrichActiveCalfMilkReminders(supabase, farmId, validRows, { today });
+
+  return (enrichedRows || []).map((reminder) => ({
+    ...reminder,
+    message: getReminderDisplayMessage(reminder, today)
+  }));
 }
 
 async function updatePregnancyResultFromReminder(supabase, farmId, reminderId, pregnancyResult) {
@@ -285,7 +291,12 @@ export async function GET(request) {
       // Detail pages must still open for a real reminder even when list-level
       // lifecycle filtering would hide it. Actions such as snooze/pregnancy
       // result operate on the raw reminder id.
-      return NextResponse.json({ data: enriched[0] || data });
+      return NextResponse.json({
+        data: enriched[0] || {
+          ...data,
+          message: getReminderDisplayMessage(data, today)
+        }
+      });
     }
 
     if (filter === "done") {

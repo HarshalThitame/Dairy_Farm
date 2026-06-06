@@ -9,7 +9,7 @@ import {
 import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
 import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
-import { addDaysToISODate, getTodayISODate } from "@/lib/reminderUtils";
+import { addDaysToISODate, getReminderDisplayMessage, getTodayISODate } from "@/lib/reminderUtils";
 import { removeResolvedReproductiveReminders } from "@/lib/reproductiveReminderDisplay";
 import { getMissingSettlementSlipPeriods } from "@/lib/settlementReminderUtils";
 import {
@@ -120,9 +120,14 @@ function buildCalvesSummary(calves) {
 }
 
 async function enrichDashboardReminders(supabase, farmId, reminders, today) {
-  const reproductiveRows = await removeResolvedReproductiveReminders(supabase, farmId, reminders || []);
+  const reproductiveRows = await removeResolvedReproductiveReminders(supabase, farmId, reminders || [], { today });
   const validRows = await removePostCalvingDryOffReminders(supabase, farmId, reproductiveRows);
-  return enrichActiveCalfMilkReminders(supabase, farmId, validRows, { today });
+  const enrichedRows = await enrichActiveCalfMilkReminders(supabase, farmId, validRows, { today });
+
+  return (enrichedRows || []).map((reminder) => ({
+    ...reminder,
+    message: getReminderDisplayMessage(reminder, today)
+  }));
 }
 
 function assertQuery(result) {

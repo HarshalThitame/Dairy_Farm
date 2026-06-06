@@ -3,7 +3,7 @@ import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
 import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { removeResolvedReproductiveReminders } from "@/lib/reproductiveReminderDisplay";
-import { getTodayISODate } from "@/lib/reminderUtils";
+import { getReminderDisplayMessage, getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
@@ -128,10 +128,12 @@ export async function GET(request, { params }) {
       throw relatedError;
     }
 
+    const today = getTodayISODate();
     const reproductiveReminders = await removeResolvedReproductiveReminders(
       supabase,
       farmId,
-      reminders.data || []
+      reminders.data || [],
+      { today }
     );
     const dryOffFilteredReminders = await removePostCalvingDryOffReminders(
       supabase,
@@ -142,8 +144,12 @@ export async function GET(request, { params }) {
       supabase,
       farmId,
       dryOffFilteredReminders,
-      { today: getTodayISODate() }
+      { today }
     );
+    const displayReminders = visibleReminders.map((reminder) => ({
+      ...reminder,
+      message: getReminderDisplayMessage(reminder, today)
+    }));
 
     return NextResponse.json({
       data: {
@@ -155,7 +161,7 @@ export async function GET(request, { params }) {
           health_records: healthRecords.data || [],
           finance_records: financeRecords.data || [],
           calves: calves.data || [],
-          reminders: visibleReminders
+          reminders: displayReminders
         }
       }
     });

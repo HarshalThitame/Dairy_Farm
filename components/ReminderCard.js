@@ -9,6 +9,7 @@ import { cacheCowSnapshot } from "@/lib/cowInstantCache";
 import { cacheReminderSnapshot } from "@/lib/reminderInstantCache";
 import {
   getReminderDayDistance,
+  getReminderDisplayMessage,
   getReminderEmoji,
   getUrgencyLevel,
   MISSED_PREGNANCY_REMINDER_TYPE,
@@ -63,14 +64,27 @@ export default function ReminderCard({
     : reminder.cows?.name || (reminder.cow_id ? "गाय" : "सर्व गायी");
   const actionHref = reminder.action_href || reminder.actionHref || "";
   const actionLabel = reminder.action_label || reminder.actionLabel || "उघडा";
-  const infoHref = calfReminder ? "/vasare" : reminder.cow_id ? `/gayi/${reminder.cow_id}` : "";
-  const infoLabel = calfReminder ? "🐮 वासरे बघा" : "📋 माहिती बघा";
   const canComplete = !actionHref && (urgency === "overdue" || urgency === "today");
   const calvingReminder = isCalvingReminder(reminder);
   const pregnancyReminder =
     reminder.type === PREGNANCY_CHECK_REMINDER_TYPE ||
     reminder.type === MISSED_PREGNANCY_REMINDER_TYPE;
   const detailHref = `/athavan/${reminder.id}`;
+  const infoHref = calfReminder
+    ? "/vasare"
+    : pregnancyReminder
+      ? detailHref
+      : reminder.cow_id
+        ? `/gayi/${reminder.cow_id}`
+        : "";
+  const infoLabel = calfReminder
+    ? "🐮 वासरे बघा"
+    : pregnancyReminder
+      ? canComplete
+        ? "📋 तपशील"
+        : "🤰 तपासणी बघा"
+      : "📋 माहिती बघा";
+  const displayMessage = getReminderDisplayMessage(reminder);
 
   const warmReminderRoutes = useCallback(() => {
     cacheReminderSnapshot(reminder);
@@ -127,11 +141,11 @@ export default function ReminderCard({
 
       {!compact ? (
         <p className="relative z-10 mt-3 text-[19px] font-semibold leading-relaxed text-slate-700">
-          {reminder.message}
+          {displayMessage}
         </p>
       ) : (
         <p className="relative z-10 mt-2 text-[18px] font-semibold leading-snug text-slate-700">
-          {reminder.message}
+          {displayMessage}
         </p>
       )}
 
