@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
 import AnimatedNumber from "@/components/home/AnimatedNumber";
 import HomeSkeleton from "@/components/home/HomeSkeleton";
@@ -27,7 +28,8 @@ import {
   fetchJson,
   fetchMilkByDate,
   fetchRemindersByFilter,
-  markReminderDone as markReminderDoneOffline
+  markReminderDone as markReminderDoneOffline,
+  uploadSlipImage
 } from "@/lib/offlineActions";
 
 const DASHBOARD_CACHE_PREFIX = "majhi_dashboard_snapshot_v3";
@@ -67,6 +69,8 @@ function writeDashboardCache(farmId, month, year, snapshot) {
 
 export default function DashboardPage() {
   const { farm } = useAuth();
+  const router = useRouter();
+  const nativeSlipInputRef = useRef(null);
   const currentMonth = getIndiaMonthParts();
   const [cows, setCows] = useState([]);
   const [cowsSummary, setCowsSummary] = useState({ total: 0, pregnant: 0 });
@@ -84,6 +88,8 @@ export default function DashboardPage() {
   const [dailyGoal, setDailyGoal] = useState(null);
   const [todayIncome, setTodayIncome] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanMessage, setScanMessage] = useState("");
   const [error, setError] = useState("");
 
   const applyDashboardSnapshot = useCallback((snapshot) => {
@@ -310,33 +316,6 @@ export default function DashboardPage() {
     }
   ];
 
-  const primaryActions = [
-    {
-      href: `/nondi/dudh?date=${today}`,
-      icon: "🥛",
-      title: "दूध नोंद",
-      subtitle: "आजचे दूध भरा",
-      className: "border-blue-100 bg-blue-50 text-blue-950 active:bg-blue-100",
-      iconClassName: "bg-blue-100"
-    },
-    {
-      href: "/accounting/slip-scan",
-      icon: "📷",
-      title: "स्लिप स्कॅन",
-      subtitle: "फोटोवरून नोंद",
-      className: "border-green-100 bg-green-50 text-green-950 active:bg-green-100",
-      iconClassName: "bg-green-100"
-    },
-    {
-      href: "/accounting/expenses/new",
-      icon: "💸",
-      title: "खर्च नोंद",
-      subtitle: "औषध, मजुरी, इतर",
-      className: "border-amber-100 bg-amber-50 text-amber-950 active:bg-amber-100",
-      iconClassName: "bg-amber-100"
-    }
-  ];
-
   const summaries = [
     {
       emoji: "🐄",
@@ -460,6 +439,67 @@ export default function DashboardPage() {
     );
   }
 
+  function openNativeSlipCamera() {
+    if (scanLoading) {
+      return;
+    }
+
+    setError("");
+    setScanMessage("");
+
+    if (nativeSlipInputRef.current) {
+      nativeSlipInputRef.current.value = "";
+      nativeSlipInputRef.current.click();
+    }
+  }
+
+  async function handleNativeSlipFile(file) {
+    if (!file) {
+      return;
+    }
+
+    const fileType = String(file.type || "").toLowerCase();
+    if (fileType && !fileType.startsWith("image/")) {
+      setError("फक्त स्लिपचा फोटो निवडा.");
+      return;
+    }
+
+    setScanLoading(true);
+    setScanMessage("फोटो तयार करत आहे...");
+    setError("");
+
+    try {
+      const result = await uploadSlipImage(file, {
+        originalFilename: file.name || `dairy-slip-${Date.now()}.jpg`,
+        originalSize: file.size,
+        onProgress: (progress) => {
+          if (progress?.message) {
+            setScanMessage(progress.message);
+          }
+        }
+      });
+
+      if (result.offline) {
+        setScanMessage("फोटो फोनवर साठवला. इंटरनेट आल्यावर process होईल.");
+        window.setTimeout(() => router.push("/accounting/slip-scan"), 900);
+        return;
+      }
+
+      const uploadId = result.data?.uploadId;
+      if (!uploadId) {
+        throw new Error("Upload ID मिळाला नाही.");
+      }
+
+      setScanMessage("फोटो अपलोड झाला. AI वाचत आहे...");
+      router.push(`/accounting/slip-scan/preview/${uploadId}`);
+    } catch (scanError) {
+      setError(scanError.message || "स्लिप फोटो अपलोड झाला नाही.");
+      setScanMessage("");
+    } finally {
+      setScanLoading(false);
+    }
+  }
+
   async function markReminderDone(reminder) {
     try {
       await markReminderDoneOffline(reminder.id);
@@ -525,6 +565,14 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-enter space-y-5 pb-2">
+      <input
+        ref={nativeSlipInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => handleNativeSlipFile(event.target.files?.[0])}
+      />
       <TrialBanner />
 
       <header className="dashboard-hero rounded-lg px-4 pb-4 pt-5 text-white shadow-soft">
@@ -568,7 +616,7 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <Link
               href="/ahval"
               className="dashboard-card rounded-lg bg-white px-2 py-3 text-center text-green-950 shadow-sm ring-1 ring-white/40 active:bg-green-50"
@@ -577,34 +625,31 @@ export default function DashboardPage() {
               <p className="mt-1 text-[15px] font-extrabold leading-tight">अहवाल</p>
             </Link>
             <Link
-              href="/accounting/slip-scan"
+              href="/accounting/expenses/new"
               className="dashboard-card rounded-lg bg-white px-2 py-3 text-center text-green-950 shadow-sm ring-1 ring-white/40 active:bg-green-50"
+            >
+              <p className="text-[20px] font-extrabold">💸</p>
+              <p className="mt-1 text-[15px] font-extrabold leading-tight">खर्च</p>
+            </Link>
+            <button
+              type="button"
+              onClick={openNativeSlipCamera}
+              disabled={scanLoading}
+              className="dashboard-card rounded-lg bg-white px-2 py-3 text-center text-green-950 shadow-sm ring-1 ring-white/40 active:bg-green-50 disabled:cursor-wait disabled:opacity-75"
             >
               <p className="text-[20px] font-extrabold">📷</p>
               <p className="mt-1 text-[15px] font-extrabold leading-tight">स्कॅन</p>
-            </Link>
+            </button>
           </div>
         </div>
       </header>
 
-      <section className="dashboard-stagger grid grid-cols-3 gap-2" aria-label="जलद काम">
-        {primaryActions.map((action) => (
-          <Link
-            key={action.title}
-            href={action.href}
-            className={`dashboard-card dashboard-action-tile relative flex min-h-[122px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-3 text-center shadow-soft ${action.className}`}
-          >
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[23px] shadow-sm ${action.iconClassName}`}>
-              {action.icon}
-            </span>
-            <span className="min-w-0">
-              <span className="block break-words text-[15px] font-extrabold leading-tight sm:text-[18px]">{action.title}</span>
-              <span className="mt-1 block break-words text-[12px] font-bold leading-tight opacity-75 sm:text-[14px]">{action.subtitle}</span>
-            </span>
-            <span className="absolute right-2 top-2 text-[16px] font-extrabold opacity-60">→</span>
-          </Link>
-        ))}
-      </section>
+      {scanLoading || scanMessage ? (
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-[18px] font-extrabold text-emerald-900 shadow-soft">
+          {scanLoading ? "📷 " : "✅ "}
+          {scanMessage || "स्लिप तयार करत आहे..."}
+        </section>
+      ) : null}
 
       {pendingSettlementSlipCount > 0 ? (
         <Link
@@ -714,9 +759,11 @@ export default function DashboardPage() {
         })}
       </section>
 
-      <Link
-        href="/accounting/slip-scan"
-        className="dashboard-card home-scan-card dashboard-scan block rounded-lg border border-white/80 bg-white p-4 shadow-soft active:bg-green-100"
+      <button
+        type="button"
+        onClick={openNativeSlipCamera}
+        disabled={scanLoading}
+        className="dashboard-card home-scan-card dashboard-scan block w-full rounded-lg border border-white/80 bg-white p-4 text-left shadow-soft active:bg-green-100 disabled:cursor-wait disabled:opacity-75"
       >
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="dashboard-scan-icon home-scan-icon flex h-16 w-16 shrink-0 items-center justify-center rounded-lg text-[34px] text-white shadow-soft">
@@ -727,7 +774,7 @@ export default function DashboardPage() {
               स्लिप स्कॅन करा
             </p>
             <p className="mt-2 text-[18px] font-bold leading-snug text-green-800">
-              दूध स्लिपचा फोटो काढा किंवा गॅलरीमधून अपलोड करा
+              फोनचा कॅमेरा थेट उघडून स्पष्ट फोटो घ्या
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="home-soft-chip rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-green-800 shadow-sm">AI वाचेल</span>
@@ -735,10 +782,10 @@ export default function DashboardPage() {
             </div>
           </div>
           <span className="home-primary-button shrink-0 rounded-full px-4 py-3 text-[18px] font-extrabold text-white shadow-sm">
-            उघडा →
+            कॅमेरा →
           </span>
         </div>
-      </Link>
+      </button>
 
       <section className="home-panel dashboard-panel rounded-lg border border-white/80 bg-white p-4 shadow-soft">
         <div className="flex items-center justify-between gap-3">
