@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 const fallbackSections = [
@@ -37,10 +37,6 @@ const autoOptions = [
   { id: "weekly", label: "दर आठवड्याला" },
   { id: "monthly", label: "दर महिन्याला" }
 ];
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function todayISO() {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -193,7 +189,8 @@ export default function ExportBackupPage() {
     try {
       const response = await fetch("/api/settings/export", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Export माहिती मिळाली नाही.");
@@ -285,9 +282,10 @@ export default function ExportBackupPage() {
   async function postJson(body) {
     const response = await fetch("/api/settings/export", {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`
+        ...getClientAuthHeaders()
       },
       body: JSON.stringify(body)
     });
@@ -304,9 +302,10 @@ export default function ExportBackupPage() {
     try {
       const response = await fetch("/api/settings/export", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`
+          ...getClientAuthHeaders()
         },
         body: JSON.stringify({ action: "export", ...payload })
       });
@@ -413,7 +412,7 @@ export default function ExportBackupPage() {
   }
 
   if (loading) return <LoadingState text="Export Center लोड होत आहे..." />;
-  if (error && !sections.length) return <ErrorState message={error} onRetry={load} />;
+  if (error && !autoBackup && !backups.length) return <ErrorState message={error} onRetry={load} />;
 
   return (
     <div className="space-y-5 pb-28">
@@ -592,42 +591,47 @@ export default function ExportBackupPage() {
       <section className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-soft">
         <h2 className="text-[24px] font-black text-slate-950">Backup इतिहास</h2>
         <div className="mt-4 grid gap-3">
-          {backups.length ? backups.map((backup) => (
-            <article key={backup.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="break-words text-[18px] font-black leading-snug text-slate-950">{backup.fileName}</p>
-                  <p className="mt-1 text-[14px] font-bold text-slate-500">{formatDate(backup.createdAt)}</p>
+          {backups.length ? backups.map((backup) => {
+            const backupReady = ["ready", "restored"].includes(backup.status);
+            const canRestore = backupReady && backup.type === "backup" && backup.format === "json";
+
+            return (
+              <article key={backup.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="break-words text-[18px] font-black leading-snug text-slate-950">{backup.fileName}</p>
+                    <p className="mt-1 text-[14px] font-bold text-slate-500">{formatDate(backup.createdAt)}</p>
+                  </div>
+                  <span className="w-fit rounded-full bg-white px-3 py-1 text-[13px] font-black text-slate-700">
+                    {backupTypeLabel(backup.type)} · {String(backup.format || "").toUpperCase()}
+                  </span>
                 </div>
-                <span className="w-fit rounded-full bg-white px-3 py-1 text-[13px] font-black text-slate-700">
-                  {backupTypeLabel(backup.type)} · {String(backup.format || "").toUpperCase()}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <Meta label="आकार" value={formatSize(backup.sizeBytes)} />
-                <Meta label="नोंदी" value={toMarathiNumerals(backup.recordsCount || 0)} />
-                <Meta label="स्थिती" value={statusLabel(backup.status)} />
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <ActionButton
-                  busy={busyAction === `download-${backup.id}`}
-                  disabled={isBusy && busyAction !== `download-${backup.id}`}
-                  onClick={() => downloadBackup(backup.id)}
-                  tone="slate"
-                >
-                  ⬇️ Download करा
-                </ActionButton>
-                <ActionButton
-                  busy={busyAction === `restore-${backup.id}`}
-                  disabled={(isBusy && busyAction !== `restore-${backup.id}`) || backup.type !== "backup" || backup.format !== "json"}
-                  onClick={() => restoreSelectedBackup(backup)}
-                  tone="red"
-                >
-                  ♻️ Restore करा
-                </ActionButton>
-              </div>
-            </article>
-          )) : (
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Meta label="आकार" value={formatSize(backup.sizeBytes)} />
+                  <Meta label="नोंदी" value={toMarathiNumerals(backup.recordsCount || 0)} />
+                  <Meta label="स्थिती" value={statusLabel(backup.status)} />
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <ActionButton
+                    busy={busyAction === `download-${backup.id}`}
+                    disabled={!backupReady || (isBusy && busyAction !== `download-${backup.id}`)}
+                    onClick={() => downloadBackup(backup.id)}
+                    tone="slate"
+                  >
+                    ⬇️ Download करा
+                  </ActionButton>
+                  <ActionButton
+                    busy={busyAction === `restore-${backup.id}`}
+                    disabled={!canRestore || (isBusy && busyAction !== `restore-${backup.id}`)}
+                    onClick={() => restoreSelectedBackup(backup)}
+                    tone="red"
+                  >
+                    ♻️ Restore करा
+                  </ActionButton>
+                </div>
+              </article>
+            );
+          }) : (
             <p className="rounded-2xl bg-slate-50 p-4 text-[17px] font-bold text-slate-600">
               अजून backup तयार केलेला नाही.
             </p>

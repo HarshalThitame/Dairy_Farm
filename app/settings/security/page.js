@@ -48,6 +48,38 @@ function passwordStrength(password) {
   return { score, label: "कमकुवत", color: "bg-red-500" };
 }
 
+const weakPins = new Set(["0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999", "1234", "4321"]);
+
+function validatePinForm(form) {
+  if (!/^\d{4}$/.test(form.currentPin) || !/^\d{4}$/.test(form.newPin) || !/^\d{4}$/.test(form.confirmPin)) {
+    return "कृपया ४ अंकी PIN लिहा.";
+  }
+  if (form.newPin !== form.confirmPin) {
+    return "नवीन PIN दोन्ही ठिकाणी सारखा नाही.";
+  }
+  if (form.currentPin === form.newPin) {
+    return "नवीन PIN सध्याच्या PIN पेक्षा वेगळा असावा.";
+  }
+  if (weakPins.has(form.newPin)) {
+    return "हा PIN खूप सोपा आहे. कठीण PIN निवडा.";
+  }
+  return "";
+}
+
+function validatePasswordForm(form, hasPassword) {
+  if (hasPassword && !form.currentPassword) {
+    return "सध्याचा password लिहा.";
+  }
+  if (form.newPassword !== form.confirmPassword) {
+    return "नवीन password दोन्ही ठिकाणी सारखा नाही.";
+  }
+  const strength = passwordStrength(form.newPassword);
+  if (strength.score < 85) {
+    return "मजबूत password वापरा: ८ अक्षरे, uppercase, lowercase, number आणि special character आवश्यक.";
+  }
+  return "";
+}
+
 function Field({ label, children }) {
   return (
     <label className="block">
@@ -71,7 +103,7 @@ export default function SecuritySettingsPage() {
   const [savingPin, setSavingPin] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [sessionSaving, setSessionSaving] = useState("");
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState(null);
 
   const currentSessionId = useMemo(() => getSessionIdFromToken(), []);
   const strength = passwordStrength(passwordForm.newPassword);
@@ -100,9 +132,10 @@ export default function SecuritySettingsPage() {
 
   async function changePin(event) {
     event.preventDefault();
-    setMessage("");
-    if (pinForm.newPin !== pinForm.confirmPin) {
-      setMessage("नवीन PIN दोन्ही ठिकाणी सारखा नाही.");
+    setNotice(null);
+    const validation = validatePinForm(pinForm);
+    if (validation) {
+      setNotice({ type: "error", text: validation });
       return;
     }
     setSavingPin(true);
@@ -115,10 +148,10 @@ export default function SecuritySettingsPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "PIN बदलला नाही.");
       setPinForm({ currentPin: "", newPin: "", confirmPin: "" });
-      setMessage("PIN यशस्वीरित्या बदलला.");
+      setNotice({ type: "success", text: "PIN यशस्वीरित्या बदलला." });
       load();
     } catch (saveError) {
-      setMessage(saveError.message);
+      setNotice({ type: "error", text: saveError.message });
     } finally {
       setSavingPin(false);
     }
@@ -126,7 +159,12 @@ export default function SecuritySettingsPage() {
 
   async function changePassword(event) {
     event.preventDefault();
-    setMessage("");
+    setNotice(null);
+    const validation = validatePasswordForm(passwordForm, Boolean(data?.hasPassword));
+    if (validation) {
+      setNotice({ type: "error", text: validation });
+      return;
+    }
     setSavingPassword(true);
     try {
       const response = await fetch("/api/settings/security/password", {
@@ -137,10 +175,10 @@ export default function SecuritySettingsPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Password बदलला नाही.");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setMessage("Password यशस्वीरित्या बदलला.");
+      setNotice({ type: "success", text: "Password यशस्वीरित्या बदलला." });
       load();
     } catch (saveError) {
-      setMessage(saveError.message);
+      setNotice({ type: "error", text: saveError.message });
     } finally {
       setSavingPassword(false);
     }
@@ -152,7 +190,7 @@ export default function SecuritySettingsPage() {
       : "ही session बंद करायची आहे का?";
     if (!window.confirm(confirmText)) return;
     setSessionSaving(mode + sessionId);
-    setMessage("");
+    setNotice(null);
     try {
       const query = sessionId ? `session_id=${sessionId}` : `mode=${mode}`;
       const response = await fetch(`/api/settings/security/sessions?${query}`, {
@@ -165,10 +203,10 @@ export default function SecuritySettingsPage() {
         logout();
         return;
       }
-      setMessage("Session बंद झाली.");
+      setNotice({ type: "success", text: "Session बंद झाली." });
       load();
     } catch (saveError) {
-      setMessage(saveError.message);
+      setNotice({ type: "error", text: saveError.message });
     } finally {
       setSessionSaving("");
     }
@@ -185,9 +223,15 @@ export default function SecuritySettingsPage() {
     <div className="space-y-5">
       <PageHeader title="🔒 सुरक्षा केंद्र" subtitle="PIN, password, sessions आणि login history तपासा." />
 
-      {message ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-[18px] font-extrabold text-green-900 shadow-sm">
-          {message}
+      {notice ? (
+        <div
+          className={`rounded-xl border p-4 text-[18px] font-extrabold shadow-sm ${
+            notice.type === "success"
+              ? "border-green-200 bg-green-50 text-green-900"
+              : "border-red-200 bg-red-50 text-red-900"
+          }`}
+        >
+          {notice.text}
         </div>
       ) : null}
 
@@ -262,19 +306,27 @@ export default function SecuritySettingsPage() {
 
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[24px] font-black text-slate-950">📱 Active Sessions</h2>
-          <button type="button" onClick={() => closeSession("all")} disabled={Boolean(sessionSaving)} className="min-h-[44px] rounded-lg bg-red-600 px-3 text-[15px] font-black text-white disabled:opacity-60">
-            सर्व Logout
+          <div>
+            <h2 className="text-[24px] font-black text-slate-950">📱 डिव्हाइस Sessions</h2>
+            <p className="mt-1 text-[15px] font-bold text-slate-600">तुमचे खाते कोणत्या phone/browser मध्ये active आहे ते इथे दिसते.</p>
+          </div>
+          <button type="button" onClick={() => closeSession("all")} disabled={Boolean(sessionSaving)} className="min-h-[44px] shrink-0 rounded-lg bg-red-600 px-3 text-[15px] font-black text-white disabled:opacity-60">
+            {sessionSaving === "all" ? "Logout..." : "सर्व Logout"}
           </button>
         </div>
         <div className="mt-4 grid gap-3">
           {sessions.length ? sessions.map((session) => (
             <article key={session.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[19px] font-black text-slate-950">📱 {session.device_name || "Device"}</p>
-                  <p className="mt-1 text-[15px] font-bold text-slate-600">🌐 {session.browser || "-"} · {session.os || "-"}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-[19px] font-black text-slate-950">
+                    📱 {session.device_model || session.device_name || "Device"}
+                  </p>
+                  <p className="mt-1 text-[15px] font-bold text-slate-600">
+                    🌐 {session.browser || "-"} {session.browser_version || ""} · {session.os || "-"} {session.platform_version ? `(${session.platform_version})` : ""}
+                  </p>
                   <p className="text-[15px] font-bold text-slate-600">🕒 Last active: {formatDateTime(session.last_active_at)}</p>
+                  <p className="text-[15px] font-bold text-slate-600">Login: {formatDateTime(session.login_at)}</p>
                   <p className="text-[15px] font-bold text-slate-600">IP: {session.ip_address || "-"}</p>
                 </div>
                 {session.id === currentSessionId ? (
@@ -282,8 +334,13 @@ export default function SecuritySettingsPage() {
                 ) : null}
               </div>
               {session.is_active ? (
-                <button type="button" onClick={() => closeSession("other", session.id)} disabled={sessionSaving === `other${session.id}`} className="mt-3 min-h-[42px] rounded-lg border border-red-200 bg-white px-3 text-[15px] font-black text-red-700 disabled:opacity-60">
-                  Session बंद करा
+                <button
+                  type="button"
+                  onClick={() => session.id === currentSessionId ? closeSession("current") : closeSession("other", session.id)}
+                  disabled={sessionSaving === `other${session.id}` || sessionSaving === "current" || sessionSaving === "all"}
+                  className="mt-3 min-h-[42px] rounded-lg border border-red-200 bg-white px-3 text-[15px] font-black text-red-700 disabled:opacity-60"
+                >
+                  {session.id === currentSessionId ? "हा device Logout करा" : "Session बंद करा"}
                 </button>
               ) : (
                 <p className="mt-3 text-[15px] font-black text-slate-500">बंद session</p>
@@ -306,6 +363,9 @@ export default function SecuritySettingsPage() {
                 </p>
                 <p className="mt-1 text-[15px] font-bold text-slate-600">{item.device_name || "Device"} · {item.browser || "Browser"} · {item.os || "OS"}</p>
                 <p className="text-[15px] font-bold text-slate-600">{item.location || item.ip_address || "-"}</p>
+                {item.status !== "success" && item.failure_reason ? (
+                  <p className="mt-1 text-[15px] font-black text-red-700">कारण: {item.failure_reason}</p>
+                ) : null}
               </div>
               <p className="text-right text-[14px] font-bold text-slate-500">{formatDateTime(item.created_at)}</p>
             </article>

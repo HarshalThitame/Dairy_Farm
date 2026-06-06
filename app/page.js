@@ -23,6 +23,7 @@ import {
   safeParseLocalStorageJson,
   safeSetLocalStorageItem
 } from "@/lib/clientStorage";
+import { useUiLanguage, useUiTranslation } from "@/lib/useUiLanguage";
 import {
   fetchCows as fetchCowsOffline,
   fetchJson,
@@ -34,6 +35,24 @@ import {
 
 const DASHBOARD_CACHE_PREFIX = "majhi_dashboard_snapshot_v3";
 const DASHBOARD_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const ENGLISH_MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+];
+
+function getDisplayMonthName(month, language) {
+  return language === "en" ? ENGLISH_MONTHS[Number(month) - 1] || getMonthName(month) : getMonthName(month);
+}
 
 function dashboardCacheKey(farmId, month, year) {
   return `${DASHBOARD_CACHE_PREFIX}:${farmId || "farm"}:${year}-${String(month).padStart(2, "0")}`;
@@ -70,6 +89,8 @@ function writeDashboardCache(farmId, month, year, snapshot) {
 export default function DashboardPage() {
   const { farm } = useAuth();
   const router = useRouter();
+  const language = useUiLanguage();
+  const t = useUiTranslation();
   const nativeSlipInputRef = useRef(null);
   const currentMonth = getIndiaMonthParts();
   const [cows, setCows] = useState([]);
@@ -258,6 +279,14 @@ export default function DashboardPage() {
     Number(monthlyFinanceReport?.totalExpense || 0) +
     Number(monthlyFinanceReport?.deductionsCountedInProfit || monthlyFinanceReport?.totalDeductions || 0);
   const monthlyIncomeTotal = Number(monthlyFinanceReport?.totalIncome || 0);
+  const literUnit = language === "en" ? "liters" : "लिटर";
+  const shortLiterUnit = language === "en" ? "L" : "लि.";
+  const workUnit = language === "en" ? "tasks" : "कामे";
+  const slipUnit = language === "en" ? "slips" : "स्लिप";
+  const formatMilkValue = useCallback(
+    (value, short = false) => `${formatLitres(value)} ${short ? shortLiterUnit : literUnit}`,
+    [literUnit, shortLiterUnit]
+  );
   const previousMonth = addMonths(currentMonth.month, currentMonth.year, -1);
   const previousMonthlyNetProfit = Number(previousMonthlyFinanceReport?.netProfit || 0);
   const previousMonthlyExpenseTotal =
@@ -302,7 +331,7 @@ export default function DashboardPage() {
     {
       label: "सकाळचे दूध",
       value: todayMorningMilkTotal,
-      formatter: (value) => `${formatLitres(value)} लि.`
+      formatter: (value) => formatMilkValue(value, true)
     },
     {
       label: "आठवणी",
@@ -312,7 +341,7 @@ export default function DashboardPage() {
     {
       label: "संध्याकाळचे दूध",
       value: todayEveningMilkTotal,
-      formatter: (value) => `${formatLitres(value)} लि.`
+      formatter: (value) => formatMilkValue(value, true)
     }
   ];
 
@@ -329,9 +358,9 @@ export default function DashboardPage() {
     {
       emoji: "🥛",
       label: "आज दूध",
-      value: `${formatLitres(todayMilkTotal)} लिटर`,
+      value: formatMilkValue(todayMilkTotal),
       numericValue: todayMilkTotal,
-      formatter: (value) => `${formatLitres(value)} लिटर`,
+      formatter: (value) => formatMilkValue(value),
       href: `/nondi/dudh?date=${today}`,
       tone: "blue"
     },
@@ -380,7 +409,10 @@ export default function DashboardPage() {
       activities.push({
         icon: "🥛",
         title: "आजची दूध नोंद अपडेट झाली",
-        detail: `${formatLitres(todayMorningMilkTotal)} लि. सकाळ + ${formatLitres(todayEveningMilkTotal)} लि. संध्याकाळ`
+        detail: t(
+          `${formatMilkValue(todayMorningMilkTotal, true)} सकाळ + ${formatMilkValue(todayEveningMilkTotal, true)} संध्याकाळ`,
+          `${formatMilkValue(todayMorningMilkTotal, true)} morning + ${formatMilkValue(todayEveningMilkTotal, true)} evening`
+        )
       });
     }
 
@@ -396,7 +428,10 @@ export default function DashboardPage() {
       activities.push({
         icon: "📋",
         title: "देयक स्लिप अपलोड बाकी",
-        detail: `${toMarathiNumerals(pendingSettlementSlipCount)} स्लिप तपासायच्या आहेत`
+        detail: t(
+          `${toMarathiNumerals(pendingSettlementSlipCount)} स्लिप तपासायच्या आहेत`,
+          `${toMarathiNumerals(pendingSettlementSlipCount)} ${slipUnit} to review`
+        )
       });
     }
 
@@ -404,7 +439,10 @@ export default function DashboardPage() {
       activities.push({
         icon: "🔔",
         title: "आजच्या आठवणी तयार आहेत",
-        detail: `${toMarathiNumerals(todayReminderCount)} कामे बाकी`
+        detail: t(
+          `${toMarathiNumerals(todayReminderCount)} कामे बाकी`,
+          `${toMarathiNumerals(todayReminderCount)} ${workUnit} pending`
+        )
       });
     }
 
@@ -412,7 +450,7 @@ export default function DashboardPage() {
       activities.push({
         icon: "📊",
         title: "मासिक दूध सारांश अपडेट",
-        detail: `${formatLitres(monthlyMilkReport.totalLitres)} लिटर`
+        detail: formatMilkValue(monthlyMilkReport.totalLitres)
       });
     }
 
@@ -420,11 +458,15 @@ export default function DashboardPage() {
   }, [
     monthlyMilkReport?.totalLitres,
     pendingSettlementSlipCount,
+    slipUnit,
+    t,
     todayEveningMilkTotal,
     todayIncome,
     todayMilkTotal,
     todayMorningMilkTotal,
-    todayReminderCount
+    todayReminderCount,
+    workUnit,
+    formatMilkValue
   ]);
 
   function openAiAssistant(question = "") {
@@ -662,19 +704,28 @@ export default function DashboardPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[23px] font-black leading-tight text-amber-950">
-                {toMarathiNumerals(pendingSettlementSlipCount)} देयक स्लिप अपलोड बाकी
+                {t(
+                  `${toMarathiNumerals(pendingSettlementSlipCount)} देयक स्लिप अपलोड बाकी`,
+                  `${toMarathiNumerals(pendingSettlementSlipCount)} payment ${pendingSettlementSlipCount === 1 ? "slip" : "slips"} pending`
+                )}
               </p>
               <p className="mt-1 text-[16px] font-bold leading-snug text-amber-800">
-                कोणत्या महिन्याची १५ दिवसांची स्लिप राहिली आहे ते तपासा.
+                {t(
+                  "कोणत्या महिन्याची १५ दिवसांची स्लिप राहिली आहे ते तपासा.",
+                  "Check which month's 15-day slip is still pending."
+                )}
               </p>
               {pendingSettlementSlips?.periods?.[0] ? (
                 <p className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[14px] font-extrabold text-amber-900 shadow-sm">
-                  पहिले बाकी: {pendingSettlementSlips.periods[0].period_label}
+                  {t(
+                    `पहिले बाकी: ${pendingSettlementSlips.periods[0].period_label}`,
+                    `First pending: ${pendingSettlementSlips.periods[0].period_label}`
+                  )}
                 </p>
               ) : null}
             </div>
             <span className="shrink-0 rounded-full bg-amber-600 px-3 py-2 text-[16px] font-extrabold text-white shadow-sm">
-              उघडा →
+              {t("उघडा →", "Open →")}
             </span>
           </div>
         </Link>
@@ -846,7 +897,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <p className="home-date-pill shrink-0 rounded-full px-3 py-2 text-[17px] font-extrabold text-slate-700">
-            {getMonthName(currentMonth.month)} {toMarathiNumerals(currentMonth.year)}
+            {getDisplayMonthName(currentMonth.month, language)} {toMarathiNumerals(currentMonth.year)}
           </p>
         </div>
 
@@ -886,7 +937,7 @@ export default function DashboardPage() {
           >
             <p className="text-[18px] font-extrabold">🥛 दूध</p>
             <p className="mt-1 text-[22px] font-black">
-              <AnimatedNumber value={monthlyMilkReport?.totalLitres || 0} formatter={(value) => `${formatLitres(value)} लिटर`} />
+              <AnimatedNumber value={monthlyMilkReport?.totalLitres || 0} formatter={(value) => formatMilkValue(value)} />
             </p>
           </Link>
           <Link
@@ -962,7 +1013,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-[15px] font-extrabold text-slate-500">मागील महिन्याचा डेटा</p>
               <h3 className="text-[21px] font-extrabold text-slate-950">
-                {getMonthName(previousMonth.month)} {toMarathiNumerals(previousMonth.year)}
+                {getDisplayMonthName(previousMonth.month, language)} {toMarathiNumerals(previousMonth.year)}
               </h3>
             </div>
             <Link
@@ -974,16 +1025,19 @@ export default function DashboardPage() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-extrabold leading-snug">
             <p className="home-inline-metric rounded-lg bg-white px-3 py-2 text-blue-800">
-              दूध: {formatLitres(previousMonthlyMilkReport?.totalLitres || 0)} लि.
+              {t(
+                `दूध: ${formatMilkValue(previousMonthlyMilkReport?.totalLitres || 0, true)}`,
+                `Milk: ${formatMilkValue(previousMonthlyMilkReport?.totalLitres || 0, true)}`
+              )}
             </p>
             <p className="home-inline-metric rounded-lg bg-white px-3 py-2 text-green-800">
-              उत्पन्न: {formatCurrency(previousMonthlyIncomeTotal)}
+              {t(`उत्पन्न: ${formatCurrency(previousMonthlyIncomeTotal)}`, `Income: ${formatCurrency(previousMonthlyIncomeTotal)}`)}
             </p>
             <p className="home-inline-metric rounded-lg bg-white px-3 py-2 text-red-800">
-              खर्च: {formatCurrency(previousMonthlyExpenseTotal)}
+              {t(`खर्च: ${formatCurrency(previousMonthlyExpenseTotal)}`, `Expense: ${formatCurrency(previousMonthlyExpenseTotal)}`)}
             </p>
             <p className={`home-inline-metric rounded-lg bg-white px-3 py-2 ${previousMonthlyNetProfit >= 0 ? "text-green-900" : "text-red-900"}`}>
-              नफा: {formatCurrency(previousMonthlyNetProfit)}
+              {t(`नफा: ${formatCurrency(previousMonthlyNetProfit)}`, `Profit: ${formatCurrency(previousMonthlyNetProfit)}`)}
             </p>
           </div>
         </div>

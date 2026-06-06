@@ -6,19 +6,19 @@ import { useRouter } from "next/navigation";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
 
 const categories = [
-  ["technical_support", "Technical Support"],
-  ["bug_report", "Bug Report"],
+  ["technical_support", "तांत्रिक मदत"],
+  ["bug_report", "त्रुटी नोंदवा"],
   ["ocr_issue", "Slip/OCR समस्या"],
-  ["ai_assistant_issue", "AI Assistant"],
-  ["data_issue", "Data समस्या"],
-  ["subscription_issue", "Subscription"],
-  ["payment_issue", "Payment"],
+  ["ai_assistant_issue", "AI सहाय्यक"],
+  ["data_issue", "डेटा समस्या"],
+  ["subscription_issue", "Subscription समस्या"],
+  ["payment_issue", "Payment समस्या"],
   ["account_issue", "खाते समस्या"],
-  ["feature_request", "Feature Request"],
+  ["feature_request", "नवीन सुविधा"],
   ["other", "इतर"]
 ];
 
@@ -28,10 +28,6 @@ const priorities = [
   ["high", "जास्त"],
   ["critical", "तातडीचे"]
 ];
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function getDeviceInfo() {
   if (typeof window === "undefined") return {};
@@ -69,7 +65,8 @@ export default function SupportTicketsPage() {
     try {
       const response = await fetch("/api/support/tickets", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Tickets मिळाले नाहीत.");
@@ -98,7 +95,8 @@ export default function SupportTicketsPage() {
     try {
       const response = await fetch("/api/support/tickets", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ ...form, deviceInfo: getDeviceInfo() })
       });
       const result = await response.json().catch(() => ({}));

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 const goalInputs = [
@@ -27,10 +27,6 @@ const statusTone = {
   in_progress: "bg-yellow-100 text-yellow-800",
   no_goal: "bg-slate-100 text-slate-700"
 };
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function formatNumber(value, decimals = 2) {
   const numberValue = Number(value || 0);
@@ -190,13 +186,45 @@ export default function GoalsSettingsPage() {
   const [saveError, setSaveError] = useState("");
   const [message, setMessage] = useState("");
 
+  function validateLocalGoals(nextGoals) {
+    const fields = [
+      ["daily_milk_goal", "दैनिक दूध लक्ष्य", 100000],
+      ["weekly_milk_goal", "साप्ताहिक दूध लक्ष्य", 700000],
+      ["monthly_milk_goal", "मासिक दूध लक्ष्य", 3000000],
+      ["fat_goal", "फॅट लक्ष्य", 20],
+      ["snf_goal", "SNF लक्ष्य", 20]
+    ];
+
+    for (const [key, label, max] of fields) {
+      const rawValue = nextGoals?.[key];
+
+      if (rawValue === "" || rawValue === null || rawValue === undefined) {
+        continue;
+      }
+
+      const value = Number(rawValue);
+      if (!Number.isFinite(value)) {
+        return `${label} मध्ये योग्य आकडा भरा.`;
+      }
+      if (value < 0) {
+        return `${label} शून्य किंवा त्यापेक्षा जास्त असावे.`;
+      }
+      if (value > max) {
+        return `${label} खूप मोठे आहे. कृपया योग्य आकडा भरा.`;
+      }
+    }
+
+    return "";
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const response = await fetch("/api/settings/goals", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "लक्ष्य माहिती मिळाली नाही.");
@@ -228,9 +256,15 @@ export default function GoalsSettingsPage() {
     setMessage("");
     setSaveError("");
     try {
+      const validationMessage = validateLocalGoals(goals);
+      if (validationMessage) {
+        throw new Error(validationMessage);
+      }
+
       const response = await fetch("/api/settings/goals", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify(goals)
       });
       const result = await response.json().catch(() => ({}));
@@ -251,7 +285,7 @@ export default function GoalsSettingsPage() {
   if (loading) return <LoadingState text="लक्ष्य माहिती लोड होत आहे..." />;
   if (error) return <ErrorState message={error} onRetry={load} />;
 
-  const primaryProgress = progress.find((item) => item.goalType === "daily_milk_goal") || progress[0] || null;
+  const primaryProgress = progress.find((item) => item.goalType === "daily_milk") || progress[0] || null;
   const primaryPercent = Math.max(0, Math.min(100, Number(primaryProgress?.percentage || 0)));
   const completedGoals = progress.filter((item) => item.status === "completed").length;
   const activeGoals = progress.filter((item) => item.status !== "no_goal").length;

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
+import { useUiTranslation } from "@/lib/useUiLanguage";
 
 function daysBetweenToday(dateString) {
   if (!dateString) {
@@ -18,7 +19,9 @@ function daysBetweenToday(dateString) {
 
 export default function TrialBanner() {
   const { farm } = useAuth();
+  const t = useUiTranslation();
   const daysLeft = useMemo(() => daysBetweenToday(farm?.trialEndsAt), [farm?.trialEndsAt]);
+  const daysText = toMarathiNumerals(daysLeft || 1);
 
   if (!farm || farm.subscriptionStatus !== "trial" || daysLeft === null) {
     return null;
@@ -27,7 +30,10 @@ export default function TrialBanner() {
   if (daysLeft > 7) {
     return (
       <div className="dashboard-card rounded-lg border border-green-200 bg-green-50 p-4 text-[18px] font-extrabold text-green-800 shadow-soft">
-        🎉 आपल्याकडे {toMarathiNumerals(daysLeft)} दिवसांचा चाचणी कालावधी आहे.
+        {t(
+          `🎉 आपल्याकडे ${toMarathiNumerals(daysLeft)} दिवसांचा चाचणी कालावधी आहे.`,
+          `🎉 You have ${toMarathiNumerals(daysLeft)} days of trial remaining.`
+        )}
       </div>
     );
   }
@@ -35,14 +41,17 @@ export default function TrialBanner() {
   if (daysLeft >= 0) {
     return (
       <div className="dashboard-card rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-[18px] font-extrabold text-yellow-900 shadow-soft">
-        ⚠️ आपला चाचणी कालावधी {toMarathiNumerals(daysLeft || 1)} दिवसांत संपणार आहे.
+        {t(
+          `⚠️ आपला चाचणी कालावधी ${daysText} दिवसांत संपणार आहे.`,
+          `⚠️ Your trial will end in ${daysText} days.`
+        )}
       </div>
     );
   }
 
   return (
     <div className="dashboard-card rounded-lg border border-red-200 bg-red-50 p-4 text-[18px] font-extrabold text-red-800 shadow-soft">
-      🔒 आपला चाचणी कालावधी संपला आहे.
+      {t("🔒 आपला चाचणी कालावधी संपला आहे.", "🔒 Your trial has expired.")}
     </div>
   );
 }

@@ -61,7 +61,8 @@ export async function POST(request) {
         user,
         options: {
           rangeType: rangeForFrequency(setting.frequency)
-        }
+        },
+        updateSchedule: true
       });
 
       results.push({

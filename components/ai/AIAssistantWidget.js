@@ -10,6 +10,8 @@ import {
 } from "@/lib/clientStorage";
 
 const STORAGE_KEY = "majhi_dairy_ai_assistant_messages";
+const AI_SETTINGS_CACHE_KEY = "majhi_dairy_ai_assistant_settings_cache";
+const AI_SETTINGS_UPDATED_EVENT = "majhi-ai-settings-updated";
 const AI_LOGO_SRC = "/icons/ai logo.png";
 const AI_HISTORY_STATE_KEY = "__majhiDairyAiOpen";
 const suggestedQuestions = [
@@ -60,6 +62,40 @@ function readStoredMessages() {
 
 function persistMessages(messages) {
   safeSetLocalStorageItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
+}
+
+function defaultAssistantSettings() {
+  return {
+    enabled: true,
+    suggested_questions_enabled: true
+  };
+}
+
+function normalizeAssistantSettings(settings = {}) {
+  return {
+    enabled: settings.enabled !== false,
+    suggested_questions_enabled: settings.suggested_questions_enabled !== false
+  };
+}
+
+function readCachedAssistantSettings() {
+  try {
+    const cached = JSON.parse(safeGetLocalStorageItem(AI_SETTINGS_CACHE_KEY, "{}"));
+    return normalizeAssistantSettings(cached?.preferences || defaultAssistantSettings());
+  } catch {
+    return defaultAssistantSettings();
+  }
+}
+
+function cacheAssistantSettings(preferences) {
+  if (!preferences) {
+    return;
+  }
+
+  safeSetLocalStorageItem(AI_SETTINGS_CACHE_KEY, JSON.stringify({
+    cachedAt: Date.now(),
+    preferences: normalizeAssistantSettings(preferences)
+  }));
 }
 
 function messageId(prefix) {
@@ -134,10 +170,7 @@ export default function AIAssistantWidget() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastQuestion, setLastQuestion] = useState("");
-  const [assistantSettings, setAssistantSettings] = useState({
-    enabled: true,
-    suggested_questions_enabled: true
-  });
+  const [assistantSettings, setAssistantSettings] = useState(readCachedAssistantSettings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const scrollerRef = useRef(null);
   const dialogRef = useRef(null);
@@ -154,6 +187,7 @@ export default function AIAssistantWidget() {
     const token = getAuthToken();
 
     if (!token || typeof navigator !== "undefined" && !navigator.onLine) {
+      setAssistantSettings(readCachedAssistantSettings());
       setSettingsLoaded(true);
       return undefined;
     }
@@ -166,7 +200,9 @@ export default function AIAssistantWidget() {
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
       .then(({ ok, json }) => {
         if (!cancelled && ok && json.preferences) {
-          setAssistantSettings(json.preferences);
+          const nextSettings = normalizeAssistantSettings(json.preferences);
+          setAssistantSettings(nextSettings);
+          cacheAssistantSettings(nextSettings);
         }
       })
       .catch(() => {})
@@ -176,6 +212,29 @@ export default function AIAssistantWidget() {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handleSettingsUpdated(event) {
+      const nextSettings = normalizeAssistantSettings(event.detail || readCachedAssistantSettings());
+      setAssistantSettings(nextSettings);
+      cacheAssistantSettings(nextSettings);
+      setSettingsLoaded(true);
+
+      if (!nextSettings.enabled) {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener(AI_SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
+
+    return () => {
+      window.removeEventListener(AI_SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
     };
   }, []);
 

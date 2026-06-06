@@ -49,6 +49,11 @@ export async function PATCH(request) {
       if (!valid) {
         return NextResponse.json({ error: "सध्याचा password चुकीचा आहे." }, { status: 401 });
       }
+
+      const sameAsOld = await bcrypt.compare(newPassword, user.password_hash);
+      if (sameAsOld) {
+        return NextResponse.json({ error: "नवीन password जुना password पेक्षा वेगळा असावा." }, { status: 400 });
+      }
     } else if (currentPassword) {
       return NextResponse.json({ error: "या खात्यासाठी आधी password सेट केलेला नाही." }, { status: 400 });
     }

@@ -5,19 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { formatMarathiDate } from "@/lib/marathiUtils";
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 export default function TicketDetailPage({ params }) {
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState({ type: "", text: "" });
   const [reply, setReply] = useState("");
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState("");
@@ -28,7 +24,8 @@ export default function TicketDetailPage({ params }) {
     try {
       const response = await fetch(`/api/support/tickets/${params.id}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Ticket मिळाले नाही.");
@@ -47,20 +44,21 @@ export default function TicketDetailPage({ params }) {
   async function postReply(event) {
     event.preventDefault();
     setBusy(true);
-    setMessage("");
+    setNotice({ type: "", text: "" });
     try {
       const response = await fetch(`/api/support/tickets/${params.id}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ message: reply })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Reply जतन झाला नाही.");
       setBundle(result);
       setReply("");
-      setMessage(result.message || "Reply जतन झाला.");
+      setNotice({ type: "success", text: result.message || "Reply जतन झाला." });
     } catch (replyError) {
-      setMessage(replyError.message);
+      setNotice({ type: "error", text: replyError.message });
     } finally {
       setBusy(false);
     }
@@ -68,19 +66,20 @@ export default function TicketDetailPage({ params }) {
 
   async function patchTicket(action, extra = {}) {
     setBusy(true);
-    setMessage("");
+    setNotice({ type: "", text: "" });
     try {
       const response = await fetch(`/api/support/tickets/${params.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ action, ...extra })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Ticket update झाले नाही.");
       setBundle(result);
-      setMessage(result.message || "Ticket update झाले.");
+      setNotice({ type: "success", text: result.message || "Ticket update झाले." });
     } catch (patchError) {
-      setMessage(patchError.message);
+      setNotice({ type: "error", text: patchError.message });
     } finally {
       setBusy(false);
     }
@@ -90,21 +89,22 @@ export default function TicketDetailPage({ params }) {
     const file = event.target.files?.[0];
     if (!file) return;
     setBusy(true);
-    setMessage("");
+    setNotice({ type: "", text: "" });
     try {
       const formData = new FormData();
       formData.append("file", file);
       const response = await fetch(`/api/support/tickets/${params.id}/attachments`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: getClientAuthHeaders(),
         body: formData
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Attachment upload झाली नाही.");
       setBundle(result);
-      setMessage(result.message || "Attachment upload झाली.");
+      setNotice({ type: "success", text: result.message || "Attachment upload झाली." });
     } catch (uploadError) {
-      setMessage(uploadError.message);
+      setNotice({ type: "error", text: uploadError.message });
     } finally {
       setBusy(false);
       event.target.value = "";
@@ -126,7 +126,15 @@ export default function TicketDetailPage({ params }) {
         action={<Link href="/support/tickets" className="rounded-xl bg-white px-4 py-3 text-[15px] font-black text-slate-800 shadow-sm">Tickets</Link>}
       />
 
-      {message ? <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-[16px] font-black text-green-900">{message}</div> : null}
+      {notice.text ? (
+        <div className={`rounded-xl border p-4 text-[16px] font-black ${
+          notice.type === "error"
+            ? "border-red-200 bg-red-50 text-red-900"
+            : "border-green-200 bg-green-50 text-green-900"
+        }`}>
+          {notice.text}
+        </div>
+      ) : null}
 
       <section className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-soft">
         <div className="flex flex-wrap items-center gap-2">

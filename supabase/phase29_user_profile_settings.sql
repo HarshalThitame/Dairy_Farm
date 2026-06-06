@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.appearance_preferences (
   farm_id UUID NOT NULL REFERENCES public.farms(id) ON DELETE CASCADE,
   theme_mode TEXT DEFAULT 'light' CHECK (theme_mode IN ('light', 'dark', 'system')),
   font_size TEXT DEFAULT 'medium' CHECK (font_size IN ('small', 'medium', 'large')),
-  language TEXT DEFAULT 'mr' CHECK (language IN ('mr', 'en', 'hi')),
+  language TEXT DEFAULT 'mr' CHECK (language IN ('mr', 'en')),
   default_page TEXT DEFAULT 'dashboard' CHECK (default_page IN ('dashboard', 'ai_assistant', 'milk_reports', 'slip_scanner', 'analytics')),
   compact_mode BOOLEAN DEFAULT false,
   high_contrast BOOLEAN DEFAULT false,

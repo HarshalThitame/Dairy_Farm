@@ -5,12 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 export default function SupportTutorialsPage() {
   const [tutorials, setTutorials] = useState([]);
@@ -25,15 +21,31 @@ export default function SupportTutorialsPage() {
     setLoading(true);
     setError("");
     try {
+      const targetOpenId = typeof window === "undefined"
+        ? ""
+        : new URLSearchParams(window.location.search).get("open");
       const params = new URLSearchParams({ category });
       if (query.trim()) params.set("q", query.trim());
       const response = await fetch(`/api/support/tutorials?${params.toString()}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Tutorials मिळाले नाहीत.");
-      setTutorials(result.tutorials || []);
+      let nextTutorials = result.tutorials || [];
+      if (targetOpenId && !nextTutorials.some((item) => item.id === targetOpenId)) {
+        const tutorialResponse = await fetch(`/api/support/tutorials?tutorialId=${encodeURIComponent(targetOpenId)}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: getClientAuthHeaders()
+        });
+        const tutorialResult = await tutorialResponse.json().catch(() => ({}));
+        if (tutorialResponse.ok && tutorialResult.tutorial) {
+          nextTutorials = [tutorialResult.tutorial, ...nextTutorials];
+        }
+      }
+      setTutorials(nextTutorials);
       setCategories(result.categories || []);
     } catch (loadError) {
       setError(loadError.message);
@@ -46,13 +58,20 @@ export default function SupportTutorialsPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const initialOpen = new URLSearchParams(window.location.search).get("open");
+    if (initialOpen) setOpenId(initialOpen);
+  }, []);
+
   async function openTutorial(item) {
     const next = openId === item.id ? "" : item.id;
     setOpenId(next);
     if (next) {
       await fetch(`/api/support/tutorials?tutorialId=${item.id}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       }).catch(() => null);
     }
   }

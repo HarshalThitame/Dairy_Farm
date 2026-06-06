@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 const allowed = {
   theme_mode: ["light", "dark", "system"],
   font_size: ["small", "medium", "large"],
-  language: ["mr", "en", "hi"],
+  language: ["mr", "en"],
   default_page: ["dashboard", "ai_assistant", "milk_reports", "slip_scanner", "analytics"]
 };
 

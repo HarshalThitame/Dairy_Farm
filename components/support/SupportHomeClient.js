@@ -5,12 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function statusTone(status) {
   if (status === "operational") return "border-green-200 bg-green-50 text-green-900";
@@ -48,7 +44,8 @@ export default function SupportHomeClient({ settingsMode = false }) {
     try {
       const response = await fetch("/api/support", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Support माहिती मिळाली नाही.");
@@ -78,7 +75,8 @@ export default function SupportHomeClient({ settingsMode = false }) {
     try {
       const response = await fetch(`/api/support/search?q=${encodeURIComponent(cleanQuery)}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Search झाले नाही.");
@@ -235,7 +233,7 @@ function SearchGroup({ title, items, hrefPrefix, ticket = false }) {
         {items.length ? items.slice(0, 3).map((item) => (
           <Link
             key={item.id}
-            href={ticket ? `/support/tickets/${item.id}` : hrefPrefix}
+            href={ticket ? `/support/tickets/${item.id}` : `${hrefPrefix}?open=${item.id}`}
             className="rounded-lg bg-white p-3 text-[14px] font-bold text-slate-800 shadow-sm"
           >
             {item.title || item.subject}
@@ -279,7 +277,7 @@ function ListCard({ title, items, href }) {
       </div>
       <div className="mt-3 grid gap-2">
         {items.length ? items.map((item) => (
-          <Link key={item.id} href={href} className="rounded-xl bg-slate-50 p-3">
+          <Link key={item.id} href={`${href}?open=${item.id}`} className="rounded-xl bg-slate-50 p-3">
             <p className="text-[16px] font-black text-slate-900">{item.title}</p>
             <p className="mt-1 line-clamp-2 text-[13px] font-bold text-slate-500">{item.body || item.description}</p>
           </Link>

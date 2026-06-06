@@ -5,12 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 export default function SupportFaqPage() {
   const [articles, setArticles] = useState([]);
@@ -25,15 +21,31 @@ export default function SupportFaqPage() {
     setLoading(true);
     setError("");
     try {
+      const targetOpenId = typeof window === "undefined"
+        ? ""
+        : new URLSearchParams(window.location.search).get("open");
       const params = new URLSearchParams({ category });
       if (query.trim()) params.set("q", query.trim());
       const response = await fetch(`/api/support/faq?${params.toString()}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "FAQ मिळाले नाहीत.");
-      setArticles(result.articles || []);
+      let nextArticles = result.articles || [];
+      if (targetOpenId && !nextArticles.some((article) => article.id === targetOpenId)) {
+        const articleResponse = await fetch(`/api/support/faq?articleId=${encodeURIComponent(targetOpenId)}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: getClientAuthHeaders()
+        });
+        const articleResult = await articleResponse.json().catch(() => ({}));
+        if (articleResponse.ok && articleResult.article) {
+          nextArticles = [articleResult.article, ...nextArticles];
+        }
+      }
+      setArticles(nextArticles);
       setCategories(result.categories || []);
     } catch (loadError) {
       setError(loadError.message);
@@ -46,10 +58,17 @@ export default function SupportFaqPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const initialOpen = new URLSearchParams(window.location.search).get("open");
+    if (initialOpen) setOpenId(initialOpen);
+  }, []);
+
   async function vote(articleId, action, shouldReload = true) {
     await fetch("/api/support/faq", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
       body: JSON.stringify({ articleId, action })
     }).catch(() => null);
     if (shouldReload) load();

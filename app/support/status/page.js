@@ -5,12 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { formatMarathiDate } from "@/lib/marathiUtils";
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function tone(status) {
   if (status === "operational") return "border-green-200 bg-green-50 text-green-900";
@@ -29,7 +25,8 @@ export default function SupportStatusPage() {
     try {
       const response = await fetch("/api/support/status", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Status मिळाला नाही.");

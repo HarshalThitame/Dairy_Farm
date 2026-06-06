@@ -19,14 +19,20 @@ const appearanceInitScript = `
     var theme = prefs.theme_mode || "light";
     var fontSize = prefs.font_size || "medium";
     var fontScale = fontSize === "large" ? "1.12" : fontSize === "small" ? "0.92" : "1";
+    var language = prefs.language === "en" ? "en" : "mr";
     var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     var dark = theme === "dark" || (theme === "system" && prefersDark);
     var root = document.documentElement;
     root.classList.toggle("majhi-theme-dark", dark);
     root.dataset.theme = dark ? "dark" : "light";
+    root.dataset.language = language;
+    root.lang = language === "en" ? "en-IN" : "mr-IN";
     root.style.colorScheme = dark ? "dark" : "light";
     root.style.setProperty("--majhi-font-scale", fontScale);
-    if (document.body) document.body.classList.toggle("majhi-theme-dark", dark);
+    if (document.body) {
+      document.body.classList.toggle("majhi-theme-dark", dark);
+      document.body.setAttribute("data-language", language);
+    }
     root.classList.toggle("majhi-font-small", prefs.font_size === "small");
     root.classList.toggle("majhi-font-large", prefs.font_size === "large");
     root.classList.toggle("majhi-compact", !!prefs.compact_mode);

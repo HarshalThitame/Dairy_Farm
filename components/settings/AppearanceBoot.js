@@ -7,6 +7,12 @@ import {
   safeGetLocalStorageItem,
   safeSetLocalStorageItem
 } from "@/lib/clientStorage";
+import {
+  applyUiLanguage,
+  createUiLanguageObserver,
+  normalizeUiLanguage
+} from "@/lib/uiLanguage";
+import { UI_LANGUAGE_CHANGE_EVENT } from "@/lib/useUiLanguage";
 
 const STORAGE_KEY = "majhi_dairy_appearance";
 
@@ -30,19 +36,22 @@ export function applyAppearancePreferences(preferences = {}) {
   const prefersDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   const darkMode = next.theme_mode === "dark" || (next.theme_mode === "system" && prefersDark);
   const fontScale = next.font_size === "large" ? "1.12" : next.font_size === "small" ? "0.92" : "1";
+  const language = normalizeUiLanguage(next.language);
 
   root.classList.toggle("majhi-theme-dark", darkMode);
   root.dataset.theme = darkMode ? "dark" : "light";
+  root.dataset.language = language;
   root.style.colorScheme = darkMode ? "dark" : "light";
   root.style.setProperty("--majhi-font-scale", fontScale);
   body?.classList.toggle("majhi-theme-dark", darkMode);
+  body?.setAttribute("data-language", language);
   root.classList.toggle("majhi-font-small", next.font_size === "small");
   root.classList.toggle("majhi-font-large", next.font_size === "large");
   root.classList.toggle("majhi-compact", Boolean(next.compact_mode));
   root.classList.toggle("majhi-high-contrast", Boolean(next.high_contrast));
   root.classList.toggle("majhi-large-touch", Boolean(next.large_touch_targets));
   root.classList.toggle("majhi-reduce-motion", Boolean(next.reduce_animations));
-  root.lang = next.language === "en" ? "en-IN" : next.language === "hi" ? "hi-IN" : "mr-IN";
+  root.lang = language === "en" ? "en-IN" : "mr-IN";
 
   const themeColor = darkMode ? "#020617" : "#16a34a";
   let metaTheme = document.querySelector('meta[name="theme-color"]');
@@ -58,6 +67,9 @@ export function applyAppearancePreferences(preferences = {}) {
   } catch {
     // Local storage is optional.
   }
+
+  applyUiLanguage(language);
+  window.dispatchEvent(new CustomEvent(UI_LANGUAGE_CHANGE_EVENT, { detail: { language } }));
 }
 
 function readLocalPreferences() {
@@ -78,6 +90,11 @@ export default function AppearanceBoot() {
     if (local) {
       applyAppearancePreferences(local);
     }
+
+    const languageObserver = createUiLanguageObserver(() => {
+      const latest = readLocalPreferences();
+      return normalizeUiLanguage(latest?.language || document.documentElement.dataset.language || "mr");
+    });
 
     let cancelled = false;
     const handleSystemTheme = () => {
@@ -107,6 +124,7 @@ export default function AppearanceBoot() {
 
     return () => {
       cancelled = true;
+      languageObserver.disconnect();
       media?.removeEventListener?.("change", handleSystemTheme);
     };
   }, []);

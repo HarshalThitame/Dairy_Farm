@@ -5,7 +5,7 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import { applyAppearancePreferences } from "@/components/settings/AppearanceBoot";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 
 const themeOptions = [
   ["light", "☀️ Light"],
@@ -21,8 +21,7 @@ const fontOptions = [
 
 const languageOptions = [
   ["mr", "मराठी"],
-  ["en", "English"],
-  ["hi", "Hindi"]
+  ["en", "English"]
 ];
 
 const defaultPageOptions = [
@@ -33,10 +32,6 @@ const defaultPageOptions = [
   ["analytics", "Analytics"]
 ];
 
-function getToken() {
-  return getClientAuthToken();
-}
-
 function OptionGrid({ options, value, onChange, disabled = false, columns = "grid-cols-3" }) {
   return (
     <div className={`grid gap-2 ${columns}`}>
@@ -45,6 +40,7 @@ function OptionGrid({ options, value, onChange, disabled = false, columns = "gri
           key={key}
           type="button"
           disabled={disabled}
+          aria-pressed={value === key}
           onClick={() => onChange(key)}
           className={`min-h-[54px] rounded-xl border px-3 text-[16px] font-black disabled:opacity-60 ${
             value === key ? "border-green-500 bg-green-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700"
@@ -61,6 +57,9 @@ function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={`${title}: ${checked ? "सुरू" : "बंद"}`}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`flex min-h-[78px] w-full items-center justify-between gap-4 rounded-xl border p-4 text-left shadow-sm disabled:opacity-60 ${
@@ -71,8 +70,13 @@ function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {
         <span className="block text-[18px] font-black text-slate-950">{title}</span>
         <span className="mt-1 block text-[14px] font-bold leading-snug text-slate-600">{subtitle}</span>
       </span>
-      <span className={`flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition ${checked ? "bg-green-600" : "bg-slate-300"}`}>
-        <span className={`h-6 w-6 rounded-full bg-white shadow transition ${checked ? "translate-x-6" : ""}`} />
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        <span className={`text-[12px] font-black ${checked ? "text-green-700" : "text-slate-500"}`}>
+          {checked ? "सुरू" : "बंद"}
+        </span>
+        <span className={`flex h-8 w-14 items-center rounded-full p-1 transition ${checked ? "bg-green-600" : "bg-slate-300"}`}>
+          <span className={`h-6 w-6 rounded-full bg-white shadow transition ${checked ? "translate-x-6" : ""}`} />
+        </span>
       </span>
     </button>
   );
@@ -91,7 +95,8 @@ export default function AppearanceSettingsPage() {
     try {
       const response = await fetch("/api/settings/appearance", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Appearance settings मिळाल्या नाहीत.");
@@ -124,7 +129,8 @@ export default function AppearanceSettingsPage() {
     try {
       const response = await fetch("/api/settings/appearance", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify(preferences)
       });
       const result = await response.json().catch(() => ({}));
@@ -174,7 +180,7 @@ export default function AppearanceSettingsPage() {
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
         <h2 className="text-[24px] font-black text-slate-950">Language</h2>
         <div className="mt-4">
-          <OptionGrid options={languageOptions} value={preferences?.language} disabled={saving} onChange={(value) => update("language", value)} />
+          <OptionGrid options={languageOptions} value={preferences?.language} disabled={saving} onChange={(value) => update("language", value)} columns="grid-cols-2" />
         </div>
       </section>
 

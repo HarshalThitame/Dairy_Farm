@@ -26,7 +26,7 @@ body {
     #f8fafc;
   background-size: auto, 2rem 2rem, 2rem 2rem, auto;
   color: #172554;
-  font-size: 18px;
+  font-size: calc(18px * var(--majhi-font-scale));
 }
 
 button,
@@ -1425,14 +1425,6 @@ input::placeholder {
   }
 }
 
-html.majhi-font-small body {
-  font-size: 16px;
-}
-
-html.majhi-font-large body {
-  font-size: 20px;
-}
-
 html.majhi-font-small {
   --majhi-font-scale: 0.92;
 }
@@ -1537,6 +1529,10 @@ html .text-\[38px\] {
   font-size: calc(38px * var(--majhi-font-scale));
 }
 
+html .text-\[40px\] {
+  font-size: calc(40px * var(--majhi-font-scale));
+}
+
 html .text-\[42px\] {
   font-size: calc(42px * var(--majhi-font-scale));
 }
@@ -1547,6 +1543,10 @@ html .text-\[44px\] {
 
 html .text-\[48px\] {
   font-size: calc(48px * var(--majhi-font-scale));
+}
+
+html .text-\[52px\] {
+  font-size: calc(52px * var(--majhi-font-scale));
 }
 
 html .text-\[54px\] {
@@ -1566,6 +1566,10 @@ html .text-\[72px\] {
     font-size: calc(14px * var(--majhi-font-scale));
   }
 
+  html .sm\:text-\[15px\] {
+    font-size: calc(15px * var(--majhi-font-scale));
+  }
+
   html .sm\:text-\[16px\] {
     font-size: calc(16px * var(--majhi-font-scale));
   }
@@ -1574,8 +1578,24 @@ html .text-\[72px\] {
     font-size: calc(18px * var(--majhi-font-scale));
   }
 
+  html .sm\:text-\[22px\] {
+    font-size: calc(22px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[24px\] {
+    font-size: calc(24px * var(--majhi-font-scale));
+  }
+
   html .sm\:text-\[25px\] {
     font-size: calc(25px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[28px\] {
+    font-size: calc(28px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[30px\] {
+    font-size: calc(30px * var(--majhi-font-scale));
   }
 
   html .sm\:text-\[32px\] {
@@ -1585,33 +1605,131 @@ html .text-\[72px\] {
   html .sm\:text-\[34px\] {
     font-size: calc(34px * var(--majhi-font-scale));
   }
+
+  html .sm\:text-\[40px\] {
+    font-size: calc(40px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[42px\] {
+    font-size: calc(42px * var(--majhi-font-scale));
+  }
+
+  html .sm\:text-\[44px\] {
+    font-size: calc(44px * var(--majhi-font-scale));
+  }
 }
 
 html.majhi-compact .app-shell {
   padding-top: 0.75rem;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
 }
 
 html.majhi-compact .app-shell :where(.rounded-xl, .rounded-lg) {
   border-radius: 0.75rem;
 }
 
-html.majhi-compact .app-shell :where(section, article, form, header) {
+html.majhi-compact .app-shell :where(.p-6) {
+  padding: 1.125rem;
+}
+
+html.majhi-compact .app-shell :where(.p-5) {
+  padding: 1rem;
+}
+
+html.majhi-compact .app-shell :where(.p-4) {
+  padding: 0.875rem;
+}
+
+html.majhi-compact .app-shell :where(.px-5) {
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+
+html.majhi-compact .app-shell :where(.py-5) {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+html.majhi-compact .app-shell :where(.gap-5) {
+  gap: 1rem;
+}
+
+html.majhi-compact .app-shell :where(.gap-4) {
+  gap: 0.75rem;
+}
+
+html.majhi-compact .app-shell :where(.gap-3) {
+  gap: 0.625rem;
+}
+
+html.majhi-compact .app-shell :where(.space-y-5 > :not([hidden]) ~ :not([hidden])) {
   --tw-space-y-reverse: 0;
+  margin-top: calc(0.875rem * calc(1 - var(--tw-space-y-reverse))) !important;
+  margin-bottom: calc(0.875rem * var(--tw-space-y-reverse)) !important;
+}
+
+html.majhi-compact .app-shell :where(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse))) !important;
+  margin-bottom: calc(0.75rem * var(--tw-space-y-reverse)) !important;
+}
+
+html.majhi-compact .app-shell :where(.space-y-3 > :not([hidden]) ~ :not([hidden])) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.625rem * calc(1 - var(--tw-space-y-reverse))) !important;
+  margin-bottom: calc(0.625rem * var(--tw-space-y-reverse)) !important;
 }
 
 html.majhi-large-touch .app-shell :where(button, a, input, select, textarea) {
-  min-height: max(48px, var(--majhi-touch-size, 0px));
+  min-height: max(54px, var(--majhi-touch-size, 0px));
+}
+
+html.majhi-large-touch .app-shell :where(button, a) {
+  touch-action: manipulation;
 }
 
 html.majhi-high-contrast body {
+  background:
+    linear-gradient(180deg, rgba(22, 163, 74, 0.08) 0%, rgba(255, 255, 255, 0) 14rem),
+    #fff;
   color: #020617;
+}
+
+html.majhi-high-contrast .app-shell::before {
+  opacity: 0.35;
+}
+
+html.majhi-high-contrast .app-shell :where(
+  .bg-white,
+  .bg-white\/90,
+  .bg-white\/95,
+  .bg-white\/80,
+  .bg-white\/70,
+  .bg-slate-50
+) {
+  background-color: #fff;
+}
+
+html.majhi-high-contrast .app-shell :where(
+  .border-white\/80,
+  .border-white\/70,
+  .border-slate-100,
+  .border-slate-200,
+  .border-slate-300
+) {
+  border-color: #475569;
 }
 
 html.majhi-high-contrast .app-shell :where(input, select, textarea) {
   border-color: #0f172a;
 }
 
-html.majhi-high-contrast .app-shell :where(.text-slate-500, .text-slate-600) {
+html.majhi-high-contrast .app-shell :where(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700) {
+  color: #0f172a;
+}
+
+html.majhi-high-contrast .app-shell :where(input::placeholder, textarea::placeholder) {
   color: #334155;
 }
 
@@ -1893,6 +2011,18 @@ html.majhi-theme-dark.majhi-high-contrast body {
   color: #fff;
 }
 
+html.majhi-theme-dark.majhi-high-contrast :where(
+  .bg-white,
+  .bg-white\/95,
+  .bg-white\/90,
+  .bg-white\/80,
+  .bg-white\/70,
+  .bg-slate-50,
+  .bg-slate-100
+) {
+  background-color: #020617;
+}
+
 html.majhi-theme-dark.majhi-high-contrast :where(.text-slate-600, .text-slate-500, .text-slate-400) {
   color: #e2e8f0;
 }
@@ -1916,4 +2046,8 @@ html.majhi-reduce-motion *::after {
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
   transition-duration: 0.01ms !important;
+}
+
+html.majhi-reduce-motion {
+  scroll-behavior: auto !important;
 }

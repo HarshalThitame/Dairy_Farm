@@ -27,6 +27,10 @@ function scoreSecurity(user, sessions = []) {
   };
 }
 
+function canFilterLoginHistoryByMobile(mobile) {
+  return /^[0-9+\-\s]{6,20}$/.test(String(mobile || ""));
+}
+
 export async function GET(request) {
   try {
     const auth = await verifyFarmAccess(request);
@@ -36,7 +40,7 @@ export async function GET(request) {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(20);
-    const scopedLoginQuery = auth.user.mobile
+    const scopedLoginQuery = canFilterLoginHistoryByMobile(auth.user.mobile)
       ? loginQuery.or(`user_id.eq.${auth.userId},mobile.eq.${auth.user.mobile}`)
       : loginQuery.eq("user_id", auth.userId);
     const [userResult, sessionResult, loginResult] = await Promise.all([

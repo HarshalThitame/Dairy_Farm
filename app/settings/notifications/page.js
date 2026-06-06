@@ -5,7 +5,7 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import { useSpeechNotification } from "@/hooks/useSpeechNotification";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
 
@@ -33,10 +33,6 @@ const frequencyOptions = [
   ["daily", "दैनिक सारांश"],
   ["weekly", "साप्ताहिक सारांश"]
 ];
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {
   return (
@@ -101,16 +97,11 @@ export default function NotificationSettingsPage() {
     }
 
     const permission = getPushPermissionState();
-    const token = getToken();
-    if (!token) {
-      setPushStatus({ supported: true, permission, activeSubscriptions: 0 });
-      return;
-    }
-
     try {
       const response = await fetch("/api/notifications/push-status", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       setPushStatus({
@@ -132,13 +123,14 @@ export default function NotificationSettingsPage() {
     try {
       const response = await fetch("/api/settings/notifications", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "सूचना सेटिंग्ज मिळाल्या नाहीत.");
       setPreferences(result.preferences);
       setHistory(result.history || []);
-      loadPushStatus();
+      await loadPushStatus();
     } catch (loadError) {
       setError(loadError.message);
     } finally {
@@ -207,40 +199,66 @@ export default function NotificationSettingsPage() {
     }));
   }
 
+  function buildPreferencesPayload(source = preferences) {
+    if (!source) {
+      return null;
+    }
+
+    return {
+      ...source,
+      categories: { ...(source.categories || {}) },
+      channels: {
+        ...(source.channels || {}),
+        email: false,
+        whatsapp: false,
+        sms: false
+      },
+      quiet_hours_enabled: Boolean(source.quiet_hours_enabled),
+      quiet_hours_start: source.quiet_hours_start || "22:00",
+      quiet_hours_end: source.quiet_hours_end || "06:00",
+      frequency: source.frequency || "instant"
+    };
+  }
+
+  async function persistPreferences() {
+    const payload = buildPreferencesPayload();
+    if (!payload) {
+      throw new Error("सूचना सेटिंग्ज लोड झालेल्या नाहीत.");
+    }
+
+    let pushWarning = "";
+    if (payload.channels?.push) {
+      const result = await requestAndRegisterPushSubscription({ requestPermission: true });
+      if (!result.success) {
+        payload.channels.push = false;
+        pushWarning = result.message || "Mobile notification बंद ठेवले. बाकी settings जतन झाली.";
+      }
+    }
+
+    const response = await fetch("/api/settings/notifications", {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "सूचना सेटिंग्ज जतन झाल्या नाहीत.");
+
+    setPreferences(result.preferences);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("notification-preferences-updated"));
+    }
+    await loadPushStatus();
+    return { preferences: result.preferences, pushWarning };
+  }
+
   async function save() {
     if (saving || testing || testingTone || !preferences) return;
     setSaving(true);
     showMessage("");
     try {
-      let pushWarning = "";
-      const payload = {
-        ...(preferences || {}),
-        channels: {
-          ...(preferences?.channels || {}),
-          email: false,
-          whatsapp: false,
-          sms: false
-        }
-      };
-
-      if (payload.channels?.push) {
-        const result = await requestAndRegisterPushSubscription({ requestPermission: true });
-        if (!result.success) {
-          payload.channels.push = false;
-          pushWarning = result.message || "Mobile notification बंद ठेवले. बाकी settings जतन झाली.";
-        }
-      }
-
-      const response = await fetch("/api/settings/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify(payload)
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "सूचना सेटिंग्ज जतन झाल्या नाहीत.");
-      setPreferences(result.preferences);
+      const { pushWarning } = await persistPreferences();
       showMessage(pushWarning || "सूचना सेटिंग्ज जतन झाल्या.", pushWarning ? "warning" : "success");
-      await loadPushStatus();
     } catch (saveError) {
       showMessage(saveError.message, "error");
     } finally {
@@ -253,21 +271,23 @@ export default function NotificationSettingsPage() {
     setTesting(true);
     showMessage("");
     try {
-      if (preferences?.channels?.push) {
-        const registration = await requestAndRegisterPushSubscription({ requestPermission: true });
-        if (!registration.success) {
-          showMessage(registration.message || "Mobile notification चालू झाले नाही.", "warning");
-        }
-      }
+      const { pushWarning } = await persistPreferences();
 
       const response = await fetch("/api/settings/notifications/test", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "चाचणी सूचना पाठवता आली नाही.");
-      showMessage(result.message || "चाचणी सूचना पाठवली.", result.warning ? "warning" : "success");
-      load();
+      if (result.success === false) {
+        throw new Error(result.warning || result.message || "चाचणी सूचना कोणत्याही channel वर पोहोचली नाही.");
+      }
+      showMessage(
+        [pushWarning, result.message || "चाचणी सूचना पाठवली."].filter(Boolean).join(" "),
+        pushWarning || result.warning ? "warning" : "success"
+      );
+      await load();
     } catch (testError) {
       showMessage(testError.message, "error");
     } finally {
@@ -346,6 +366,16 @@ export default function NotificationSettingsPage() {
         <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-[15px] font-bold text-slate-700">
           {getPushStatusText()}
         </p>
+        {pushStatus?.supported && preferences?.channels?.push && pushStatus.permission === "granted" && (pushStatus.activeSubscriptions || 0) < 1 ? (
+          <button
+            type="button"
+            onClick={() => updateChannel("push", true)}
+            disabled={saving || testing || testingTone}
+            className="mt-3 min-h-[50px] w-full rounded-xl border border-green-200 bg-green-50 px-4 text-[16px] font-black text-green-800 disabled:opacity-60"
+          >
+            📱 हा phone notification साठी जोडा
+          </button>
+        ) : null}
         <div className="mt-4 grid gap-3">
           {channelLabels.map(([key, title, subtitle, implemented]) => (
             <ToggleRow
@@ -446,6 +476,9 @@ export default function NotificationSettingsPage() {
 
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
         <h2 className="text-[24px] font-black text-slate-950">⏱️ वारंवारता</h2>
+        <p className="mt-1 text-[15px] font-bold text-slate-600">
+          सध्या App आणि Mobile notification सुरक्षितपणे ताबडतोब पाठवले जातात. Daily/Weekly निवड भविष्यातील सारांशासाठी जतन केली जाते.
+        </p>
         <div className="mt-4 grid grid-cols-3 gap-2">
           {frequencyOptions.map(([value, label]) => (
             <button
@@ -464,10 +497,10 @@ export default function NotificationSettingsPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <button type="button" onClick={save} disabled={saving || testing || testingTone} className="min-h-[58px] rounded-xl bg-green-600 px-5 text-[19px] font-black text-white shadow-sm disabled:opacity-60">
+        <button type="button" onClick={save} disabled={!preferences || saving || testing || testingTone} className="min-h-[58px] rounded-xl bg-green-600 px-5 text-[19px] font-black text-white shadow-sm disabled:opacity-60">
           {saving ? "जतन करत आहे..." : "✅ सेटिंग्ज जतन करा"}
         </button>
-        <button type="button" onClick={sendTestNotification} disabled={testing || saving || testingTone} className="min-h-[58px] rounded-xl bg-yellow-500 px-5 text-[19px] font-black text-slate-950 shadow-sm disabled:opacity-60">
+        <button type="button" onClick={sendTestNotification} disabled={!preferences || testing || saving || testingTone} className="min-h-[58px] rounded-xl bg-yellow-500 px-5 text-[19px] font-black text-slate-950 shadow-sm disabled:opacity-60">
           {testing ? "पाठवत आहे..." : "📢 चाचणी सूचना पाठवा"}
         </button>
       </section>

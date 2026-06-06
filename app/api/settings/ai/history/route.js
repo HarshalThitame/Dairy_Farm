@@ -68,6 +68,10 @@ export async function DELETE(request) {
     const { data, error } = await query.select("id");
     if (error) throw error;
 
+    if (id && !all && !data?.length) {
+      return NextResponse.json({ error: "AI history record सापडला नाही." }, { status: 404 });
+    }
+
     await logUserSettingsAction(supabase, request, auth.userId, auth.farmId, all ? "ai_history_deleted_all" : "ai_history_deleted", {
       id: all ? null : id,
       deletedCount: data?.length || 0

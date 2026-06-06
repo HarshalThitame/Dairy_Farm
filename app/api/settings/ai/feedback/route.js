@@ -38,6 +38,7 @@ export async function POST(request) {
       .eq("id", logId)
       .eq("farm_id", auth.farmId)
       .eq("user_id", auth.userId)
+      .is("deleted_at", null)
       .select("id, feedback, feedback_at")
       .maybeSingle();
 

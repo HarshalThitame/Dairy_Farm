@@ -5,6 +5,7 @@ import {
   calculateGoalHistory,
   calculateGoalProgress,
   getOrCreateGoalSettings,
+  normalizeGoalSettings,
   notifyGoalAchievements,
   sanitizeGoalSettings,
   upsertGoalHistory,
@@ -17,9 +18,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 async function buildGoalResponse(supabase, farmId, userId, goals, shouldNotify = true) {
+  const normalizedGoals = normalizeGoalSettings(goals);
   const [progress, history] = await Promise.all([
-    calculateGoalProgress(supabase, farmId, goals),
-    calculateGoalHistory(supabase, farmId, goals)
+    calculateGoalProgress(supabase, farmId, normalizedGoals),
+    calculateGoalHistory(supabase, farmId, normalizedGoals)
   ]);
 
   await upsertGoalHistory(supabase, farmId, [...progress, ...history]);
@@ -28,7 +30,7 @@ async function buildGoalResponse(supabase, farmId, userId, goals, shouldNotify =
     : [];
 
   return {
-    goals,
+    goals: normalizedGoals,
     progress,
     history,
     recommendation: buildGoalRecommendation(progress),

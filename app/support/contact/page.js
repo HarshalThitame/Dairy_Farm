@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 const supportWhatsAppUrl = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP_URL || "/support/tickets";
@@ -16,16 +16,12 @@ const supportPhoneUrl = process.env.NEXT_PUBLIC_SUPPORT_PHONE
   ? `tel:${process.env.NEXT_PUBLIC_SUPPORT_PHONE}`
   : "/support/tickets";
 
-function getToken() {
-  return getClientAuthToken();
-}
-
 export default function ContactSupportPage() {
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState({ type: "", text: "" });
   const [form, setForm] = useState({ title: "", description: "", expectedBenefit: "" });
 
   const load = useCallback(async () => {
@@ -34,7 +30,8 @@ export default function ContactSupportPage() {
     try {
       const response = await fetch("/api/support/features", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Feature requests मिळाले नाहीत.");
@@ -52,26 +49,27 @@ export default function ContactSupportPage() {
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
-    setMessage("");
+    setNotice({ type: "", text: "" });
   }
 
   async function submitFeature(event) {
     event.preventDefault();
     setSaving(true);
-    setMessage("");
+    setNotice({ type: "", text: "" });
     try {
       const response = await fetch("/api/support/features", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify(form)
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Feature request जतन झाली नाही.");
       setForm({ title: "", description: "", expectedBenefit: "" });
-      setMessage(result.message || "Feature request जतन झाली.");
+      setNotice({ type: "success", text: result.message || "Feature request जतन झाली." });
       load();
     } catch (saveError) {
-      setMessage(saveError.message);
+      setNotice({ type: "error", text: saveError.message });
     } finally {
       setSaving(false);
     }
@@ -80,11 +78,17 @@ export default function ContactSupportPage() {
   async function vote(featureId, hasVoted) {
     const response = await fetch("/api/support/features", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
       body: JSON.stringify({ featureId, action: hasVoted ? "unvote" : "vote" })
     });
     const result = await response.json().catch(() => ({}));
-    if (response.ok) setFeatures(result.features || []);
+    if (response.ok) {
+      setFeatures(result.features || []);
+      setNotice({ type: "success", text: result.message || "Vote update झाला." });
+    } else {
+      setNotice({ type: "error", text: result.error || "Vote update झाला नाही." });
+    }
   }
 
   if (loading) return <LoadingState text="Contact Support लोड होत आहे..." />;
@@ -108,7 +112,13 @@ export default function ContactSupportPage() {
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <form onSubmit={submitFeature} className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-soft">
           <h2 className="text-[24px] font-black text-slate-950">Feature Request</h2>
-          {message ? <p className="mt-3 rounded-xl bg-green-50 p-3 text-[15px] font-bold text-green-800">{message}</p> : null}
+          {notice.text ? (
+            <p className={`mt-3 rounded-xl p-3 text-[15px] font-bold ${
+              notice.type === "error" ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"
+            }`}>
+              {notice.text}
+            </p>
+          ) : null}
           <div className="mt-4 grid gap-3">
             <input value={form.title} onChange={(event) => update("title", event.target.value)} className="min-h-[52px] rounded-xl border border-slate-200 px-4 font-bold" placeholder="Feature title" />
             <textarea value={form.description} onChange={(event) => update("description", event.target.value)} className="min-h-[120px] rounded-xl border border-slate-200 p-4 font-bold" placeholder="काय feature पाहिजे?" />

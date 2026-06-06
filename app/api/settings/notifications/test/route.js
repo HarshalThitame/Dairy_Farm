@@ -82,26 +82,34 @@ export async function POST(request) {
       }
     }
 
+    const delivered = inAppDelivered > 0 || push.delivered > 0;
+    const fallbackPushMessage = pushEnabled && push.delivered < 1
+      ? "Mobile notification phone panel मध्ये पोहोचली नाही. Push permission आणि subscription तपासा."
+      : "";
+    const message = [
+      inAppDelivered > 0 ? "App मध्ये चाचणी सूचना पाठवली." : "",
+      pushEnabled && push.delivered > 0 ? "Mobile notification phone panel मध्ये पाठवली." : "",
+      pushEnabled && push.delivered < 1 ? (pushError || fallbackPushMessage) : ""
+    ].filter(Boolean).join(" ");
+
     await supabase
       .from("notifications")
       .update({
-        delivered_count: inAppDelivered || push.delivered || 0,
-        failure_reason: pushError || null
+        status: delivered ? "sent" : "failed",
+        delivered_count: delivered ? 1 : 0,
+        failure_reason: delivered && pushError ? pushError : delivered ? null : (pushError || fallbackPushMessage)
       })
       .eq("id", notification.id);
 
     return NextResponse.json({
-      success: inAppDelivered > 0 || push.delivered > 0,
+      success: delivered,
       notificationId: notification.id,
       inAppDelivered,
       push,
-      warning: pushError || null,
-      message: [
-        inAppDelivered > 0 ? "App मध्ये चाचणी सूचना पाठवली." : "",
-        pushEnabled && push.delivered > 0 ? "Mobile notification phone panel मध्ये पाठवली." : "",
-        pushEnabled && push.delivered < 1 && pushError ? pushError : ""
-      ].filter(Boolean).join(" ")
-    });
+      warning: pushError || (!delivered ? fallbackPushMessage : null),
+      message,
+      error: delivered ? undefined : (pushError || fallbackPushMessage || "चाचणी सूचना पाठवता आली नाही.")
+    }, { status: delivered ? 200 : 400 });
   } catch (error) {
     return farmErrorResponse(error);
   }

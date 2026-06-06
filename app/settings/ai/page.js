@@ -4,26 +4,39 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import {
+  getClientAuthHeaders,
+  safeSetLocalStorageItem
+} from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 const responseStyles = [
-  ["short", "लहान", "थेट, एका-दोन वाक्यात उत्तर"],
-  ["detailed", "सविस्तर", "सकाळ/संध्याकाळ split आणि संदर्भासह"],
-  ["expert", "तज्ञ", "आकडे, अर्थ आणि farm-management insight"]
+  ["short", "लहान", "थेट, एका वाक्यात उत्तर", "उदा. आज २८५ लिटर दूध जमा झाले."],
+  ["detailed", "सविस्तर", "सकाळ/संध्याकाळ split आणि संदर्भासह", "उदा. सकाळी १४५ आणि संध्याकाळी १४० लिटर."],
+  ["expert", "तज्ञ", "आकडे, अर्थ आणि उपयोगी निरीक्षण", "उदा. उत्पादन वाढले आहे; फॅट स्थिर ठेवण्यासाठी नोंदी तपासा."]
 ];
 
 const dataPermissionRows = [
   ["milk_records", "दूध नोंदी वापरू द्या", "दूध, फॅट, SNF आणि सकाळ/संध्याकाळचे आकडे"],
   ["slip_history", "स्लिप इतिहास वापरू द्या", "दूध स्लिप, 15 दिवसांचे payment आणि उत्पन्न"],
-  ["analytics", "Analytics वापरू द्या", "नफा, खर्च, trend आणि मासिक सारांश"],
-  ["animal_data", "जनावरांची माहिती वापरू द्या", "गायी/वासरे माहितीवर future AI उत्तरांसाठी"]
+  ["analytics", "हिशोब विश्लेषण वापरू द्या", "नफा, खर्च, trend आणि मासिक सारांश"],
+  ["animal_data", "जनावरांची माहिती वापरू द्या", "गायी, गाभण स्थिती आणि वासरांची संख्या"]
 ];
 
 const exampleQuestions = ["🥛 आजचे दूध", "💰 आजचे उत्पन्न", "📈 सरासरी फॅट", "🏆 सर्वाधिक दूध"];
+const AI_SETTINGS_CACHE_KEY = "majhi_dairy_ai_assistant_settings_cache";
+const AI_SETTINGS_UPDATED_EVENT = "majhi-ai-settings-updated";
 
-function getToken() {
-  return getClientAuthToken();
+function publishAiSettings(nextPreferences) {
+  if (typeof window === "undefined" || !nextPreferences) {
+    return;
+  }
+
+  safeSetLocalStorageItem(AI_SETTINGS_CACHE_KEY, JSON.stringify({
+    cachedAt: Date.now(),
+    preferences: nextPreferences
+  }));
+  window.dispatchEvent(new CustomEvent(AI_SETTINGS_UPDATED_EVENT, { detail: nextPreferences }));
 }
 
 function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {
@@ -31,6 +44,8 @@ function ToggleRow({ title, subtitle, checked, onChange, disabled = false }) {
     <button
       type="button"
       disabled={disabled}
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`flex min-h-[78px] w-full items-center justify-between gap-4 rounded-xl border p-4 text-left shadow-sm disabled:opacity-60 ${
         checked ? "border-green-200 bg-green-50" : "border-slate-200 bg-white"
@@ -104,11 +119,13 @@ export default function AiSettingsPage() {
     try {
       const response = await fetch("/api/settings/ai", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "AI सेटिंग्ज मिळाल्या नाहीत.");
       setPreferences(result.preferences);
+      publishAiSettings(result.preferences);
       setStats(result.stats);
       setHistory(result.history || []);
     } catch (loadError) {
@@ -123,7 +140,8 @@ export default function AiSettingsPage() {
     try {
       const response = await fetch(`/api/settings/ai/history?search=${encodeURIComponent(query || "")}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "AI history मिळाली नाही.");
@@ -162,12 +180,14 @@ export default function AiSettingsPage() {
     try {
       const response = await fetch("/api/settings/ai", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify(preferences)
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "AI सेटिंग्ज जतन झाल्या नाहीत.");
       setPreferences(result.preferences);
+      publishAiSettings(result.preferences);
       showMessage(result.message || "AI सेटिंग्ज जतन झाल्या.", "success");
     } catch (saveError) {
       showMessage(saveError.message || "AI सेटिंग्ज जतन झाल्या नाहीत.", "error");
@@ -188,13 +208,17 @@ export default function AiSettingsPage() {
       const query = all ? "all=true" : `id=${id}`;
       const response = await fetch(`/api/settings/ai/history?${query}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "History delete झाली नाही.");
       setHistory((current) => (all ? [] : current.filter((item) => item.id !== id)));
       showMessage(all ? "संपूर्ण AI history delete झाली." : "AI history delete झाली.", "success");
-      load();
+      await load();
+      if (search.trim()) {
+        await loadHistory(search);
+      }
     } catch (deleteError) {
       showMessage(deleteError.message || "History delete झाली नाही.", "error");
     } finally {
@@ -210,11 +234,13 @@ export default function AiSettingsPage() {
     try {
       const response = await fetch("/api/settings/ai/feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ logId, feedback })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Feedback जतन झाला नाही.");
+      setHistory((current) => current.map((item) => (item.id === logId ? { ...item, feedback: result.feedback?.feedback || feedback } : item)));
       showMessage("Feedback जतन झाला.", "success");
     } catch (feedbackError) {
       setHistory((current) => current.map((item) => (item.id === logId ? { ...item, feedback: previous } : item)));
@@ -257,22 +283,37 @@ export default function AiSettingsPage() {
       <section className="rounded-xl border border-white/80 bg-white/90 p-5 shadow-soft">
         <h2 className="text-[24px] font-black text-slate-950">उत्तर शैली</h2>
         <div className="mt-4 grid gap-3">
-          {responseStyles.map(([value, title, subtitle]) => (
+          {responseStyles.map(([value, title, subtitle, example]) => {
+            const selected = preferences?.response_style === value;
+
+            return (
             <button
               key={value}
               type="button"
               disabled={saving}
+              aria-pressed={selected}
               onClick={() => update("response_style", value)}
-              className={`rounded-xl border p-4 text-left shadow-sm disabled:opacity-60 ${
-                preferences?.response_style === value ? "border-green-500 bg-green-50 ring-2 ring-green-100" : "border-slate-200 bg-white"
+              className={`rounded-xl border p-4 text-left shadow-sm transition active:scale-[0.99] disabled:opacity-60 ${
+                selected ? "border-green-500 bg-green-50 ring-2 ring-green-100" : "border-slate-200 bg-white hover:border-slate-300"
               }`}
             >
-              <span className="block text-[20px] font-black text-slate-950">{title}</span>
-              <span className="mt-1 block text-[15px] font-bold text-slate-600">{subtitle}</span>
-              {value === "short" ? <span className="mt-2 block text-[14px] font-bold text-green-700">उदा. आज २८५ लिटर दूध जमा झाले.</span> : null}
-              {value === "detailed" ? <span className="mt-2 block text-[14px] font-bold text-green-700">उदा. सकाळी १४५ आणि संध्याकाळी १४० लिटर.</span> : null}
+              <span className="flex items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-[20px] font-black leading-tight text-slate-950">{title}</span>
+                  <span className="mt-1 block text-[15px] font-bold leading-snug text-slate-600">{subtitle}</span>
+                </span>
+                {selected ? (
+                  <span className="shrink-0 rounded-full bg-green-600 px-3 py-1 text-[12px] font-black text-white">
+                    निवडले
+                  </span>
+                ) : null}
+              </span>
+              <span className="mt-3 block rounded-lg border border-emerald-100 bg-white/80 px-3 py-2 text-[14px] font-bold leading-snug text-green-700">
+                {example}
+              </span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </section>
 
