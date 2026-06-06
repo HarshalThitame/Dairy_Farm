@@ -107,7 +107,7 @@ export default function AppearanceBoot() {
     media?.addEventListener?.("change", handleSystemTheme);
 
     const token = getToken();
-    if (token && navigator.onLine) {
+    if (token) {
       fetch("/api/settings/appearance", {
         cache: "no-store",
         credentials: "same-origin",
