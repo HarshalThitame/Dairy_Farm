@@ -8,6 +8,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [filters, setFilters] = useState({ search: "", role: "all", farm_id: "" });
   const [loading, setLoading] = useState(true);
+  const [actionUserId, setActionUserId] = useState("");
   const [error, setError] = useState("");
 
   const query = useMemo(() => new URLSearchParams(filters).toString(), [filters]);
@@ -37,17 +38,48 @@ export default function AdminUsersPage() {
   async function resetPin(user) {
     const newPin = window.prompt(`New 4 digit PIN for ${user.name}`);
     if (!newPin) return;
-    const response = await fetch("/api/admin/emergency/reset-pin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
-      body: JSON.stringify({ userId: user.id, newPin })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      window.alert(result.error || "PIN reset failed");
-      return;
+    setActionUserId(user.id);
+    try {
+      const response = await fetch("/api/admin/emergency/reset-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
+        body: JSON.stringify({ userId: user.id, newPin })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        window.alert(result.error || "PIN reset failed");
+        return;
+      }
+      window.alert("PIN reset successful.");
+    } finally {
+      setActionUserId("");
     }
-    window.alert(`PIN reset successful. New PIN: ${result.newPin}`);
+  }
+
+  async function runUserAction(user, action) {
+    const labels = {
+      activate: "activate",
+      deactivate: "deactivate",
+      force_logout: "force logout"
+    };
+    if (!window.confirm(`${user.name || user.mobile_masked || "User"} ${labels[action]} करायचा आहे का?`)) return;
+
+    setActionUserId(user.id);
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getSuperAdminAuthHeader() },
+        body: JSON.stringify({ action })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        window.alert(result.error || "User action failed");
+        return;
+      }
+      await loadUsers();
+    } finally {
+      setActionUserId("");
+    }
   }
 
   return (
@@ -111,9 +143,39 @@ export default function AdminUsersPage() {
                   <td className="px-4 py-4">{user.last_login ? new Date(user.last_login).toLocaleString() : "-"}</td>
                   <td className="px-4 py-4">{user.is_active ? "Active" : "Inactive"}</td>
                   <td className="px-4 py-4">
-                    <button onClick={() => resetPin(user)} className="rounded-lg bg-slate-900 px-3 py-2 text-[15px] font-bold text-white">
-                      Reset PIN
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => resetPin(user)}
+                        disabled={actionUserId === user.id}
+                        className="rounded-lg bg-slate-900 px-3 py-2 text-[15px] font-bold text-white disabled:opacity-60"
+                      >
+                        Reset PIN
+                      </button>
+                      {user.is_active ? (
+                        <button
+                          onClick={() => runUserAction(user, "deactivate")}
+                          disabled={actionUserId === user.id}
+                          className="rounded-lg bg-red-600 px-3 py-2 text-[15px] font-bold text-white disabled:opacity-60"
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => runUserAction(user, "activate")}
+                          disabled={actionUserId === user.id}
+                          className="rounded-lg bg-green-600 px-3 py-2 text-[15px] font-bold text-white disabled:opacity-60"
+                        >
+                          Activate
+                        </button>
+                      )}
+                      <button
+                        onClick={() => runUserAction(user, "force_logout")}
+                        disabled={actionUserId === user.id}
+                        className="rounded-lg bg-yellow-600 px-3 py-2 text-[15px] font-bold text-white disabled:opacity-60"
+                      >
+                        Force Logout
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

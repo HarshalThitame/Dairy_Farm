@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AnimalPhotoInput from "@/components/AnimalPhotoInput";
+import AdminOnly from "@/components/AdminOnly";
 import CowSelector from "@/components/CowSelector";
 import ErrorState from "@/components/ErrorState";
 import FormField from "@/components/FormField";
@@ -246,30 +247,32 @@ function CalfCard({ calf, onEdit, onStatusChange }) {
         </div>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-        <button
-          type="button"
-          onClick={() => onEdit(calf)}
-          className="min-h-[52px] rounded-lg border-2 border-green-200 bg-green-50 px-3 text-[17px] font-extrabold text-sheti shadow-sm active:bg-green-100"
-        >
-          ✏️ संपादित करा
-        </button>
+      <AdminOnly>
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+          <button
+            type="button"
+            onClick={() => onEdit(calf)}
+            className="min-h-[52px] rounded-lg border-2 border-green-200 bg-green-50 px-3 text-[17px] font-extrabold text-sheti shadow-sm active:bg-green-100"
+          >
+            ✏️ संपादित करा
+          </button>
 
-        {canChangeStatus ? (
-          <div className={`grid gap-2 ${statusActions.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
-            {statusActions.map((action) => (
-            <button
-              key={action.status}
-              type="button"
-              onClick={() => onStatusChange(calf, action.status)}
-              className="min-h-[50px] rounded-lg border-2 border-slate-200 bg-slate-50 px-2 text-[16px] font-extrabold text-slate-800 shadow-sm active:bg-green-50"
-            >
-              {action.label}
-            </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+          {canChangeStatus ? (
+            <div className={`grid gap-2 ${statusActions.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+              {statusActions.map((action) => (
+                <button
+                  key={action.status}
+                  type="button"
+                  onClick={() => onStatusChange(calf, action.status)}
+                  className="min-h-[50px] rounded-lg border-2 border-slate-200 bg-slate-50 px-2 text-[16px] font-extrabold text-slate-800 shadow-sm active:bg-green-50"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </AdminOnly>
       </div>
     </article>
   );
@@ -310,6 +313,7 @@ function emptyConversionForm(calf) {
 
 export default function CalvesPage() {
   const router = useRouter();
+  const today = getTodayISODate();
   const [calves, setCalves] = useState([]);
   const [summary, setSummary] = useState(null);
   const [statusFilter, setStatusFilter] = useState("active");
@@ -665,13 +669,15 @@ export default function CalvesPage() {
                 वाढ, दूध पाजणे आणि आई गाय - सर्व एकाच ठिकाणी
               </p>
             </div>
-            <button
-              type="button"
-              onClick={formOpen ? resetForm : openAddForm}
-              className="flex min-h-[52px] shrink-0 items-center justify-center rounded-lg bg-white px-4 text-[18px] font-extrabold text-green-800 shadow-sm active:bg-green-50"
-            >
-              {formOpen ? "बंद" : "➕ जोडा"}
-            </button>
+            <AdminOnly>
+              <button
+                type="button"
+                onClick={formOpen ? resetForm : openAddForm}
+                className="flex min-h-[52px] shrink-0 items-center justify-center rounded-lg bg-white px-4 text-[18px] font-extrabold text-green-800 shadow-sm active:bg-green-50"
+              >
+                {formOpen ? "बंद" : "➕ जोडा"}
+              </button>
+            </AdminOnly>
           </div>
 
           <div className="dashboard-glass mt-5 grid grid-cols-2 gap-2 rounded-lg p-2 sm:grid-cols-4">
@@ -683,15 +689,18 @@ export default function CalvesPage() {
         </div>
       </header>
 
-      <button
-        type="button"
-        onClick={formOpen ? resetForm : openAddForm}
-        className="dashboard-scan flex min-h-[62px] w-full items-center justify-center rounded-lg border border-green-200 bg-gradient-to-r from-green-50 via-white to-blue-50 px-4 text-[20px] font-extrabold text-sheti shadow-soft active:bg-green-100"
-      >
-        {formOpen ? "फॉर्म बंद करा" : "➕ जुने / नवीन वासरू जोडा"}
-      </button>
+      <AdminOnly>
+        <button
+          type="button"
+          onClick={formOpen ? resetForm : openAddForm}
+          className="dashboard-scan flex min-h-[62px] w-full items-center justify-center rounded-lg border border-green-200 bg-gradient-to-r from-green-50 via-white to-blue-50 px-4 text-[20px] font-extrabold text-sheti shadow-soft active:bg-green-100"
+        >
+          {formOpen ? "फॉर्म बंद करा" : "➕ जुने / नवीन वासरू जोडा"}
+        </button>
+      </AdminOnly>
 
       {formOpen ? (
+        <AdminOnly>
         <form onSubmit={submitCalf} className="dashboard-panel space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
           <div className="relative z-10">
             <h2 className="text-[25px] font-extrabold text-slate-950">
@@ -706,6 +715,7 @@ export default function CalvesPage() {
             <input
               type="date"
               required
+              max={today}
               value={form.birth_date}
               onChange={(event) => updateField("birth_date", event.target.value)}
               className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
@@ -848,6 +858,7 @@ export default function CalvesPage() {
                 <input
                   type="date"
                   required
+                  max={today}
                   value={form.sold_date}
                   onChange={(event) => updateField("sold_date", event.target.value)}
                   className="min-h-[56px] w-full rounded-lg border-2 border-green-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
@@ -890,9 +901,11 @@ export default function CalvesPage() {
             {saving ? "⏳ जतन होत आहे..." : editingCalfId ? "✅ बदल जतन करा" : "✅ वासरू जतन करा"}
           </button>
         </form>
+        </AdminOnly>
       ) : null}
 
       {conversionCalf ? (
+        <AdminOnly>
         <form onSubmit={submitConversion} className="dashboard-panel space-y-4 rounded-lg border border-blue-200 bg-white p-4 shadow-soft">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -961,6 +974,7 @@ export default function CalvesPage() {
               <input
                 type="date"
                 required
+                max={today}
                 value={conversionForm.ai_date}
                 onChange={(event) => updateConversionField("ai_date", event.target.value)}
                 className="min-h-[56px] w-full rounded-lg border-2 border-green-100 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti"
@@ -1040,6 +1054,7 @@ export default function CalvesPage() {
             {conversionSaving ? "⏳ जतन होत आहे..." : "✅ गाय आणि रेतन नोंद जतन करा"}
           </button>
         </form>
+        </AdminOnly>
       ) : null}
 
       {message ? (

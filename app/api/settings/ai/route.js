@@ -4,6 +4,7 @@ import {
   normalizeAiAssistantPreferences,
   sanitizeAiAssistantPreferences
 } from "@/lib/aiAssistantSettings";
+import { getIndiaTodayISODate } from "@/lib/aiAssistantDate";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logUserSettingsAction } from "@/lib/userSettings";
@@ -12,8 +13,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function monthStartISO() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const today = getIndiaTodayISODate();
+  return `${today.slice(0, 7)}-01`;
 }
 
 function topicFromQuestion(question = "") {

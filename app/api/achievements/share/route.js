@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
+import { isUuid } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -45,7 +46,7 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const achievementId = body.achievementId;
 
-    if (!achievementId) {
+    if (!achievementId || !isUuid(achievementId)) {
       return Response.json({ error: "Achievement निवडा." }, { status: 400 });
     }
 

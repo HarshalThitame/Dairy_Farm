@@ -5,6 +5,7 @@ import {
   normalizeAccountingExpenseCategory,
   refreshSummaryForDate
 } from "@/lib/accountingUtils";
+import { getTodayISODate } from "@/lib/marathiUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,15 @@ function pickFields(body) {
     }
     return payload;
   }, {});
+}
+
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 async function fetchExpense(supabase, farmId, id) {
@@ -111,6 +121,20 @@ export async function PUT(request, { params }) {
       (parseAmount(payload.amount) === null || parseAmount(payload.amount) <= 0)
     ) {
       return NextResponse.json({ error: "रक्कम शून्यापेक्षा जास्त असावी." }, { status: 400 });
+    }
+
+    if (payload.amount !== undefined && parseAmount(payload.amount) > 10000000) {
+      return NextResponse.json({ error: "रक्कम असामान्य आहे. कृपया तपासा." }, { status: 400 });
+    }
+
+    if (payload.expense_date !== undefined) {
+      if (!isValidISODate(payload.expense_date)) {
+        return NextResponse.json({ error: "तारीख चुकीची आहे." }, { status: 400 });
+      }
+
+      if (payload.expense_date > getTodayISODate()) {
+        return NextResponse.json({ error: "भविष्यातील तारीख वापरता येणार नाही." }, { status: 400 });
+      }
     }
 
     if (payload.amount !== undefined) {

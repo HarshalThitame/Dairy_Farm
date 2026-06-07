@@ -10,10 +10,24 @@ import { getTodayISODate } from "@/lib/marathiUtils";
 
 const inputClass = "min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100";
 
+function isISODate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
+function parseAmount(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 export default function ExpenseForm({ initialData = null }) {
   const router = useRouter();
+  const today = getTodayISODate();
   const [form, setForm] = useState({
-    expense_date: initialData?.expense_date || getTodayISODate(),
+    expense_date: initialData?.expense_date || today,
     category: initialData?.category || "औषध",
     amount: initialData?.amount || "",
     description: initialData?.description || "",
@@ -31,8 +45,12 @@ export default function ExpenseForm({ initialData = null }) {
 
   function validate() {
     if (!form.expense_date) return "तारीख आवश्यक आहे.";
+    if (!isISODate(form.expense_date)) return "तारीख चुकीची आहे.";
+    if (form.expense_date > today) return "भविष्यातील तारीख वापरता येणार नाही.";
     if (!form.category) return "खर्चाचा वर्ग निवडा.";
-    if (Number(form.amount || 0) <= 0) return "रक्कम शून्यापेक्षा जास्त असावी.";
+    const amount = parseAmount(form.amount);
+    if (amount === null || amount <= 0) return "रक्कम शून्यापेक्षा जास्त असावी.";
+    if (amount > 10000000) return "रक्कम असामान्य आहे. कृपया तपासा.";
     return "";
   }
 
@@ -65,7 +83,7 @@ export default function ExpenseForm({ initialData = null }) {
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-5">
           <FormField label="तारीख" required>
-            <input type="date" value={form.expense_date} onChange={(event) => updateField("expense_date", event.target.value)} className={inputClass} required />
+            <input type="date" value={form.expense_date} max={today} onChange={(event) => updateField("expense_date", event.target.value)} className={inputClass} required />
           </FormField>
           <div>
             <p className="mb-2 text-[20px] font-extrabold text-slate-900">वर्ग <span className="text-tatkal">*</span></p>
@@ -95,7 +113,7 @@ export default function ExpenseForm({ initialData = null }) {
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-5">
           <FormField label="रक्कम" required>
-            <input autoFocus type="number" inputMode="decimal" min="0" step="1" value={form.amount} onChange={(event) => updateField("amount", event.target.value)} placeholder="०" className={`${inputClass} text-[26px] font-extrabold`} required />
+            <input autoFocus type="number" inputMode="decimal" min="0" max="10000000" step="1" value={form.amount} onChange={(event) => updateField("amount", event.target.value)} placeholder="०" className={`${inputClass} text-[26px] font-extrabold`} required />
           </FormField>
           <FormField label="विवरण">
             <MarathiTextInput value={form.description} onValueChange={(value) => updateField("description", value)} placeholder="उदा. अमचूर चारा" className={inputClass} />

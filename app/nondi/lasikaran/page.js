@@ -46,8 +46,13 @@ function buildDescription(vaccineName, batchNumber, dose) {
   return lines.join("\n");
 }
 
+function isISODate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
 export default function LasikaranNondPage() {
   const router = useRouter();
+  const today = getTodayISODate();
   const [mode, setMode] = useState("single");
   const [initialCowId, setInitialCowId] = useState("");
   const [selectedCow, setSelectedCow] = useState(null);
@@ -197,8 +202,33 @@ export default function LasikaranNondPage() {
   async function saveRecord(event) {
     event.preventDefault();
 
+    if (!isISODate(form.date)) {
+      setError("तारीख चुकीची आहे.");
+      return;
+    }
+
+    if (form.date > today) {
+      setError("भविष्यातील तारीख वापरता येणार नाही.");
+      return;
+    }
+
     if (!actualVaccineName) {
       setError("लसीचे नाव आवश्यक आहे.");
+      return;
+    }
+
+    if (!isISODate(form.next_due_date)) {
+      setError("पुढील लसीची तारीख आवश्यक आहे.");
+      return;
+    }
+
+    if (form.next_due_date < form.date) {
+      setError("पुढील लसीची तारीख आजच्या नोंदीपूर्वी नसावी.");
+      return;
+    }
+
+    if (form.cost !== "" && (!Number.isFinite(Number(form.cost)) || Number(form.cost) < 0 || Number(form.cost) > 1000000)) {
+      setError("खर्चाची रक्कम तपासा.");
       return;
     }
 
@@ -283,6 +313,7 @@ export default function LasikaranNondPage() {
                 value={form.date}
                 onChange={(event) => updateField("date", event.target.value)}
                 required
+                max={today}
                 className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
               />
             </FormField>
@@ -341,6 +372,7 @@ export default function LasikaranNondPage() {
                 type="number"
                 inputMode="decimal"
                 min="0"
+                max="1000000"
                 value={form.cost}
                 onChange={(event) => updateField("cost", event.target.value)}
                 className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
@@ -353,6 +385,7 @@ export default function LasikaranNondPage() {
                 value={form.next_due_date}
                 onChange={(event) => updateField("next_due_date", event.target.value)}
                 required
+                min={form.date || today}
                 className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
               />
             </FormField>

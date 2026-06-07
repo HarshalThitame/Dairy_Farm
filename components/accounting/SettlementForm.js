@@ -18,6 +18,25 @@ function addDays(dateString, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function isISODate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
+function dateDiffDays(start, end) {
+  const startDate = new Date(`${start}T00:00:00Z`);
+  const endDate = new Date(`${end}T00:00:00Z`);
+  return Math.round((endDate - startDate) / 86400000) + 1;
+}
+
+function parseAmount(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 export default function SettlementForm({ initialData = null, initialReconciliation = null }) {
   const router = useRouter();
   const { farm } = useAuth();
@@ -60,11 +79,33 @@ export default function SettlementForm({ initialData = null, initialReconciliati
 
   function validate() {
     if (!form.settlement_date || !form.period_start || !form.period_end) return "सेटलमेंट तारीख आणि पीरियड आवश्यक आहे.";
+    if (![form.settlement_date, form.period_start, form.period_end].every(isISODate)) return "सेटलमेंट तारीख किंवा पीरियड चुकीचा आहे.";
+    if (form.settlement_date > today || form.period_start > today || form.period_end > today) return "भविष्यातील तारीख वापरता येणार नाही.";
     if (form.period_end < form.period_start) return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
-    if (form.total_milk_income === "" || Number(form.total_milk_income || 0) <= 0) return "एकूण उत्पन्न लिहा.";
-    if (Number(form.cattle_feed_deduction || 0) < 0 || Number(form.other_deductions || 0) < 0) {
+    if (dateDiffDays(form.period_start, form.period_end) > 45) return "सेटलमेंट पीरियड असामान्य आहे. कृपया तपासा.";
+
+    const totalLiters = parseAmount(form.total_liters);
+    const income = parseAmount(form.total_milk_income);
+    const feedDeduction = parseAmount(form.cattle_feed_deduction) ?? 0;
+    const otherDeduction = parseAmount(form.other_deductions) ?? 0;
+    const paymentAmount = parseAmount(form.payment_received_amount);
+
+    if (form.total_liters !== "" && (totalLiters === null || totalLiters < 0)) return "एकूण दूध शून्य किंवा त्यापेक्षा जास्त असावे.";
+    if (totalLiters !== null && totalLiters > 100000) return "एकूण दूध असामान्य आहे. कृपया तपासा.";
+    if (income === null || income <= 0) return "एकूण उत्पन्न लिहा.";
+    if (income > 100000000) return "एकूण उत्पन्न असामान्य आहे. कृपया तपासा.";
+    if (feedDeduction < 0 || otherDeduction < 0) {
       return "कपात शून्य किंवा त्यापेक्षा जास्त असावी.";
     }
+    if (feedDeduction + otherDeduction > income) return "कपात एकूण उत्पन्नापेक्षा जास्त नसावी.";
+
+    if (form.payment_received) {
+      if (form.payment_received_date && !isISODate(form.payment_received_date)) return "प्राप्त तारीख चुकीची आहे.";
+      if (form.payment_received_date > today) return "भविष्यातील प्राप्त तारीख वापरता येणार नाही.";
+      if (form.payment_received_amount !== "" && (paymentAmount === null || paymentAmount < 0)) return "प्राप्त रक्कम शून्य किंवा त्यापेक्षा जास्त असावी.";
+      if (paymentAmount !== null && paymentAmount > income) return "प्राप्त रक्कम एकूण उत्पन्नापेक्षा जास्त नसावी.";
+    }
+
     return "";
   }
 
@@ -110,14 +151,14 @@ export default function SettlementForm({ initialData = null, initialReconciliati
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-5">
           <FormField label="सेटलमेंट तारीख" required>
-            <input type="date" value={form.settlement_date} onChange={(event) => updateField("settlement_date", event.target.value)} className={inputClass} required />
+            <input type="date" value={form.settlement_date} max={today} onChange={(event) => updateField("settlement_date", event.target.value)} className={inputClass} required />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="पीरियड सुरू" required>
-              <input type="date" value={form.period_start} onChange={(event) => updateField("period_start", event.target.value)} className={inputClass} required />
+              <input type="date" value={form.period_start} max={form.period_end || today} onChange={(event) => updateField("period_start", event.target.value)} className={inputClass} required />
             </FormField>
             <FormField label="पीरियड शेवट" required hint="साधारणपणे १५ दिवस">
-              <input type="date" value={form.period_end} onChange={(event) => updateField("period_end", event.target.value)} className={inputClass} required />
+              <input type="date" value={form.period_end} min={form.period_start} max={today} onChange={(event) => updateField("period_end", event.target.value)} className={inputClass} required />
             </FormField>
           </div>
         </div>
@@ -137,10 +178,10 @@ export default function SettlementForm({ initialData = null, initialReconciliati
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-5">
           <FormField label="एकूण दूध (लिटर)">
-            <input type="number" inputMode="decimal" min="0" step="0.25" value={form.total_liters} onChange={(event) => updateField("total_liters", event.target.value)} className={inputClass} />
+            <input type="number" inputMode="decimal" min="0" max="100000" step="0.25" value={form.total_liters} onChange={(event) => updateField("total_liters", event.target.value)} className={inputClass} />
           </FormField>
           <FormField label="दूध उत्पन्न" required>
-            <input autoFocus type="number" inputMode="decimal" min="0" step="1" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${inputClass} text-[26px] font-extrabold`} required />
+            <input autoFocus type="number" inputMode="decimal" min="0" max="100000000" step="1" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${inputClass} text-[26px] font-extrabold`} required />
           </FormField>
         </div>
       </section>
@@ -148,10 +189,10 @@ export default function SettlementForm({ initialData = null, initialReconciliati
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
         <div className="space-y-5">
           <FormField label="खाद्य कपात" hint="डेअरी द्वारा खाद्यासाठी कपात">
-            <input type="number" inputMode="decimal" min="0" step="1" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={inputClass} />
+            <input type="number" inputMode="decimal" min="0" max="100000000" step="1" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={inputClass} />
           </FormField>
           <FormField label="इतर कपात" hint="परिवहन, सरासुवाई, अन्य खर्च">
-            <input type="number" inputMode="decimal" min="0" step="1" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={inputClass} />
+            <input type="number" inputMode="decimal" min="0" max="100000000" step="1" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={inputClass} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-red-50 p-4 text-red-900">
@@ -178,10 +219,10 @@ export default function SettlementForm({ initialData = null, initialReconciliati
         {form.payment_received ? (
           <div className="mt-4 grid gap-4">
             <FormField label="पेमेंट तारीख">
-              <input type="date" value={form.payment_received_date} onChange={(event) => updateField("payment_received_date", event.target.value)} className={inputClass} />
+              <input type="date" value={form.payment_received_date} max={today} onChange={(event) => updateField("payment_received_date", event.target.value)} className={inputClass} />
             </FormField>
             <FormField label="प्राप्त रक्कम">
-              <input type="number" inputMode="decimal" min="0" value={form.payment_received_amount} onChange={(event) => updateField("payment_received_amount", event.target.value)} placeholder={String(totals.netPayable)} className={inputClass} />
+              <input type="number" inputMode="decimal" min="0" max="100000000" value={form.payment_received_amount} onChange={(event) => updateField("payment_received_amount", event.target.value)} placeholder={String(totals.netPayable)} className={inputClass} />
             </FormField>
           </div>
         ) : null}

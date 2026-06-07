@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_PROCESSED_IMAGE_SIZE = 1500000;
 
 function uploadError(message, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -83,7 +84,9 @@ async function compressServerSide(imageFile) {
     { width: 1280, quality: 76 },
     { width: 1100, quality: 70 },
     { width: 960, quality: 64 },
-    { width: 840, quality: 58 }
+    { width: 840, quality: 58 },
+    { width: 720, quality: 52 },
+    { width: 640, quality: 48 }
   ];
   let bestBuffer = null;
   let bestAttempt = attempts[attempts.length - 1];
@@ -101,7 +104,7 @@ async function compressServerSide(imageFile) {
     bestBuffer = compressed;
     bestAttempt = attempt;
 
-    if (compressed.length <= 1000000) {
+    if (compressed.length <= MAX_PROCESSED_IMAGE_SIZE) {
       break;
     }
   }
@@ -127,7 +130,9 @@ async function recompressBufferServerSide(buffer, originalContentType = "image/j
     { width: 1280, quality: 70 },
     { width: 1100, quality: 64 },
     { width: 960, quality: 58 },
-    { width: 840, quality: 54 }
+    { width: 840, quality: 54 },
+    { width: 720, quality: 50 },
+    { width: 640, quality: 46 }
   ];
   let bestBuffer = null;
   let bestAttempt = attempts[attempts.length - 1];
@@ -145,7 +150,7 @@ async function recompressBufferServerSide(buffer, originalContentType = "image/j
     bestBuffer = compressed;
     bestAttempt = attempt;
 
-    if (compressed.length <= 1000000) {
+    if (compressed.length <= MAX_PROCESSED_IMAGE_SIZE) {
       break;
     }
   }
@@ -243,7 +248,7 @@ export async function POST(request) {
         extension: getExtensionFromType(contentType)
       };
 
-      if (compressed.compressedSize > 1000000) {
+      if (compressed.compressedSize > MAX_PROCESSED_IMAGE_SIZE) {
         compressed = await recompressBufferServerSide(imageBuffer, contentType);
         compressed.originalSize = originalSizeFromForm || imageFile.size || imageBuffer.length;
       }

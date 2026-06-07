@@ -6,6 +6,7 @@ import {
   refreshSettlementSummaries,
   refreshSummaryForDate
 } from "@/lib/accountingUtils";
+import { getTodayISODate } from "@/lib/marathiUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
 
@@ -66,6 +67,21 @@ function pickFields(body) {
 
 function hasField(payload, field) {
   return Object.prototype.hasOwnProperty.call(payload, field);
+}
+
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function dateDiffDays(start, end) {
+  const startDate = new Date(`${start}T00:00:00Z`);
+  const endDate = new Date(`${end}T00:00:00Z`);
+  return Math.round((endDate - startDate) / 86400000) + 1;
 }
 
 function normalizePayload(payload) {
@@ -129,8 +145,72 @@ function validateNumericPayload(payload) {
     }
   }
 
+  if (hasField(payload, "total_liters") && Number(payload.total_liters || 0) > 100000) {
+    return "एकूण दूध असामान्य आहे. कृपया तपासा.";
+  }
+
+  if (hasField(payload, "total_milk_income") && Number(payload.total_milk_income || 0) > 100000000) {
+    return "एकूण उत्पन्न असामान्य आहे. कृपया तपासा.";
+  }
+
   if (hasField(payload, "total_milk_income") && Number(payload.total_milk_income || 0) <= 0) {
     return "एकूण उत्पन्न शून्यापेक्षा जास्त असावे.";
+  }
+
+  return "";
+}
+
+function validateDatePayload(payload) {
+  const today = getTodayISODate();
+  const labels = {
+    settlement_date: "सेटलमेंट तारीख",
+    period_start: "पीरियड सुरुवात",
+    period_end: "पीरियड शेवट",
+    payment_received_date: "प्राप्त तारीख"
+  };
+
+  for (const [field, label] of Object.entries(labels)) {
+    if (!hasField(payload, field) || payload[field] === null || payload[field] === "") {
+      continue;
+    }
+
+    if (!isValidISODate(payload[field])) {
+      return `${label} चुकीची आहे.`;
+    }
+
+    if (payload[field] > today) {
+      return "भविष्यातील तारीख वापरता येणार नाही.";
+    }
+  }
+
+  return "";
+}
+
+function validateMergedSettlement(settlement) {
+  if (settlement.period_start && settlement.period_end) {
+    if (settlement.period_end < settlement.period_start) {
+      return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
+    }
+
+    if (dateDiffDays(settlement.period_start, settlement.period_end) > 45) {
+      return "सेटलमेंट पीरियड असामान्य आहे. कृपया तपासा.";
+    }
+  }
+
+  const income = Number(settlement.total_milk_income || 0);
+  const deductions = Number(settlement.cattle_feed_deduction || 0) + Number(settlement.other_deductions || 0);
+
+  if (deductions > income) {
+    return "कपात एकूण उत्पन्नापेक्षा जास्त नसावी.";
+  }
+
+  if (
+    settlement.payment_received &&
+    settlement.payment_received_amount !== null &&
+    settlement.payment_received_amount !== undefined &&
+    Number(settlement.payment_received_amount || 0) > income
+  ) {
+    return "प्राप्त रक्कम एकूण उत्पन्नापेक्षा जास्त नसावी.";
   }
 
   return "";
@@ -314,6 +394,12 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: numericError }, { status: 400 });
     }
 
+    const dateError = validateDatePayload(payload);
+
+    if (dateError) {
+      return NextResponse.json({ error: dateError }, { status: 400 });
+    }
+
     const supabase = getSupabaseServerClient();
     const oldSettlement = await fetchSettlement(supabase, farmId, params.id);
 
@@ -328,6 +414,11 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा." }, { status: 400 });
     }
 
+    const mergedValidationError = validateMergedSettlement({ ...oldSettlement, ...payload });
+
+    if (mergedValidationError) {
+      return NextResponse.json({ error: mergedValidationError }, { status: 400 });
+    }
 
     const { data: updated, error } = await supabase
       .from("dairy_settlements")
@@ -420,6 +511,18 @@ export async function PATCH(request, { params }) {
     if (!payload.payment_received) {
       payload.payment_received_date = null;
       payload.payment_received_amount = null;
+    }
+
+    const dateError = validateDatePayload(payload);
+
+    if (dateError) {
+      return NextResponse.json({ error: dateError }, { status: 400 });
+    }
+
+    const mergedValidationError = validateMergedSettlement({ ...settlement, ...payload });
+
+    if (mergedValidationError) {
+      return NextResponse.json({ error: mergedValidationError }, { status: 400 });
     }
 
     const { data, error } = await supabase

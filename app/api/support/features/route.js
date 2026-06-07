@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -84,6 +85,9 @@ export async function PATCH(request) {
     if (!featureId || !["vote", "unvote"].includes(action)) {
       return NextResponse.json({ error: "Action चुकीची आहे." }, { status: 400 });
     }
+    if (!isUuid(featureId)) {
+      throw badRequest("Feature request क्रमांक चुकीचा आहे.");
+    }
 
     const supabase = getSupabaseServerClient();
     const { data: feature, error: featureError } = await supabase
@@ -122,4 +126,3 @@ export async function PATCH(request) {
     return farmErrorResponse(error);
   }
 }
-

@@ -8,7 +8,7 @@ import {
 import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { readJsonBody } from "@/lib/apiSafety";
-import { getRequestIp, parseDevice } from "@/lib/userSettings";
+import { DEFAULT_APPEARANCE, getRequestIp, normalizeAppearancePreferences, parseDevice } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,6 +39,10 @@ function normalizeMobile(mobile) {
 function normalizeTotalCows(value) {
   const number = Number(value || 0);
   return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
+}
+
+function normalizeLanguage(value) {
+  return value === "en" ? "en" : "mr";
 }
 
 function deviceColumns(device) {
@@ -128,8 +132,31 @@ function validateSignup(body) {
     villageName: cleanText(body.villageName),
     talukaName: cleanText(body.talukaName),
     districtName,
-    totalCows: normalizeTotalCows(body.totalCows)
+    totalCows: normalizeTotalCows(body.totalCows),
+    language: normalizeLanguage(body.language)
   };
+}
+
+async function createProfileWithLanguage(supabase, payload) {
+  const { error } = await supabase
+    .from("user_profiles")
+    .insert(payload);
+
+  if (!error) return;
+
+  const missingLanguageColumn = error.code === "42703" || /language/i.test(error.message || "");
+  if (!missingLanguageColumn) {
+    throw error;
+  }
+
+  const { language, ...legacyPayload } = payload;
+  const { error: fallbackError } = await supabase
+    .from("user_profiles")
+    .insert(legacyPayload);
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
 }
 
 export async function POST(request) {
@@ -212,6 +239,37 @@ export async function POST(request) {
       throw userError;
     }
 
+    const preferences = normalizeAppearancePreferences({
+      ...DEFAULT_APPEARANCE,
+      language: validated.language
+    });
+
+    try {
+      await Promise.all([
+        supabase
+          .from("appearance_preferences")
+          .upsert({
+            user_id: user.id,
+            farm_id: farm.id,
+            ...preferences,
+            updated_at: new Date().toISOString()
+          }, { onConflict: "user_id" }),
+        createProfileWithLanguage(supabase, {
+          user_id: user.id,
+          farm_id: farm.id,
+          village_name: validated.villageName || null,
+          taluka_name: validated.talukaName || null,
+          district_name: validated.districtName,
+          state_name: "महाराष्ट्र",
+          language: validated.language
+        })
+      ]);
+    } catch (preferenceError) {
+      await supabase.from("users").delete().eq("id", user.id);
+      await supabase.from("farms").delete().eq("id", createdFarmId);
+      throw preferenceError;
+    }
+
     let session = null;
     try {
       const device = parseDevice(request.headers.get("user-agent") || "", deviceInfo, request.headers);
@@ -233,6 +291,7 @@ export async function POST(request) {
         token,
         user: normalizeUser(user),
         farm: normalizeFarm(farm),
+        preferences,
         message: "नोंदणी यशस्वी! स्वागत आहे."
       },
       { status: 201 }

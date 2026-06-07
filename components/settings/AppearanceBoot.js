@@ -27,7 +27,7 @@ const defaultPreferences = {
   reduce_animations: false
 };
 
-export function applyAppearancePreferences(preferences = {}) {
+export function applyAppearancePreferences(preferences = {}, options = {}) {
   if (typeof document === "undefined") return;
 
   const next = { ...defaultPreferences, ...preferences };
@@ -68,8 +68,10 @@ export function applyAppearancePreferences(preferences = {}) {
     // Local storage is optional.
   }
 
-  applyUiLanguage(language);
-  window.dispatchEvent(new CustomEvent(UI_LANGUAGE_CHANGE_EVENT, { detail: { language } }));
+  if (options.translate !== false) {
+    applyUiLanguage(language);
+    window.dispatchEvent(new CustomEvent(UI_LANGUAGE_CHANGE_EVENT, { detail: { language } }));
+  }
 }
 
 function readLocalPreferences() {
@@ -88,8 +90,14 @@ export default function AppearanceBoot() {
   useEffect(() => {
     const local = readLocalPreferences();
     if (local) {
-      applyAppearancePreferences(local);
+      applyAppearancePreferences(local, { translate: false });
     }
+
+    let initialTranslationReady = false;
+    const initialTranslationTimer = window.setTimeout(() => {
+      initialTranslationReady = true;
+      applyAppearancePreferences(readLocalPreferences() || defaultPreferences);
+    }, 350);
 
     const languageObserver = createUiLanguageObserver(() => {
       const latest = readLocalPreferences();
@@ -116,7 +124,7 @@ export default function AppearanceBoot() {
         .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
         .then(({ ok, json }) => {
           if (!cancelled && ok && json.preferences) {
-            applyAppearancePreferences(json.preferences);
+            applyAppearancePreferences(json.preferences, { translate: initialTranslationReady });
           }
         })
         .catch(() => {});
@@ -124,6 +132,7 @@ export default function AppearanceBoot() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initialTranslationTimer);
       languageObserver.disconnect();
       media?.removeEventListener?.("change", handleSystemTheme);
     };

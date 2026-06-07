@@ -8,6 +8,7 @@ import {
   refreshSummaryForDate,
   summarizeExpenses
 } from "@/lib/accountingUtils";
+import { getTodayISODate } from "@/lib/marathiUtils";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -50,11 +51,28 @@ function pickFields(body) {
   }, {});
 }
 
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 function validateExpense(body) {
   const amount = parseAmount(body.amount);
 
   if (!body.expense_date) {
     return "तारीख आवश्यक आहे.";
+  }
+
+  if (!isValidISODate(body.expense_date)) {
+    return "तारीख चुकीची आहे.";
+  }
+
+  if (body.expense_date > getTodayISODate()) {
+    return "भविष्यातील तारीख वापरता येणार नाही.";
   }
 
   if (!body.category) {
@@ -63,6 +81,10 @@ function validateExpense(body) {
 
   if (amount === null || amount <= 0) {
     return "रक्कम शून्यापेक्षा जास्त असावी.";
+  }
+
+  if (amount > 10000000) {
+    return "रक्कम असामान्य आहे. कृपया तपासा.";
   }
 
   return "";

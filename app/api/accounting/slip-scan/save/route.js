@@ -201,12 +201,59 @@ function mergeData(...sources) {
   );
 }
 
+function isISODate(value) {
+  const text = String(value || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return false;
+  }
+
+  const parsed = new Date(`${text}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text;
+}
+
+function isFutureDate(value) {
+  return isISODate(value) && String(value) > getTodayISODate();
+}
+
+function dateDiffDays(startDate, endDate) {
+  if (!isISODate(startDate) || !isISODate(endDate)) {
+    return null;
+  }
+
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+
 function validateDaily(data) {
   if (!data.slip_date) return "तारीख आवश्यक आहे.";
+  if (!isISODate(data.slip_date)) return "तारीख YYYY-MM-DD format मध्ये असावी.";
+  if (isFutureDate(data.slip_date)) return "भविष्यातील तारीख जतन करता येणार नाही.";
   if (![DAIRY_SESSION_MORNING, DAIRY_SESSION_EVENING].includes(data.session)) return "सत्र निवडा.";
   if (!["cow", "buffalo"].includes(normalizeMilkType(data.milk_type))) return "दुधाचा प्रकार गाय किंवा म्हैस असावा.";
-  if (numberOrNull(data.liters) === null || Number(data.liters) <= 0) return "दूध लिटर नीट भरा.";
-  if (numberOrNull(data.rate_per_liter) === null || Number(data.rate_per_liter) <= 0) return "दर नीट भरा.";
+  const liters = numberOrNull(data.liters);
+  const rate = numberOrNull(data.rate_per_liter);
+  const fat = numberOrNull(data.fat_percentage ?? data.fat_percent ?? data.fat);
+  const snf = numberOrNull(data.snf_percentage ?? data.snf_percent ?? data.snf);
+  const printedAmount = numberOrNull(
+    data.slip_printed_amount ??
+      data.printed_total_amount ??
+      data.ocr_total_amount ??
+      data.amount_verification?.printed_amount ??
+      data.total_amount
+  );
+  if (liters === null || liters <= 0) return "दूध लिटर नीट भरा.";
+  if (liters > 5000) return "दैनिक दूध लिटर असामान्य आहे. कृपया तपासा.";
+  if (rate === null || rate <= 0) return "दर नीट भरा.";
+  if (rate > 200) return "दर असामान्य आहे. कृपया तपासा.";
+  if (fat !== null && (fat < 0 || fat > 20)) return "फॅट 0 ते 20% मध्ये असावा.";
+  if (snf !== null && (snf < 0 || snf > 20)) return "SNF 0 ते 20 मध्ये असावा.";
+  if (printedAmount !== null) {
+    const calculatedAmount = roundMoney(liters * rate);
+    if (Math.abs(printedAmount - calculatedAmount) > Math.max(2, printedAmount * 0.03)) {
+      return "लिटर, दर आणि स्लिपवरील रक्कम जुळत नाही. कृपया आकडे दुरुस्त करा.";
+    }
+  }
   const clr = clrScore(data);
   if (clr !== null && (clr < 0 || clr > 100)) return "CLR स्कोर 0 ते 100 मध्ये असावा.";
   if (data.slip_time && !/^\d{1,2}:\d{1,2}(:\d{1,2})?$/.test(String(data.slip_time))) {
@@ -217,9 +264,32 @@ function validateDaily(data) {
 
 function validateSettlement(data) {
   if (!data.period_start || !data.period_end) return "पीरियड सुरू आणि शेवट तारीख आवश्यक आहे.";
+  if (!isISODate(data.period_start) || !isISODate(data.period_end)) return "पीरियड तारीख YYYY-MM-DD format मध्ये असावी.";
+  if (isFutureDate(data.period_start) || isFutureDate(data.period_end)) return "भविष्यातील पीरियड जतन करता येणार नाही.";
   if (data.period_end < data.period_start) return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
-  if (numberOrNull(data.total_milk_income) === null || Number(data.total_milk_income) <= 0) {
+  const settlementDate = data.settlement_date || data.period_end;
+  if (settlementDate && !isISODate(settlementDate)) return "सेटलमेंट तारीख YYYY-MM-DD format मध्ये असावी.";
+  if (settlementDate && isFutureDate(settlementDate)) return "भविष्यातील सेटलमेंट तारीख जतन करता येणार नाही.";
+  const periodDays = dateDiffDays(data.period_start, data.period_end);
+  if (periodDays !== null && periodDays > 45) return "सेटलमेंट पीरियड 45 दिवसांपेक्षा जास्त नसावा.";
+  const totalLiters = getSettlementTotalLiters(data);
+  if (totalLiters !== null && (totalLiters < 0 || totalLiters > 100000)) {
+    return "एकूण दूध लिटर असामान्य आहे. कृपया तपासा.";
+  }
+  const income = numberOrNull(data.total_milk_income);
+  if (income === null || income <= 0) {
     return "एकूण उत्पन्न नीट भरा.";
+  }
+  if (income > 100000000) return "एकूण उत्पन्न असामान्य आहे. कृपया तपासा.";
+  const deductions = getSettlementDeductions(data);
+  if (deductions.feedDeduction < 0 || deductions.otherDeductions < 0) return "कपात रक्कम negative नसावी.";
+  if (deductions.totalDeductions > income) return "कपात उत्पन्नापेक्षा जास्त नसावी.";
+  const extractedNet = numberOrNull(data.net_payable ?? data.final_payable);
+  if (extractedNet !== null) {
+    const calculatedNet = roundMoney(income - deductions.totalDeductions);
+    if (Math.abs(extractedNet - calculatedNet) > Math.max(10, income * 0.02)) {
+      return "उत्पन्न, कपात आणि निव्वळ रक्कम जुळत नाहीत. कृपया तपासा.";
+    }
   }
   return "";
 }

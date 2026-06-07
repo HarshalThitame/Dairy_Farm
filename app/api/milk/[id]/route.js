@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
-import { pickMilkFields } from "@/lib/milkRecordFields";
+import { pickMilkFields, validateMilkRecordInput } from "@/lib/milkRecordFields";
 import { deleteDairySlipsForMilkDate, syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
@@ -15,6 +15,12 @@ export async function PUT(request, { params }) {
     }
     const body = await readJsonBody(request);
     const auth = await verifyFarmAccess(request);
+    const inputErrors = validateMilkRecordInput(body);
+
+    if (inputErrors.length > 0) {
+      return NextResponse.json({ error: inputErrors[0], errors: inputErrors }, { status: 400 });
+    }
+
     const pickedFields = pickMilkFields(body);
 
     if (Object.keys(pickedFields).length === 0) {
@@ -29,7 +35,7 @@ export async function PUT(request, { params }) {
     const supabase = getSupabaseServerClient();
     const { data: oldRecord, error: oldRecordError } = await supabase
       .from("milk_records")
-      .select("id, date")
+      .select("*")
       .eq("id", params.id)
       .eq("farm_id", auth.farmId)
       .is("cow_id", null)
@@ -37,6 +43,39 @@ export async function PUT(request, { params }) {
 
     if (oldRecordError) {
       throw oldRecordError;
+    }
+
+    if (!oldRecord) {
+      return NextResponse.json({ error: "दूध नोंद सापडली नाही." }, { status: 404 });
+    }
+
+    const mergedRecord = { ...oldRecord, ...payload };
+    const mergedErrors = validateMilkRecordInput(mergedRecord, { requireDate: true, requireMilk: true });
+
+    if (mergedErrors.length > 0) {
+      return NextResponse.json({ error: mergedErrors[0], errors: mergedErrors }, { status: 400 });
+    }
+
+    if (payload.date && payload.date !== oldRecord.date) {
+      const { data: duplicateRecord, error: duplicateError } = await supabase
+        .from("milk_records")
+        .select("id")
+        .eq("farm_id", auth.farmId)
+        .eq("date", payload.date)
+        .is("cow_id", null)
+        .neq("id", params.id)
+        .maybeSingle();
+
+      if (duplicateError) {
+        throw duplicateError;
+      }
+
+      if (duplicateRecord) {
+        return NextResponse.json(
+          { error: "या तारखेची दूध नोंद आधीच आहे. ती नोंद संपादित करा." },
+          { status: 409 }
+        );
+      }
     }
 
     const { data, error } = await supabase

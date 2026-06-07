@@ -109,6 +109,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const cowId = searchParams.get("cow_id");
     const summaryOnly = searchParams.get("summary") === "true";
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
     const supabase = getSupabaseServerClient();
     let query = supabase
       .from("ai_records")
@@ -123,6 +125,24 @@ export async function GET(request) {
       }
       await verifyFarmAccess(request, cowId);
       query = query.eq("cow_id", cowId);
+    }
+
+    if (from) {
+      if (!isValidISODate(from)) {
+        return NextResponse.json({ error: "सुरुवात तारीख चुकीची आहे." }, { status: 400 });
+      }
+      query = query.gte("ai_date", from);
+    }
+
+    if (to) {
+      if (!isValidISODate(to)) {
+        return NextResponse.json({ error: "शेवट तारीख चुकीची आहे." }, { status: 400 });
+      }
+      query = query.lte("ai_date", to);
+    }
+
+    if (from && to && to < from) {
+      return NextResponse.json({ error: "शेवट तारीख सुरुवात तारखेपेक्षा आधी नसावी." }, { status: 400 });
     }
 
     const { data, error } = await query;

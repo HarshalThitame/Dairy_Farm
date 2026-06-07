@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_COMPRESSED_SIZE = 900000;
+const MAX_ORIGINAL_SIZE = 8 * 1024 * 1024;
 
 function getBucket() {
   return process.env.ANIMAL_PHOTOS_BUCKET || "animal-photos";
@@ -24,6 +25,13 @@ function normalizeAnimalType(value) {
 async function compressServerSide(imageFile) {
   const sharp = (await import("sharp")).default;
   const input = Buffer.from(await imageFile.arrayBuffer());
+
+  if (input.length > MAX_ORIGINAL_SIZE) {
+    const error = new Error("फोटो ८ MB पेक्षा कमी असावा.");
+    error.status = 400;
+    throw error;
+  }
+
   const attempts = [
     { width: 1280, quality: 78 },
     { width: 960, quality: 72 },
@@ -78,6 +86,9 @@ export async function POST(request) {
 
     if (clientCompressed && imageFile.type === "image/webp") {
       const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+      if (imageBuffer.length > MAX_ORIGINAL_SIZE) {
+        return errorResponse("फोटो ८ MB पेक्षा कमी असावा.");
+      }
       const originalSize = Number(formData.get("originalSize") || imageFile.size || imageBuffer.length);
       compressed = {
         buffer: imageBuffer,

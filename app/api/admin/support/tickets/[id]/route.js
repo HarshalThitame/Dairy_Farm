@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -41,6 +42,9 @@ async function loadAdminBundle(supabase, ticketId) {
 
 export async function GET(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Ticket ID चुकीचा आहे.");
+    }
     await verifySuperAdmin(request);
     const supabase = getSupabaseServerClient();
     const bundle = await loadAdminBundle(supabase, params.id);
@@ -52,6 +56,9 @@ export async function GET(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Ticket ID चुकीचा आहे.");
+    }
     const { adminId } = await verifySuperAdmin(request);
     const body = await request.json().catch(() => ({}));
     const action = body.action;
@@ -142,4 +149,3 @@ export async function PATCH(request, { params }) {
     return superAdminErrorResponse(error);
   }
 }
-

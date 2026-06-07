@@ -8,6 +8,7 @@ import {
 } from "@/lib/farmGuard";
 import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { getSafeAppearancePreferences } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,6 +27,8 @@ export async function GET(request) {
       throw error;
     }
 
+    const preferences = await getSafeAppearancePreferences(supabase, auth.user.id, auth.farmId);
+
     const response = NextResponse.json({
       valid: true,
       user: normalizeUser({
@@ -35,7 +38,8 @@ export async function GET(request) {
         profile_photo_storage_path: auth.user.profilePhotoStoragePath,
         is_farm_owner: auth.user.isFarmOwner
       }),
-      farm: normalizeFarm(farm)
+      farm: normalizeFarm(farm),
+      preferences
     });
 
     return setFarmAuthCookie(response, getAuthToken(request));

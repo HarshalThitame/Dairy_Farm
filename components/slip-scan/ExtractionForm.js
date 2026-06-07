@@ -121,6 +121,26 @@ function displaySlipDate(date) {
   return `${day}/${month}/${year}`;
 }
 
+function isISODate(value) {
+  const textValue = String(value || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(textValue)) {
+    return false;
+  }
+
+  const parsed = new Date(`${textValue}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === textValue;
+}
+
+function dateDiffDays(startDate, endDate) {
+  if (!isISODate(startDate) || !isISODate(endDate)) {
+    return null;
+  }
+
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+
 function entryLiters(entry) {
   return numberValue(entry?.total_liters ?? entry?.liters);
 }
@@ -261,6 +281,7 @@ function buildInitialForm(data = {}) {
 export default function ExtractionForm({ extractedData, upload, onSave, onRetry, saving = false }) {
   const [form, setForm] = useState(() => buildInitialForm(extractedData));
   const [error, setError] = useState("");
+  const today = getTodayISODate();
 
   useEffect(() => {
     setForm(buildInitialForm(extractedData));
@@ -325,7 +346,20 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   );
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+
+      if (field === "morning_total_liters" || field === "evening_total_liters") {
+        const morning = optionalNumber(field === "morning_total_liters" ? value : next.morning_total_liters);
+        const evening = optionalNumber(field === "evening_total_liters" ? value : next.evening_total_liters);
+
+        if (morning !== null && evening !== null) {
+          next.total_liters = String(roundMoney(morning + evening));
+        }
+      }
+
+      return next;
+    });
     setError("");
   }
 
@@ -340,19 +374,45 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
   function validate() {
     if (form.slip_type === "daily") {
       if (!form.slip_date) return "तारीख भरा.";
+      if (!isISODate(form.slip_date)) return "तारीख YYYY-MM-DD format मध्ये असावी.";
+      if (form.slip_date > today) return "भविष्यातील तारीख जतन करता येणार नाही.";
       if (!form.session) return "सत्र निवडा.";
       if (!["cow", "buffalo"].includes(form.milk_type)) return "दुधाचा प्रकार निवडा.";
-      if (numberValue(form.liters) <= 0) return "दूध लिटर नीट भरा.";
-      if (numberValue(form.rate_per_liter) <= 0) return "दर नीट भरा.";
+      const liters = optionalNumber(form.liters);
+      const rate = optionalNumber(form.rate_per_liter);
+      const fat = optionalNumber(form.fat_percentage);
+      const snf = optionalNumber(form.snf_percentage);
+      if (liters === null || liters <= 0) return "दूध लिटर नीट भरा.";
+      if (liters > 5000) return "दैनिक दूध लिटर असामान्य आहे. कृपया तपासा.";
+      if (rate === null || rate <= 0) return "दर नीट भरा.";
+      if (rate > 200) return "दर असामान्य आहे. कृपया तपासा.";
+      if (fat !== null && (fat < 0 || fat > 20)) return "फॅट 0 ते 20% मध्ये असावा.";
+      if (snf !== null && (snf < 0 || snf > 20)) return "SNF 0 ते 20 मध्ये असावा.";
       if (form.clr_score && (numberValue(form.clr_score) < 0 || numberValue(form.clr_score) > 100)) {
         return "CLR स्कोर 0-100 मध्ये असावा.";
+      }
+      if (printedAmount !== null && Math.abs(amountDifference || 0) > Math.max(2, printedAmount * 0.03)) {
+        return "लिटर, दर आणि स्लिपवरील रक्कम जुळत नाही. कृपया आकडे दुरुस्त करा.";
       }
       return "";
     }
 
     if (!form.period_start || !form.period_end) return "पीरियड तारीख भरा.";
+    if (!isISODate(form.period_start) || !isISODate(form.period_end)) return "पीरियड तारीख YYYY-MM-DD format मध्ये असावी.";
+    if (form.settlement_date && !isISODate(form.settlement_date)) return "सेटलमेंट तारीख YYYY-MM-DD format मध्ये असावी.";
+    if (form.period_start > today || form.period_end > today || (form.settlement_date && form.settlement_date > today)) {
+      return "भविष्यातील तारीख जतन करता येणार नाही.";
+    }
     if (form.period_end < form.period_start) return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
-    if (numberValue(form.total_milk_income) <= 0 || form.total_milk_income === "") return "एकूण उत्पन्न भरा.";
+    const periodDays = dateDiffDays(form.period_start, form.period_end);
+    if (periodDays !== null && periodDays > 45) return "सेटलमेंट पीरियड 45 दिवसांपेक्षा जास्त नसावा.";
+    const totalLiters = optionalNumber(form.total_liters);
+    const income = optionalNumber(form.total_milk_income);
+    if (totalLiters !== null && (totalLiters < 0 || totalLiters > 100000)) return "एकूण दूध लिटर असामान्य आहे. कृपया तपासा.";
+    if (income === null || income <= 0 || form.total_milk_income === "") return "एकूण उत्पन्न भरा.";
+    if (income > 100000000) return "एकूण उत्पन्न असामान्य आहे. कृपया तपासा.";
+    if (numberValue(form.cattle_feed_deduction) < 0 || effectiveOtherDeductions < 0) return "कपात negative नसावी.";
+    if (totalDeductions > income) return "कपात उत्पन्नापेक्षा जास्त नसावी.";
     return "";
   }
 
@@ -566,7 +626,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             <h2 className="mb-3 text-[22px] font-black text-slate-950">तारीख आणि वेळ</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="तारीख" required>
-                <input type="date" value={form.slip_date} onChange={(event) => updateField("slip_date", event.target.value)} className={fieldClass("slip_date", true)} />
+                <input type="date" value={form.slip_date} max={today} onChange={(event) => updateField("slip_date", event.target.value)} className={fieldClass("slip_date", true)} />
               </FormField>
               <FormField label="वेळ">
                 <input type="time" step="1" value={form.slip_time} onChange={(event) => updateField("slip_time", event.target.value)} className={fieldClass("slip_time")} />
@@ -615,16 +675,16 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                 </div>
               </div>
               <FormField label="दूध लिटर" required>
-                <input type="number" inputMode="decimal" min="0" step="0.01" value={form.liters} onChange={(event) => updateField("liters", event.target.value)} className={`${fieldClass("liters", true)} text-[26px]`} />
+                <input type="number" inputMode="decimal" min="0" max="5000" step="0.01" value={form.liters} onChange={(event) => updateField("liters", event.target.value)} className={`${fieldClass("liters", true)} text-[26px]`} />
               </FormField>
               <FormField label="दर ₹/लि." required>
-                <input type="number" inputMode="decimal" min="0" step="0.01" value={form.rate_per_liter} onChange={(event) => updateField("rate_per_liter", event.target.value)} className={fieldClass("rate_per_liter", true)} />
+                <input type="number" inputMode="decimal" min="0" max="200" step="0.01" value={form.rate_per_liter} onChange={(event) => updateField("rate_per_liter", event.target.value)} className={fieldClass("rate_per_liter", true)} />
               </FormField>
               <FormField label="फॅट %">
-                <input type="number" inputMode="decimal" min="0" step="0.01" value={form.fat_percentage} onChange={(event) => updateField("fat_percentage", event.target.value)} className={fieldClass("fat_percentage")} />
+                <input type="number" inputMode="decimal" min="0" max="20" step="0.01" value={form.fat_percentage} onChange={(event) => updateField("fat_percentage", event.target.value)} className={fieldClass("fat_percentage")} />
               </FormField>
               <FormField label="SNF %">
-                <input type="number" inputMode="decimal" min="0" step="0.01" value={form.snf_percentage} onChange={(event) => updateField("snf_percentage", event.target.value)} className={fieldClass("snf_percentage")} />
+                <input type="number" inputMode="decimal" min="0" max="20" step="0.01" value={form.snf_percentage} onChange={(event) => updateField("snf_percentage", event.target.value)} className={fieldClass("snf_percentage")} />
               </FormField>
               <FormField label="CLR स्कोर">
                 <input
@@ -646,6 +706,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max="100000000"
                   step="0.01"
                   value={form.slip_printed_amount}
                   onChange={(event) => updateField("slip_printed_amount", event.target.value)}
@@ -686,22 +747,23 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             <h2 className="mb-3 text-[22px] font-black text-slate-950">सेटलमेंट माहिती</h2>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="सेटलमेंट तारीख">
-                <input type="date" value={form.settlement_date} onChange={(event) => updateField("settlement_date", event.target.value)} className={fieldClass("settlement_date")} />
+                <input type="date" value={form.settlement_date} max={today} onChange={(event) => updateField("settlement_date", event.target.value)} className={fieldClass("settlement_date")} />
               </FormField>
               <FormField label="पीरियड सुरू" required>
-                <input type="date" value={form.period_start} onChange={(event) => updateField("period_start", event.target.value)} className={fieldClass("period_start", true)} />
+                <input type="date" value={form.period_start} max={form.period_end || today} onChange={(event) => updateField("period_start", event.target.value)} className={fieldClass("period_start", true)} />
               </FormField>
               <FormField label="पीरियड शेवट" required>
-                <input type="date" value={form.period_end} onChange={(event) => updateField("period_end", event.target.value)} className={fieldClass("period_end", true)} />
+                <input type="date" value={form.period_end} min={form.period_start} max={today} onChange={(event) => updateField("period_end", event.target.value)} className={fieldClass("period_end", true)} />
               </FormField>
               <FormField label="एकूण दूध">
-                <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_liters} onChange={(event) => updateField("total_liters", event.target.value)} className={fieldClass("total_liters")} />
+                <input type="number" inputMode="decimal" min="0" max="100000" step="0.01" value={form.total_liters} onChange={(event) => updateField("total_liters", event.target.value)} className={fieldClass("total_liters")} />
               </FormField>
               <FormField label="सकाळचे एकूण दूध">
                 <input
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max="100000"
                   step="0.01"
                   value={form.morning_total_liters}
                   onChange={(event) => updateField("morning_total_liters", event.target.value)}
@@ -713,6 +775,7 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max="100000"
                   step="0.01"
                   value={form.evening_total_liters}
                   onChange={(event) => updateField("evening_total_liters", event.target.value)}
@@ -735,14 +798,14 @@ export default function ExtractionForm({ extractedData, upload, onSave, onRetry,
             <h2 className="text-[23px] font-black text-slate-950">कपात तपशील</h2>
             <div className="mt-4 space-y-3">
               <FormField label="दूध उत्पन्न" required>
-                <input type="number" inputMode="decimal" min="0" step="0.01" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${fieldClass("total_milk_income", true)} text-[26px]`} />
+                <input type="number" inputMode="decimal" min="0" max="100000000" step="0.01" value={form.total_milk_income} onChange={(event) => updateField("total_milk_income", event.target.value)} className={`${fieldClass("total_milk_income", true)} text-[26px]`} />
               </FormField>
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="खाद्य कपात">
-                  <input type="number" inputMode="decimal" min="0" step="0.01" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={fieldClass("cattle_feed_deduction")} />
+                  <input type="number" inputMode="decimal" min="0" max="100000000" step="0.01" value={form.cattle_feed_deduction} onChange={(event) => updateField("cattle_feed_deduction", event.target.value)} className={fieldClass("cattle_feed_deduction")} />
                 </FormField>
                 <FormField label="इतर कपात">
-                  <input type="number" inputMode="decimal" min="0" step="0.01" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={fieldClass("other_deductions")} />
+                  <input type="number" inputMode="decimal" min="0" max="100000000" step="0.01" value={form.other_deductions} onChange={(event) => updateField("other_deductions", event.target.value)} className={fieldClass("other_deductions")} />
                 </FormField>
                 <FormField label="एकूण कपात">
                   <div className="flex min-h-[58px] items-center rounded-2xl border border-red-200 bg-red-50 px-4 text-[22px] font-black text-red-800 shadow-sm">

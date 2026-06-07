@@ -5,7 +5,7 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/context/AuthContext";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders, getClientAuthToken } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 function getToken() {
@@ -114,7 +114,8 @@ export default function SecuritySettingsPage() {
     try {
       const response = await fetch("/api/settings/security", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "सुरक्षा माहिती मिळाली नाही.");
@@ -142,7 +143,8 @@ export default function SecuritySettingsPage() {
     try {
       const response = await fetch("/api/auth/change-pin", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ currentPin: pinForm.currentPin, newPin: pinForm.newPin })
       });
       const result = await response.json().catch(() => ({}));
@@ -169,7 +171,8 @@ export default function SecuritySettingsPage() {
     try {
       const response = await fetch("/api/settings/security/password", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify(passwordForm)
       });
       const result = await response.json().catch(() => ({}));
@@ -195,7 +198,8 @@ export default function SecuritySettingsPage() {
       const query = sessionId ? `session_id=${sessionId}` : `mode=${mode}`;
       const response = await fetch(`/api/settings/security/sessions?${query}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Session बंद झाली नाही.");

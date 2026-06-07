@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { checkGoalAchievementsForFarm } from "@/lib/goalTracking";
-import { pickMilkFields } from "@/lib/milkRecordFields";
+import { pickMilkFields, validateMilkRecordInput } from "@/lib/milkRecordFields";
 import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getTodayISODate } from "@/lib/reminderUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -61,9 +61,10 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await readJsonBody(request);
+    const validationErrors = validateMilkRecordInput(body, { requireDate: true, requireMilk: true });
 
-    if (!body.date) {
-      return NextResponse.json({ error: "तारीख आवश्यक आहे." }, { status: 400 });
+    if (validationErrors.length > 0) {
+      return NextResponse.json({ error: validationErrors[0], errors: validationErrors }, { status: 400 });
     }
 
     const { farmId, userId } = await verifyFarmAccess(request);

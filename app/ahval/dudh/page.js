@@ -14,7 +14,7 @@ import {
   toMarathiNumerals
 } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
-import { getIndiaMonthParts } from "@/lib/reportUtils";
+import { getIndiaMonthParts, getReportMonthFromSearchParams } from "@/lib/reportUtils";
 
 const MilkBarChart = dynamic(() => import("@/components/MilkBarChart"), {
   ssr: false,
@@ -33,10 +33,7 @@ function getInitialMonth() {
   }
 
   const searchParams = new URLSearchParams(window.location.search);
-  const month = Number(searchParams.get("month") || current.month);
-  const year = Number(searchParams.get("year") || current.year);
-
-  return { month, year };
+  return getReportMonthFromSearchParams(searchParams, current);
 }
 
 function formatRate(value) {
@@ -158,6 +155,12 @@ export default function MilkReportPage() {
     ...(audit.missingMorning || []),
     ...(audit.missingEvening || [])
   ]);
+  const usesSettlementPrintedTotals = session.source === "settlement_printed_totals";
+  const bestDaySubtext = usesSettlementPrintedTotals
+    ? report?.bestDay?.date
+      ? `${formatMarathiDate(report.bestDay.date)} | दैनिक ओळी तपासणी`
+      : "दैनिक ओळी उपलब्ध नाहीत"
+    : formatMarathiDate(report?.bestDay?.date);
 
   return (
     <div className="space-y-6">
@@ -193,14 +196,14 @@ export default function MilkReportPage() {
             />
             <SummaryCard
               emoji="⬆️"
-              title="सर्वाधिक दूध"
+              title={usesSettlementPrintedTotals ? "दैनिक ओळीत सर्वाधिक" : "सर्वाधिक दूध"}
               value={`${formatLitres(report.bestDay?.litres || 0)} लिटर`}
-              subtext={formatMarathiDate(report.bestDay?.date)}
+              subtext={bestDaySubtext}
               color="green"
             />
           </section>
 
-          {session.source === "settlement_printed_totals" ? (
+          {usesSettlementPrintedTotals ? (
             <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-soft">
               <h2 className="text-[22px] font-extrabold text-amber-950">दूध total कुठून घेतले?</h2>
               <p className="mt-1 text-[17px] font-bold text-amber-900">
@@ -208,12 +211,12 @@ export default function MilkReportPage() {
               </p>
               {Number(report.rowTotalLitres || 0) !== Number(report.totalLitres || 0) ? (
                 <p className="mt-3 rounded-lg bg-white p-3 text-[16px] font-extrabold text-amber-950">
-                  Daily rows बेरीज: {formatLitres(report.rowTotalLitres || 0)} लि. | Final settlement total: {formatLitres(report.totalLitres || 0)} लि.
+                  दैनिक ओळी बेरीज: {formatLitres(report.rowTotalLitres || 0)} लि. | सेटलमेंट अंतिम total: {formatLitres(report.totalLitres || 0)} लि.
                 </p>
               ) : null}
               {missingRows.length > 0 ? (
                 <div className="mt-3 space-y-1 text-[15px] font-bold text-amber-900">
-                  <p className="font-extrabold">Missing daily rows:</p>
+                  <p className="font-extrabold">Missing दैनिक ओळी:</p>
                   {missingRows.slice(0, 8).map((item) => (
                     <p key={`${item.date}-${item.session}`}>
                       {formatMarathiDate(item.date)} {item.session}: {item.reason} {item.finalSource}
@@ -266,7 +269,7 @@ export default function MilkReportPage() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <ReadingTile label="सकाळ दूध" value={formatLitres(session.morningLitres || 0)} suffix=" लि." tone="bg-blue-50 text-blue-900" />
               <ReadingTile label="संध्याकाळ दूध" value={formatLitres(session.eveningLitres || 0)} suffix=" लि." tone="bg-indigo-50 text-indigo-900" />
-              {session.source === "settlement_printed_totals" ? (
+              {usesSettlementPrintedTotals ? (
                 <div className="col-span-2 rounded-lg bg-green-50 p-3 text-green-900">
                   <p className="text-[17px] font-extrabold opacity-80">दूध रक्कम</p>
                   <p className="mt-1 text-[22px] font-extrabold">{formatCurrency(session.totalAmount || 0)}</p>
@@ -299,7 +302,14 @@ export default function MilkReportPage() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">रोजचे दूध चार्ट</h2>
+            <h2 className="text-[24px] font-extrabold text-slate-950">
+              {usesSettlementPrintedTotals ? "रोजचे दूध आलेख (दैनिक ओळी तपासणी)" : "रोजचे दूध आलेख"}
+            </h2>
+            {usesSettlementPrintedTotals ? (
+              <p className="mt-1 text-[16px] font-bold text-slate-600">
+                अंतिम total सेटलमेंट स्लिपवरून घेतले आहे; हा आलेख दैनिक ओळी तपासणीसाठी आहे.
+              </p>
+            ) : null}
             <div className="mt-4">
               <MilkBarChart data={filteredDailyData} height={280} />
             </div>
@@ -313,7 +323,9 @@ export default function MilkReportPage() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-            <h2 className="text-[24px] font-extrabold text-slate-950">रोजची दूध नोंद</h2>
+            <h2 className="text-[24px] font-extrabold text-slate-950">
+              {usesSettlementPrintedTotals ? "रोजची दूध नोंद (तपासणी)" : "रोजची दूध नोंद"}
+            </h2>
             <div className="mt-4 space-y-3">
               {filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => <DailyMilkCard key={record.id || record.date} record={record} />)

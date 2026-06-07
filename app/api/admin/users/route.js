@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { maskMobile, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 
@@ -20,6 +21,9 @@ export async function GET(request) {
       .order("created_at", { ascending: false });
 
     if (farmId) {
+      if (!isUuid(farmId)) {
+        throw badRequest("Farm ID चुकीचा आहे.");
+      }
       query = query.eq("farm_id", farmId);
     }
 

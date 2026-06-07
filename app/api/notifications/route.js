@@ -6,8 +6,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function getPagination(searchParams) {
-  const page = Math.max(1, Number(searchParams.get("page") || 1));
-  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
+  const rawPage = Number.parseInt(searchParams.get("page") || "1", 10);
+  const rawLimit = Number.parseInt(searchParams.get("limit") || "20", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(50, Math.max(1, rawLimit))
+    : 20;
   return { page, limit, from: (page - 1) * limit, to: page * limit - 1 };
 }
 

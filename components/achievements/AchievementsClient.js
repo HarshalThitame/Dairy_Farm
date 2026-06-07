@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 
 const categoryOrder = [
@@ -20,10 +20,6 @@ const categoryOrder = [
   "community",
   "hidden"
 ];
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function formatNumber(value, decimals = 0) {
   const number = Number(value || 0);
@@ -92,7 +88,8 @@ export default function AchievementsClient({ profileMode = false, scoreMode = fa
       const endpoint = scoreMode ? "/api/achievements?notify=false" : "/api/achievements";
       const response = await fetch(endpoint, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Achievements मिळाले नाहीत.");
@@ -127,7 +124,8 @@ export default function AchievementsClient({ profileMode = false, scoreMode = fa
   async function downloadPdf(achievement) {
     const response = await fetch("/api/achievements/share", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
       body: JSON.stringify({ achievementId: achievement.id })
     });
     if (!response.ok) return;

@@ -72,6 +72,7 @@ export default function CowForm({
   success,
   enableCalfForCalved = false
 }) {
+  const today = getTodayISODate();
   const [form, setForm] = useState(() => ({
     ...normalizeInitialCow(initialCow),
     calf: emptyCalfForm
@@ -196,6 +197,7 @@ export default function CowForm({
         <input
           type="date"
           value={form.date_of_birth}
+          max={today}
           onChange={(event) => updateField("date_of_birth", event.target.value)}
           className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
         />
@@ -221,6 +223,7 @@ export default function CowForm({
         <input
           type="date"
           value={form.purchased_on}
+          max={today}
           onChange={(event) => updateField("purchased_on", event.target.value)}
           className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
         />
@@ -261,6 +264,7 @@ export default function CowForm({
               <input
                 type="date"
                 value={form.calf?.birth_date || ""}
+                max={today}
                 onChange={(event) => updateCalfField("birth_date", event.target.value)}
                 required={form.status === "व्याललेली"}
                 className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 shadow-sm outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100"

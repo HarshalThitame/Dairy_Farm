@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import LoadingState from "@/components/LoadingState";
 import { useAuth } from "@/context/AuthContext";
+import { useUiTranslation } from "@/lib/useUiLanguage";
 
 const publicPaths = ["/login", "/signup", "/admin-login", "/admin"];
 
@@ -11,6 +12,7 @@ export default function AuthRequired({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const t = useUiTranslation();
   const isPublic = publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   useEffect(() => {
@@ -34,11 +36,11 @@ export default function AuthRequired({ children }) {
   }
 
   if (isLoading) {
-    return <LoadingState text="खाते तपासत आहे..." />;
+    return <LoadingState text={t("खाते तपासत आहे...", "Checking account...")} />;
   }
 
   if (!isAuthenticated) {
-    return <LoadingState text="लॉगिन पान उघडत आहे..." />;
+    return <LoadingState text={t("लॉगिन पान उघडत आहे...", "Opening login page...")} />;
   }
 
   return children;

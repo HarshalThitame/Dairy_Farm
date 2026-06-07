@@ -10,6 +10,7 @@ import {
   summarizeMilkSessionsForMonth
 } from "@/lib/accountingUtils";
 import { recomputeMilkRecordFromDairySlips } from "@/lib/milkDairySync";
+import { getTodayISODate } from "@/lib/marathiUtils";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -86,12 +87,29 @@ function pickSlipFields(body) {
   }, {});
 }
 
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 function validateSlip(body) {
   const liters = optionalNumber(body.liters);
   const rate = optionalNumber(body.rate_per_liter);
 
   if (!body.slip_date) {
     return "तारीख आवश्यक आहे.";
+  }
+
+  if (!isValidISODate(body.slip_date)) {
+    return "तारीख चुकीची आहे.";
+  }
+
+  if (body.slip_date > getTodayISODate()) {
+    return "भविष्यातील तारीख वापरता येणार नाही.";
   }
 
   if (![DAIRY_SESSION_MORNING, DAIRY_SESSION_EVENING].includes(body.session)) {
@@ -106,8 +124,26 @@ function validateSlip(body) {
     return "दूधाचे लिटर शून्यापेक्षा जास्त असावे.";
   }
 
+  if (liters > 5000) {
+    return "दूधाचे लिटर असामान्य आहे. कृपया तपासा.";
+  }
+
   if (rate === null || rate <= 0) {
     return "दर शून्यापेक्षा जास्त असावा.";
+  }
+
+  if (rate > 200) {
+    return "दुधाचा दर असामान्य आहे. कृपया तपासा.";
+  }
+
+  const fat = optionalNumber(body.fat_percentage);
+  if (fat !== null && (fat < 0 || fat > 20)) {
+    return "फॅट 0 ते 20 मध्ये असावे.";
+  }
+
+  const snf = optionalNumber(body.snf_percentage);
+  if (snf !== null && (snf < 0 || snf > 20)) {
+    return "SNF 0 ते 20 मध्ये असावे.";
   }
 
   const clr = optionalNumber(body.clr_score ?? body.clr_degree);

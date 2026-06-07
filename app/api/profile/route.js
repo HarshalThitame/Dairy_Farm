@@ -23,6 +23,55 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const FARM_PROFILE_FIELDS = [
+  "id",
+  "farm_name",
+  "owner_name",
+  "owner_mobile",
+  "owner_email",
+  "mobile_verified",
+  "village_name",
+  "taluka_name",
+  "district_name",
+  "state_name",
+  "farm_address",
+  "dairy_name",
+  "dairy_member_number",
+  "vet_name",
+  "vet_mobile",
+  "subscription_status",
+  "trial_ends_at",
+  "subscription_started_at",
+  "subscription_ends_at",
+  "total_cows",
+  "milk_rate_default",
+  "morning_session_time",
+  "evening_session_time",
+  "show_marathi_numbers",
+  "low_milk_alert_litres",
+  "is_active",
+  "admin_notes",
+  "suspended_reason",
+  "suspended_at",
+  "last_activity_at",
+  "created_at",
+  "updated_at"
+].join(", ");
+
+const USER_PROFILE_FIELDS = [
+  "id",
+  "user_id",
+  "farm_id",
+  "village_name",
+  "taluka_name",
+  "district_name",
+  "state_name",
+  "profile_photo_url",
+  "profile_photo_storage_path",
+  "created_at",
+  "updated_at"
+].join(", ");
+
 function cleanText(value, max = 120) {
   return String(value || "").trim().slice(0, max);
 }
@@ -75,7 +124,7 @@ async function getProfileStats(supabase, farmId, userId) {
 async function getOrCreateProfile(supabase, userId, farmId, farm) {
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("*")
+    .select(USER_PROFILE_FIELDS)
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -96,7 +145,7 @@ async function getOrCreateProfile(supabase, userId, farmId, farm) {
       district_name: farm?.district_name || "",
       state_name: farm?.state_name || "महाराष्ट्र"
     })
-    .select("*")
+    .select(USER_PROFILE_FIELDS)
     .single();
 
   if (createError) {
@@ -115,7 +164,7 @@ export async function GET(request) {
         .select("id, farm_id, mobile, email, name, role, is_active, is_farm_owner, created_at, last_login, profile_photo_url, profile_photo_storage_path")
         .eq("id", auth.userId)
         .single(),
-      supabase.from("farms").select("*").eq("id", auth.farmId).single()
+      supabase.from("farms").select(FARM_PROFILE_FIELDS).eq("id", auth.farmId).single()
     ]);
 
     if (userError) throw userError;
@@ -147,6 +196,7 @@ export async function PATCH(request) {
     const auth = await verifyFarmAccess(request);
     const body = await readJsonBody(request);
     const supabase = getSupabaseServerClient();
+    const canManageFarm = Boolean(auth.user?.isFarmOwner || auth.user?.role === "admin");
 
     const name = cleanText(body.name, 100);
     if (name.length < 2) {
@@ -154,7 +204,7 @@ export async function PATCH(request) {
     }
 
     const farmName = cleanText(body.farm_name || body.farmName, 140);
-    if (farmName.length < 2) {
+    if (canManageFarm && farmName.length < 2) {
       return NextResponse.json({ error: "डेअरीचे नाव किमान २ अक्षरे असावे." }, { status: 400 });
     }
 
@@ -199,21 +249,29 @@ export async function PATCH(request) {
       }, { onConflict: "user_id" });
     if (profileError) throw profileError;
 
-    const { error: farmUpdateError } = await supabase
-      .from("farms")
-      .update({
+    if (canManageFarm) {
+      const farmPayload = {
         farm_name: farmName,
         village_name: profilePayload.village_name,
         taluka_name: profilePayload.taluka_name,
         district_name: profilePayload.district_name,
         state_name: profilePayload.state_name,
         updated_at: new Date().toISOString()
-      })
-      .eq("id", auth.farmId);
-    if (farmUpdateError) throw farmUpdateError;
+      };
+
+      if (auth.user?.isFarmOwner) {
+        farmPayload.owner_name = name;
+      }
+
+      const { error: farmUpdateError } = await supabase
+        .from("farms")
+        .update(farmPayload)
+        .eq("id", auth.farmId);
+      if (farmUpdateError) throw farmUpdateError;
+    }
 
     await logUserSettingsAction(supabase, request, auth.userId, auth.farmId, "profile_updated", {
-      fields: ["name", "farm_name", ...Object.keys(profilePayload)]
+      fields: canManageFarm ? ["name", "farm_name", ...Object.keys(profilePayload)] : ["name", ...Object.keys(profilePayload)]
     });
 
     return GET(request);

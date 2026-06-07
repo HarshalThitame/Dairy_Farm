@@ -1,0 +1,3374 @@
+{
+  "threats": [
+    {
+      "threatId": "TH-001",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against authentication could compromise tenant data, trust or availability.",
+      "affectedComponents": "Authentication",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-002",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against authentication could compromise tenant data, trust or availability.",
+      "affectedComponents": "Authentication",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-003",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against authentication could compromise tenant data, trust or availability.",
+      "affectedComponents": "Authentication",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-004",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against authentication could compromise tenant data, trust or availability.",
+      "affectedComponents": "Authentication",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-005",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against authentication could compromise tenant data, trust or availability.",
+      "affectedComponents": "Authentication",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-006",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against authentication could compromise tenant data, trust or availability.",
+      "affectedComponents": "Authentication",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-007",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against dashboard could compromise tenant data, trust or availability.",
+      "affectedComponents": "Dashboard",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-008",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against dashboard could compromise tenant data, trust or availability.",
+      "affectedComponents": "Dashboard",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-009",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against dashboard could compromise tenant data, trust or availability.",
+      "affectedComponents": "Dashboard",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-010",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against dashboard could compromise tenant data, trust or availability.",
+      "affectedComponents": "Dashboard",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-011",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against dashboard could compromise tenant data, trust or availability.",
+      "affectedComponents": "Dashboard",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-012",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against dashboard could compromise tenant data, trust or availability.",
+      "affectedComponents": "Dashboard",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-013",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against cow management could compromise tenant data, trust or availability.",
+      "affectedComponents": "Cow Management",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-014",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against cow management could compromise tenant data, trust or availability.",
+      "affectedComponents": "Cow Management",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-015",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against cow management could compromise tenant data, trust or availability.",
+      "affectedComponents": "Cow Management",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-016",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against cow management could compromise tenant data, trust or availability.",
+      "affectedComponents": "Cow Management",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-017",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against cow management could compromise tenant data, trust or availability.",
+      "affectedComponents": "Cow Management",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-018",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against cow management could compromise tenant data, trust or availability.",
+      "affectedComponents": "Cow Management",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-019",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against accounting could compromise tenant data, trust or availability.",
+      "affectedComponents": "Accounting",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit. Financial saves are transactional and reconciled.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-020",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against accounting could compromise tenant data, trust or availability.",
+      "affectedComponents": "Accounting",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions. Financial saves are transactional and reconciled.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-021",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against accounting could compromise tenant data, trust or availability.",
+      "affectedComponents": "Accounting",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata. Financial saves are transactional and reconciled.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-022",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against accounting could compromise tenant data, trust or availability.",
+      "affectedComponents": "Accounting",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs. Financial saves are transactional and reconciled.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-023",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against accounting could compromise tenant data, trust or availability.",
+      "affectedComponents": "Accounting",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring. Financial saves are transactional and reconciled.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-024",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against accounting could compromise tenant data, trust or availability.",
+      "affectedComponents": "Accounting",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit. Financial saves are transactional and reconciled.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-025",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against ocr uploads could compromise tenant data, trust or availability.",
+      "affectedComponents": "OCR Uploads",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-026",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against ocr uploads could compromise tenant data, trust or availability.",
+      "affectedComponents": "OCR Uploads",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-027",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against ocr uploads could compromise tenant data, trust or availability.",
+      "affectedComponents": "OCR Uploads",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-028",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against ocr uploads could compromise tenant data, trust or availability.",
+      "affectedComponents": "OCR Uploads",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-029",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against ocr uploads could compromise tenant data, trust or availability.",
+      "affectedComponents": "OCR Uploads",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-030",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against ocr uploads could compromise tenant data, trust or availability.",
+      "affectedComponents": "OCR Uploads",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-031",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against ai assistant could compromise tenant data, trust or availability.",
+      "affectedComponents": "AI Assistant",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-032",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against ai assistant could compromise tenant data, trust or availability.",
+      "affectedComponents": "AI Assistant",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-033",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against ai assistant could compromise tenant data, trust or availability.",
+      "affectedComponents": "AI Assistant",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-034",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against ai assistant could compromise tenant data, trust or availability.",
+      "affectedComponents": "AI Assistant",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-035",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against ai assistant could compromise tenant data, trust or availability.",
+      "affectedComponents": "AI Assistant",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-036",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against ai assistant could compromise tenant data, trust or availability.",
+      "affectedComponents": "AI Assistant",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit. Provider keys are server-only; user review is mandatory for financial outputs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-037",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against reports could compromise tenant data, trust or availability.",
+      "affectedComponents": "Reports",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-038",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against reports could compromise tenant data, trust or availability.",
+      "affectedComponents": "Reports",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-039",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against reports could compromise tenant data, trust or availability.",
+      "affectedComponents": "Reports",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-040",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against reports could compromise tenant data, trust or availability.",
+      "affectedComponents": "Reports",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-041",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against reports could compromise tenant data, trust or availability.",
+      "affectedComponents": "Reports",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-042",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against reports could compromise tenant data, trust or availability.",
+      "affectedComponents": "Reports",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "riskRating": "Medium",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-043",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against admin panel could compromise tenant data, trust or availability.",
+      "affectedComponents": "Admin Panel",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-044",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against admin panel could compromise tenant data, trust or availability.",
+      "affectedComponents": "Admin Panel",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-045",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against admin panel could compromise tenant data, trust or availability.",
+      "affectedComponents": "Admin Panel",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-046",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against admin panel could compromise tenant data, trust or availability.",
+      "affectedComponents": "Admin Panel",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-047",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against admin panel could compromise tenant data, trust or availability.",
+      "affectedComponents": "Admin Panel",
+      "likelihood": "Medium",
+      "impact": "Critical",
+      "riskRating": "Critical",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Medium"
+    },
+    {
+      "threatId": "TH-048",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against admin panel could compromise tenant data, trust or availability.",
+      "affectedComponents": "Admin Panel",
+      "likelihood": "Low",
+      "impact": "Critical",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-049",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against apis could compromise tenant data, trust or availability.",
+      "affectedComponents": "APIs",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-050",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against apis could compromise tenant data, trust or availability.",
+      "affectedComponents": "APIs",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-051",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against apis could compromise tenant data, trust or availability.",
+      "affectedComponents": "APIs",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-052",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against apis could compromise tenant data, trust or availability.",
+      "affectedComponents": "APIs",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-053",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against apis could compromise tenant data, trust or availability.",
+      "affectedComponents": "APIs",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-054",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against apis could compromise tenant data, trust or availability.",
+      "affectedComponents": "APIs",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-055",
+      "stride": "Spoofing",
+      "threatDescription": "Spoofing threat against storage could compromise tenant data, trust or availability.",
+      "affectedComponents": "Storage",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Strong authentication, token validation, session expiry and device/session audit.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-056",
+      "stride": "Tampering",
+      "threatDescription": "Tampering threat against storage could compromise tenant data, trust or availability.",
+      "affectedComponents": "Storage",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Input validation, RLS, transaction integrity, audit logs and protected actions.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-057",
+      "stride": "Repudiation",
+      "threatDescription": "Repudiation threat against storage could compromise tenant data, trust or availability.",
+      "affectedComponents": "Storage",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Immutable audit logs with actor, timestamp, IP/device and before/after metadata.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-058",
+      "stride": "Information Disclosure",
+      "threatDescription": "Information Disclosure threat against storage could compromise tenant data, trust or availability.",
+      "affectedComponents": "Storage",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Farm-scoped RLS, private storage, least privilege, redaction and signed URLs.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-059",
+      "stride": "Denial of Service",
+      "threatDescription": "Denial of Service threat against storage could compromise tenant data, trust or availability.",
+      "affectedComponents": "Storage",
+      "likelihood": "Medium",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "Rate limits, pagination, async jobs, quotas, provider timeout and monitoring.",
+      "residualRisk": "Low"
+    },
+    {
+      "threatId": "TH-060",
+      "stride": "Elevation of Privilege",
+      "threatDescription": "Elevation of Privilege threat against storage could compromise tenant data, trust or availability.",
+      "affectedComponents": "Storage",
+      "likelihood": "Low",
+      "impact": "High",
+      "riskRating": "High",
+      "mitigation": "RBAC, role hierarchy, server-side checks, admin confirmation and audit.",
+      "residualRisk": "Low"
+    }
+  ],
+  "permissionMatrix": [
+    {
+      "area": "Own profile",
+      "farmer": "CRUD own",
+      "owner": "CRUD own",
+      "veterinarian": "Read own",
+      "support": "Read own",
+      "admin": "Read support/admin",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Farm profile",
+      "farmer": "Read",
+      "owner": "CRUD",
+      "veterinarian": "Read assigned",
+      "support": "Read support-scoped",
+      "admin": "Read/update admin-scoped",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Farm members",
+      "farmer": "Read",
+      "owner": "CRUD except last-owner removal",
+      "veterinarian": "None",
+      "support": "Read support-scoped",
+      "admin": "Admin manage",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Cows and calves",
+      "farmer": "CRUD",
+      "owner": "CRUD",
+      "veterinarian": "Read/update health if assigned",
+      "support": "Read support-scoped",
+      "admin": "Read/admin support",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Milk records",
+      "farmer": "CRUD farm",
+      "owner": "CRUD farm",
+      "veterinarian": "Read assigned if permitted",
+      "support": "Read support-scoped",
+      "admin": "Read/admin support",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Health/vaccination",
+      "farmer": "CRUD farm",
+      "owner": "CRUD farm",
+      "veterinarian": "CRUD assigned",
+      "support": "Read support-scoped",
+      "admin": "Read/admin support",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Accounting/settlements",
+      "farmer": "CRUD farm",
+      "owner": "CRUD farm",
+      "veterinarian": "None",
+      "support": "Read support-scoped",
+      "admin": "Read/admin support",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "OCR slips",
+      "farmer": "Upload/review farm",
+      "owner": "Upload/review/delete farm",
+      "veterinarian": "None",
+      "support": "Read support-scoped",
+      "admin": "Read/admin support",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "AI assistant",
+      "farmer": "Use own/farm permissions",
+      "owner": "Use/manage farm settings",
+      "veterinarian": "Use assigned if enabled",
+      "support": "None",
+      "admin": "Analytics only",
+      "superAdmin": "Full analytics"
+    },
+    {
+      "area": "Notifications",
+      "farmer": "Own inbox",
+      "owner": "Own/farm settings",
+      "veterinarian": "Own inbox",
+      "support": "Support notifications",
+      "admin": "Send admin-scoped",
+      "superAdmin": "Full broadcast"
+    },
+    {
+      "area": "Support tickets",
+      "farmer": "Create/read own",
+      "owner": "Create/read farm tickets",
+      "veterinarian": "Respond assigned",
+      "support": "Manage assigned",
+      "admin": "Manage all support",
+      "superAdmin": "Full"
+    },
+    {
+      "area": "Admin panel",
+      "farmer": "None",
+      "owner": "None",
+      "veterinarian": "None",
+      "support": "Limited support console",
+      "admin": "Admin console",
+      "superAdmin": "Full console"
+    },
+    {
+      "area": "Backups/export",
+      "farmer": "Request own farm export if allowed",
+      "owner": "Full farm backup/export/restore",
+      "veterinarian": "None",
+      "support": "None",
+      "admin": "Admin export if permitted",
+      "superAdmin": "Full"
+    }
+  ],
+  "rlsMatrix": [
+    {
+      "table": "users",
+      "select": "Own profile or platform admin",
+      "insert": "Own profile during signup or admin",
+      "update": "Own editable fields or admin",
+      "delete": "Super admin only",
+      "securityConsiderations": "Do not expose password/PIN/auth secrets; profile deletion follows privacy policy."
+    },
+    {
+      "table": "farms",
+      "select": "Farm member or platform admin",
+      "insert": "Authenticated owner onboarding",
+      "update": "Farm owner/admin",
+      "delete": "Super admin protected action",
+      "securityConsiderations": "Farm is tenant boundary; delete requires backup and audit."
+    },
+    {
+      "table": "farm_members",
+      "select": "Same farm member or admin",
+      "insert": "Owner/admin",
+      "update": "Owner/admin; cannot remove last owner",
+      "delete": "Owner/admin",
+      "securityConsiderations": "Prevents privilege escalation and orphan farms."
+    },
+    {
+      "table": "cows",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "calves",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "milk_records",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "feed_records",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "health_records",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "vaccinations",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "breeding_records",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "calving_records",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "reminders",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "expenses",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "settlements",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "settlement_items",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "reports",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "goals",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "notifications",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "notification_logs",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "ai_chats",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "ai_messages",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "ocr_uploads",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "ocr_extractions",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "achievements",
+      "select": "Active catalog visible to users",
+      "insert": "Admin",
+      "update": "Admin",
+      "delete": "Super admin",
+      "securityConsiderations": "Catalog writes are platform-only."
+    },
+    {
+      "table": "leaderboard_entries",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "support_tickets",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "support_messages",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "backups",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    },
+    {
+      "table": "audit_logs",
+      "select": "Owner/admin scoped; support limited; super admin full",
+      "insert": "Server/service role only",
+      "update": "Never",
+      "delete": "Never except retention archive job",
+      "securityConsiderations": "Append-only, redacted, retention-controlled."
+    },
+    {
+      "table": "settings",
+      "select": "Farm member via can_access_farm(farm_id)",
+      "insert": "Farm manager via can_manage_farm(farm_id)",
+      "update": "Farm manager via can_manage_farm(farm_id)",
+      "delete": "Owner/admin protected where destructive",
+      "securityConsiderations": "All policies include farm_id isolation; service role only in trusted jobs."
+    }
+  ],
+  "riskRegister": [
+    {
+      "riskId": "SR-001",
+      "risk": "Cross-farm data leakage",
+      "rating": "Critical",
+      "description": "RLS/API authorization gap exposes farm data.",
+      "mitigation": "RLS tests, farm_id enforcement, admin audit.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-002",
+      "risk": "Financial tampering",
+      "rating": "Critical",
+      "description": "Unauthorized update changes income/profit.",
+      "mitigation": "RBAC, transaction RPCs, audit, reconciliation.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-003",
+      "risk": "OCR malicious file",
+      "rating": "High",
+      "description": "Uploaded file abuses parser/storage.",
+      "mitigation": "MIME validation, size limits, private bucket, malware scan readiness.",
+      "residualRisk": "Medium",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-004",
+      "risk": "AI prompt injection",
+      "rating": "High",
+      "description": "User input attempts unauthorized tool/data access.",
+      "mitigation": "Tool allowlist, permission checks, no raw SQL, output filtering.",
+      "residualRisk": "Medium",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-005",
+      "risk": "Service key exposure",
+      "rating": "Critical",
+      "description": "Service role/OpenAI/OCR keys exposed to client or logs.",
+      "mitigation": "Server-only env vars, secret scanning, rotation.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-006",
+      "risk": "Weak PIN/password attack",
+      "rating": "High",
+      "description": "Brute force or reused credentials.",
+      "mitigation": "Password policy, PIN lockout, rate limiting, audit.",
+      "residualRisk": "Medium",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-007",
+      "risk": "Admin misuse",
+      "rating": "High",
+      "description": "Privileged action suspends/deletes wrong farm.",
+      "mitigation": "Confirmation, reason, protected action logs, least privilege.",
+      "residualRisk": "Medium",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-008",
+      "risk": "Backup exposure",
+      "rating": "Critical",
+      "description": "Backup file leaks complete farm data.",
+      "mitigation": "Private bucket, signed URLs, encryption, access audit.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-009",
+      "risk": "Push payload privacy",
+      "rating": "Medium",
+      "description": "Sensitive data appears in OS notification panel.",
+      "mitigation": "Payload minimization and user preferences.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-010",
+      "risk": "Report URL leakage",
+      "rating": "High",
+      "description": "Generated report accessible publicly.",
+      "mitigation": "Signed URLs, expiry, RLS metadata check.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-011",
+      "risk": "Dependency vulnerability",
+      "rating": "High",
+      "description": "Package vulnerability exploited.",
+      "mitigation": "SCA, patch SLAs, CI checks.",
+      "residualRisk": "Medium",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-012",
+      "risk": "Session persistence issue",
+      "rating": "Medium",
+      "description": "Lost/invalid session causes broken navigation.",
+      "mitigation": "Session validation, graceful login redirect, device QA.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-013",
+      "risk": "Storage bucket misconfiguration",
+      "rating": "Critical",
+      "description": "OCR slips, reports or backups become publicly readable.",
+      "mitigation": "Private-by-default buckets, CI policy checks, signed URL tests.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-014",
+      "risk": "RLS bypass through service API",
+      "rating": "Critical",
+      "description": "Server API using service role omits explicit farm authorization.",
+      "mitigation": "Central auth guard, farm access assertion, code review checklist.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-015",
+      "risk": "Sensitive error disclosure",
+      "rating": "Medium",
+      "description": "Stack traces or provider errors reveal internals to user.",
+      "mitigation": "Safe error mapping, server-only logs, localized generic messages.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-016",
+      "risk": "Admin notification abuse",
+      "rating": "Medium",
+      "description": "Broadcast sends sensitive or misleading content to wrong farms.",
+      "mitigation": "Audience preview, send confirmation, delivery audit and RBAC.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-017",
+      "risk": "Support attachment data leak",
+      "rating": "High",
+      "description": "Ticket attachments are exposed across farms/users.",
+      "mitigation": "Ticket-scoped private storage and signed URL authorization.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-018",
+      "risk": "Localization fallback leak",
+      "rating": "Low",
+      "description": "Fallback messages expose technical details in English/Marathi.",
+      "mitigation": "Central i18n error catalog and QA language sweep.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-019",
+      "risk": "Offline data conflict",
+      "rating": "Medium",
+      "description": "Queued offline writes overwrite newer financial/animal records.",
+      "mitigation": "Conflict detection, server timestamps and user confirmation.",
+      "residualRisk": "Medium",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    },
+    {
+      "riskId": "SR-020",
+      "risk": "Realtime channel leakage",
+      "rating": "High",
+      "description": "Supabase realtime sends farm notifications to unauthorized clients.",
+      "mitigation": "Channel authorization and farm-scoped subscriptions.",
+      "residualRisk": "Low",
+      "owner": "Security/Engineering",
+      "status": "Open"
+    }
+  ],
+  "aiRisks": [
+    {
+      "riskId": "AI-001",
+      "risk": "Hallucinated farm data",
+      "rating": "High",
+      "description": "AI answers fake values.",
+      "mitigation": "Use tool-only database retrieval; cite period/source in answer."
+    },
+    {
+      "riskId": "AI-002",
+      "risk": "Unauthorized data use",
+      "rating": "Critical",
+      "description": "AI uses milk/slip/animal data without permission.",
+      "mitigation": "Server-side AI permission checks before tool execution."
+    },
+    {
+      "riskId": "AI-003",
+      "risk": "Prompt injection",
+      "rating": "High",
+      "description": "User asks model to bypass policy/tool limits.",
+      "mitigation": "Instruction hierarchy, tool allowlist, schema validation."
+    },
+    {
+      "riskId": "AI-004",
+      "risk": "Sensitive data in logs",
+      "rating": "Medium",
+      "description": "AI logs retain private data too long.",
+      "mitigation": "Retention policy, deletion, redaction and access limits."
+    },
+    {
+      "riskId": "AI-005",
+      "risk": "Token/cost abuse",
+      "rating": "Medium",
+      "description": "Excessive AI usage increases cost.",
+      "mitigation": "Rate limits, quotas, short context and monitoring."
+    }
+  ],
+  "securityTests": [
+    {
+      "testCaseId": "SEC11-TC-001",
+      "area": "Authentication",
+      "title": "Authentication - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-002",
+      "area": "Authentication",
+      "title": "Authentication - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-003",
+      "area": "Authentication",
+      "title": "Authentication - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-004",
+      "area": "Authentication",
+      "title": "Authentication - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-005",
+      "area": "Authentication",
+      "title": "Authentication - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-006",
+      "area": "Authentication",
+      "title": "Authentication - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-007",
+      "area": "Authentication",
+      "title": "Authentication - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-008",
+      "area": "Authorization",
+      "title": "Authorization - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-009",
+      "area": "Authorization",
+      "title": "Authorization - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-010",
+      "area": "Authorization",
+      "title": "Authorization - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-011",
+      "area": "Authorization",
+      "title": "Authorization - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-012",
+      "area": "Authorization",
+      "title": "Authorization - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-013",
+      "area": "Authorization",
+      "title": "Authorization - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-014",
+      "area": "Authorization",
+      "title": "Authorization - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-015",
+      "area": "Session",
+      "title": "Session - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-016",
+      "area": "Session",
+      "title": "Session - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-017",
+      "area": "Session",
+      "title": "Session - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-018",
+      "area": "Session",
+      "title": "Session - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-019",
+      "area": "Session",
+      "title": "Session - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-020",
+      "area": "Session",
+      "title": "Session - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-021",
+      "area": "Session",
+      "title": "Session - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-022",
+      "area": "Password",
+      "title": "Password - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-023",
+      "area": "Password",
+      "title": "Password - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-024",
+      "area": "Password",
+      "title": "Password - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-025",
+      "area": "Password",
+      "title": "Password - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-026",
+      "area": "Password",
+      "title": "Password - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-027",
+      "area": "Password",
+      "title": "Password - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-028",
+      "area": "Password",
+      "title": "Password - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-029",
+      "area": "PIN",
+      "title": "PIN - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-030",
+      "area": "PIN",
+      "title": "PIN - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-031",
+      "area": "PIN",
+      "title": "PIN - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-032",
+      "area": "PIN",
+      "title": "PIN - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-033",
+      "area": "PIN",
+      "title": "PIN - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-034",
+      "area": "PIN",
+      "title": "PIN - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-035",
+      "area": "PIN",
+      "title": "PIN - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-036",
+      "area": "RLS",
+      "title": "RLS - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-037",
+      "area": "RLS",
+      "title": "RLS - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-038",
+      "area": "RLS",
+      "title": "RLS - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-039",
+      "area": "RLS",
+      "title": "RLS - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-040",
+      "area": "RLS",
+      "title": "RLS - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-041",
+      "area": "RLS",
+      "title": "RLS - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-042",
+      "area": "RLS",
+      "title": "RLS - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-043",
+      "area": "API",
+      "title": "API - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-044",
+      "area": "API",
+      "title": "API - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-045",
+      "area": "API",
+      "title": "API - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-046",
+      "area": "API",
+      "title": "API - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-047",
+      "area": "API",
+      "title": "API - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-048",
+      "area": "API",
+      "title": "API - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-049",
+      "area": "API",
+      "title": "API - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-050",
+      "area": "Storage",
+      "title": "Storage - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-051",
+      "area": "Storage",
+      "title": "Storage - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-052",
+      "area": "Storage",
+      "title": "Storage - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-053",
+      "area": "Storage",
+      "title": "Storage - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-054",
+      "area": "Storage",
+      "title": "Storage - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-055",
+      "area": "Storage",
+      "title": "Storage - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-056",
+      "area": "Storage",
+      "title": "Storage - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-057",
+      "area": "OCR",
+      "title": "OCR - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-058",
+      "area": "OCR",
+      "title": "OCR - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-059",
+      "area": "OCR",
+      "title": "OCR - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-060",
+      "area": "OCR",
+      "title": "OCR - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-061",
+      "area": "OCR",
+      "title": "OCR - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-062",
+      "area": "OCR",
+      "title": "OCR - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-063",
+      "area": "OCR",
+      "title": "OCR - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-064",
+      "area": "AI",
+      "title": "AI - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-065",
+      "area": "AI",
+      "title": "AI - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-066",
+      "area": "AI",
+      "title": "AI - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-067",
+      "area": "AI",
+      "title": "AI - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-068",
+      "area": "AI",
+      "title": "AI - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-069",
+      "area": "AI",
+      "title": "AI - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-070",
+      "area": "AI",
+      "title": "AI - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-071",
+      "area": "Admin",
+      "title": "Admin - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-072",
+      "area": "Admin",
+      "title": "Admin - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-073",
+      "area": "Admin",
+      "title": "Admin - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-074",
+      "area": "Admin",
+      "title": "Admin - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-075",
+      "area": "Admin",
+      "title": "Admin - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-076",
+      "area": "Admin",
+      "title": "Admin - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-077",
+      "area": "Admin",
+      "title": "Admin - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-078",
+      "area": "Backup",
+      "title": "Backup - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-079",
+      "area": "Backup",
+      "title": "Backup - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-080",
+      "area": "Backup",
+      "title": "Backup - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-081",
+      "area": "Backup",
+      "title": "Backup - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-082",
+      "area": "Backup",
+      "title": "Backup - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-083",
+      "area": "Backup",
+      "title": "Backup - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-084",
+      "area": "Backup",
+      "title": "Backup - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "Critical",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-085",
+      "area": "Reports",
+      "title": "Reports - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-086",
+      "area": "Reports",
+      "title": "Reports - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-087",
+      "area": "Reports",
+      "title": "Reports - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-088",
+      "area": "Reports",
+      "title": "Reports - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-089",
+      "area": "Reports",
+      "title": "Reports - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-090",
+      "area": "Reports",
+      "title": "Reports - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-091",
+      "area": "Reports",
+      "title": "Reports - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-092",
+      "area": "Notifications",
+      "title": "Notifications - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-093",
+      "area": "Notifications",
+      "title": "Notifications - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-094",
+      "area": "Notifications",
+      "title": "Notifications - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-095",
+      "area": "Notifications",
+      "title": "Notifications - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-096",
+      "area": "Notifications",
+      "title": "Notifications - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-097",
+      "area": "Notifications",
+      "title": "Notifications - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-098",
+      "area": "Notifications",
+      "title": "Notifications - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-099",
+      "area": "Audit",
+      "title": "Audit - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-100",
+      "area": "Audit",
+      "title": "Audit - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-101",
+      "area": "Audit",
+      "title": "Audit - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-102",
+      "area": "Audit",
+      "title": "Audit - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-103",
+      "area": "Audit",
+      "title": "Audit - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-104",
+      "area": "Audit",
+      "title": "Audit - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-105",
+      "area": "Audit",
+      "title": "Audit - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-106",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - positive authorized access",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-107",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - unauthorized denial",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-108",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - tampered identifier",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-109",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - malicious input",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-110",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - audit/alert verification",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-111",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - rate limit/abuse behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    },
+    {
+      "testCaseId": "SEC11-TC-112",
+      "area": "Rate Limiting",
+      "title": "Rate Limiting - localized safe error behavior",
+      "preconditions": "Security users exist for farmer, owner, veterinarian, support, admin, super admin and attacker.",
+      "steps": "Execute scenario through UI/API, inspect response, database state and audit logs.",
+      "expectedResults": "Controls enforce least privilege, no sensitive data leaks, invalid input is rejected and audit/alerts are created where required.",
+      "severity": "High",
+      "automationCandidate": "Yes",
+      "status": "Not Run"
+    }
+  ],
+  "hardeningItems": [
+    {
+      "itemId": "INF-001",
+      "category": "Infrastructure",
+      "item": "Use HTTPS only",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-002",
+      "category": "Infrastructure",
+      "item": "Configure secure headers",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-003",
+      "category": "Infrastructure",
+      "item": "Enable monitoring",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-004",
+      "category": "Infrastructure",
+      "item": "Restrict production console access",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-005",
+      "category": "Infrastructure",
+      "item": "Document rollback",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-006",
+      "category": "Infrastructure",
+      "item": "Disable debug mode",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-007",
+      "category": "Infrastructure",
+      "item": "Set HSTS",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-008",
+      "category": "Infrastructure",
+      "item": "Review DNS/domain ownership",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-009",
+      "category": "Infrastructure",
+      "item": "Restrict CI/CD secrets",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "INF-010",
+      "category": "Infrastructure",
+      "item": "Use least-privilege deploy tokens",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-001",
+      "category": "Database",
+      "item": "Enable RLS all public tables",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-002",
+      "category": "Database",
+      "item": "Verify farm_id indexes",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-003",
+      "category": "Database",
+      "item": "Restrict service role",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-004",
+      "category": "Database",
+      "item": "Run RLS tests",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-005",
+      "category": "Database",
+      "item": "Enable backups",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-006",
+      "category": "Database",
+      "item": "Validate check constraints",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-007",
+      "category": "Database",
+      "item": "Create audit triggers/jobs",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-008",
+      "category": "Database",
+      "item": "Review migration rollback",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-009",
+      "category": "Database",
+      "item": "Partition/archive high-volume records",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "DAT-010",
+      "category": "Database",
+      "item": "Review slow query logs",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-001",
+      "category": "Supabase",
+      "item": "Private storage buckets",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-002",
+      "category": "Supabase",
+      "item": "Signed URL expiry",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-003",
+      "category": "Supabase",
+      "item": "Auth redirect allowlist",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-004",
+      "category": "Supabase",
+      "item": "JWT expiry reviewed",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-005",
+      "category": "Supabase",
+      "item": "Realtime channel access reviewed",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-006",
+      "category": "Supabase",
+      "item": "Disable anonymous broad access",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-007",
+      "category": "Supabase",
+      "item": "Rotate service keys",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-008",
+      "category": "Supabase",
+      "item": "Review storage policies",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-009",
+      "category": "Supabase",
+      "item": "Review edge function envs",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "SUP-010",
+      "category": "Supabase",
+      "item": "Configure project backups",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-001",
+      "category": "Application",
+      "item": "No secrets in client bundle",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-002",
+      "category": "Application",
+      "item": "Input validation",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-003",
+      "category": "Application",
+      "item": "Error boundaries",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-004",
+      "category": "Application",
+      "item": "Localized safe errors",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-005",
+      "category": "Application",
+      "item": "Audit high-risk actions",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-006",
+      "category": "Application",
+      "item": "CSRF-safe server mutations",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-007",
+      "category": "Application",
+      "item": "Sanitize markdown/user content",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-008",
+      "category": "Application",
+      "item": "Secure PWA service worker",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-009",
+      "category": "Application",
+      "item": "Respect privacy settings",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "APP-010",
+      "category": "Application",
+      "item": "Disable source maps in production if required",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-001",
+      "category": "API",
+      "item": "JWT validation",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-002",
+      "category": "API",
+      "item": "RBAC checks",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-003",
+      "category": "API",
+      "item": "Rate limits",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-004",
+      "category": "API",
+      "item": "OpenAPI contract tests",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-005",
+      "category": "API",
+      "item": "Request size limits",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-006",
+      "category": "API",
+      "item": "Response redaction",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-007",
+      "category": "API",
+      "item": "Idempotency for critical saves",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-008",
+      "category": "API",
+      "item": "Pagination limits",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-009",
+      "category": "API",
+      "item": "CORS allowlist",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "API-010",
+      "category": "API",
+      "item": "Admin action reason capture",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-001",
+      "category": "Storage",
+      "item": "File type validation",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-002",
+      "category": "Storage",
+      "item": "File size validation",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-003",
+      "category": "Storage",
+      "item": "No public OCR/report URLs",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-004",
+      "category": "Storage",
+      "item": "Retention jobs",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-005",
+      "category": "Storage",
+      "item": "Malware scan readiness",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-006",
+      "category": "Storage",
+      "item": "Signed URL auth check",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-007",
+      "category": "Storage",
+      "item": "Path traversal prevention",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-008",
+      "category": "Storage",
+      "item": "Backup download audit",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-009",
+      "category": "Storage",
+      "item": "Attachment ownership check",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "STO-010",
+      "category": "Storage",
+      "item": "Lifecycle cleanup",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-001",
+      "category": "Monitoring",
+      "item": "Auth failure alerts",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-002",
+      "category": "Monitoring",
+      "item": "Provider failure alerts",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-003",
+      "category": "Monitoring",
+      "item": "Admin action alerts",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-004",
+      "category": "Monitoring",
+      "item": "High error rate alert",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-005",
+      "category": "Monitoring",
+      "item": "Backup failure alert",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-006",
+      "category": "Monitoring",
+      "item": "Cross-farm denial spike",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-007",
+      "category": "Monitoring",
+      "item": "Unusual OCR/AI spend",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-008",
+      "category": "Monitoring",
+      "item": "Push failure spike",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-009",
+      "category": "Monitoring",
+      "item": "Realtime auth failures",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "MON-010",
+      "category": "Monitoring",
+      "item": "Slow API dashboard",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-001",
+      "category": "AI/OCR",
+      "item": "Tool allowlist",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-002",
+      "category": "AI/OCR",
+      "item": "No raw SQL by AI",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-003",
+      "category": "AI/OCR",
+      "item": "Provider key server-only",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-004",
+      "category": "AI/OCR",
+      "item": "Prompt injection tests",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-005",
+      "category": "AI/OCR",
+      "item": "Financial review gate",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-006",
+      "category": "AI/OCR",
+      "item": "Confidence thresholds",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-007",
+      "category": "AI/OCR",
+      "item": "Token quotas",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-008",
+      "category": "AI/OCR",
+      "item": "Provider timeout",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-009",
+      "category": "AI/OCR",
+      "item": "OCR duplicate detection",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "AI/-010",
+      "category": "AI/OCR",
+      "item": "AI data permission checks",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-001",
+      "category": "Admin",
+      "item": "Super admin protected actions",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-002",
+      "category": "Admin",
+      "item": "Confirmation dialogs",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-003",
+      "category": "Admin",
+      "item": "Audit reason required",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-004",
+      "category": "Admin",
+      "item": "Impersonation disabled or audited",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-005",
+      "category": "Admin",
+      "item": "Subscription change audit",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-006",
+      "category": "Admin",
+      "item": "Notification audience preview",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-007",
+      "category": "Admin",
+      "item": "Device/session visibility",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-008",
+      "category": "Admin",
+      "item": "Role change dual check",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-009",
+      "category": "Admin",
+      "item": "Delete farm protection",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "ADM-010",
+      "category": "Admin",
+      "item": "Support data minimization",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-001",
+      "category": "Privacy",
+      "item": "Privacy policy published",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-002",
+      "category": "Privacy",
+      "item": "Consent text reviewed",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-003",
+      "category": "Privacy",
+      "item": "Data export path tested",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-004",
+      "category": "Privacy",
+      "item": "Account deletion workflow",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-005",
+      "category": "Privacy",
+      "item": "AI permission persistence",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-006",
+      "category": "Privacy",
+      "item": "Notification preference persistence",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-007",
+      "category": "Privacy",
+      "item": "Retention schedule approved",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-008",
+      "category": "Privacy",
+      "item": "Support access rules",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-009",
+      "category": "Privacy",
+      "item": "Data processor inventory",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    },
+    {
+      "itemId": "PRI-010",
+      "category": "Privacy",
+      "item": "Incident communication template",
+      "owner": "TBD",
+      "status": "Pending",
+      "evidence": ""
+    }
+  ],
+  "dataCollectionMatrix": [
+    [
+      "User identity",
+      "Name, phone, email, role",
+      "Confidential",
+      "Authentication, support, account management",
+      "User/support/admin",
+      "Account lifetime"
+    ],
+    [
+      "Farm profile",
+      "Farm name, village, taluka, district",
+      "Confidential",
+      "Farm operations and reports",
+      "Farm members/admin",
+      "Farm lifetime"
+    ],
+    [
+      "Animal records",
+      "Cows, calves, health, breeding",
+      "Confidential",
+      "Farm management",
+      "Farm members/vet/admin",
+      "Farm lifetime"
+    ],
+    [
+      "Financial records",
+      "Milk, settlement, expenses, profit",
+      "Restricted",
+      "Accounting and reporting",
+      "Owner/farm manager/admin",
+      "Financial retention policy"
+    ],
+    [
+      "Slip images/OCR text",
+      "Uploaded dairy slips and extracted data",
+      "Restricted",
+      "OCR/audit/debug",
+      "Farm manager/admin",
+      "Audit retention period"
+    ],
+    [
+      "AI chats",
+      "Questions, answers, tool metadata",
+      "Confidential",
+      "AI assistance and audit",
+      "User/farm owner/admin limited",
+      "User-configured retention"
+    ],
+    [
+      "Support tickets",
+      "Messages, attachments, device details",
+      "Confidential",
+      "Support service",
+      "Ticket owner/support/admin",
+      "Support retention policy"
+    ],
+    [
+      "Audit logs",
+      "Actor, action, IP/device, before/after metadata",
+      "Restricted",
+      "Security and investigation",
+      "Admin/security only",
+      "Minimum 3 years"
+    ],
+    [
+      "Backups",
+      "Exported farm data",
+      "Restricted",
+      "Recovery and portability",
+      "Owner/admin",
+      "Backup retention policy"
+    ]
+  ]
+}

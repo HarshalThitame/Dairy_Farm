@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 const leaderboardTypes = [
@@ -19,10 +19,6 @@ const scopeOptions = [
   { value: "all", title: "सर्व दूध उत्पादक", subtitle: "संपूर्ण platform ranking", icon: "🌍" },
   { value: "taluka", title: "माझा तालुका", subtitle: "तुमच्या तालुक्यातील ranking", icon: "📍" }
 ];
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function numberText(value, digits = 0) {
   const number = Number(value || 0);
@@ -220,7 +216,8 @@ export default function LeaderboardPage() {
       const params = new URLSearchParams({ type, scope });
       const response = await fetch(`/api/leaderboard?${params.toString()}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Leaderboard मिळाला नाही.");

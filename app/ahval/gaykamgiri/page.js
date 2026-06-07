@@ -16,7 +16,7 @@ import {
   toMarathiNumerals
 } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
-import { getIndiaMonthParts } from "@/lib/reportUtils";
+import { getIndiaMonthParts, getMonthRange, getReportMonthFromSearchParams } from "@/lib/reportUtils";
 
 const MiniSparkline = dynamic(() => import("@/components/MiniSparkline"), {
   ssr: false,
@@ -33,10 +33,7 @@ function getInitialMonth() {
 
   const searchParams = new URLSearchParams(window.location.search);
 
-  return {
-    month: Number(searchParams.get("month") || current.month),
-    year: Number(searchParams.get("year") || current.year)
-  };
+  return getReportMonthFromSearchParams(searchParams, current);
 }
 
 function getLastSevenDates() {
@@ -45,6 +42,19 @@ function getLastSevenDates() {
     date.setDate(date.getDate() - (6 - index));
     return toISODate(date);
   });
+}
+
+function addDaysISO(dateString, days) {
+  const [year, month, day] = String(dateString || "").split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getMonthDateQuery(monthValue) {
+  const range = getMonthRange(monthValue.month, monthValue.year);
+  const endInclusive = addDaysISO(range.end, -1);
+  return `from=${range.start}&to=${endInclusive}`;
 }
 
 function getBorderClass(cow, index, totalCount) {
@@ -83,12 +93,13 @@ export default function CowPerformancePage() {
 
     try {
       const dates = getLastSevenDates();
+      const monthDateQuery = getMonthDateQuery(monthValue);
       const [cowsResult, milkResult, aiResult, calvingResult, recentMilkResult] =
         await Promise.all([
           fetchJson("/api/cows"),
           fetchJson(`/api/reports/milk?month=${monthValue.month}&year=${monthValue.year}`),
-          fetchJson("/api/ai"),
-          fetchJson("/api/calving"),
+          fetchJson(`/api/ai?${monthDateQuery}`),
+          fetchJson(`/api/calving?${monthDateQuery}`),
           fetchJson(`/api/milk?from=${dates[0]}&to=${dates[6]}`)
         ]);
 

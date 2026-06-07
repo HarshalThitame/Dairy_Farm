@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders, getClientAuthToken } from "@/lib/clientStorage";
 import { cacheNotifications, getCachedNotifications, updateCachedNotification } from "@/lib/localDB";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 import { getPushPermissionState, pushNotificationsSupported, requestAndRegisterPushSubscription } from "@/lib/pushClient";
@@ -129,7 +129,8 @@ export default function NotificationsPage() {
 
       const response = await fetch(`/api/notifications?filter=${filter}&type=${type}&search=${encodeURIComponent(search)}&limit=50`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getAuthToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "सूचना मिळाल्या नाहीत.");
@@ -166,7 +167,8 @@ export default function NotificationsPage() {
     try {
       const response = await fetch("/api/notifications/push-status", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       setPushStatus({
@@ -228,7 +230,8 @@ export default function NotificationsPage() {
 
     await fetch(`/api/notifications/${notification.id}`, {
       method: action === "delete" ? "DELETE" : "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
       body: action === "delete" ? undefined : JSON.stringify({ action })
     });
     load();
@@ -240,7 +243,8 @@ export default function NotificationsPage() {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     await fetch("/api/notifications/mark-all-read", {
       method: "POST",
-      headers: { Authorization: `Bearer ${getAuthToken()}` }
+      credentials: "same-origin",
+      headers: getClientAuthHeaders()
     });
     window.dispatchEvent(new CustomEvent("notification-updated"));
     load();
@@ -258,7 +262,8 @@ export default function NotificationsPage() {
 
       const response = await fetch("/api/notifications/test-push", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getAuthToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {

@@ -276,6 +276,7 @@ export async function GET(request) {
 
     const stats = calculateMilkStats(selectedRecords.data || [], monthRange.daysInMonth);
     const accountingMilk = summarizeMilkSessionsForMonth(selectedSlips.data || [], selectedSettlements.data || []).monthlyTotal;
+    const usesSettlementPrintedTotals = accountingMilk.source === "settlement_printed_totals";
     const recordSessionSummary = buildSessionSummary(selectedRecords.data || []);
     const sessionSummary = {
       ...recordSessionSummary,
@@ -314,13 +315,22 @@ export async function GET(request) {
         ),
         rowTotalLitres: Number(stats.total.toFixed(2)),
         sessionSummary,
-	        qualitySummary: buildQualitySummary(selectedRecords.data || []),
-	        bestDay: bestDay
-          ? { date: bestDay.date, litres: bestDay.total }
+        qualitySummary: buildQualitySummary(selectedRecords.data || []),
+        bestDay: bestDay
+          ? {
+              date: bestDay.date,
+              litres: bestDay.total,
+              source: usesSettlementPrintedTotals ? "daily_records_audit" : "milk_records"
+            }
           : { date: null, litres: 0 },
         worstDay: worstDay
-          ? { date: worstDay.date, litres: worstDay.total }
+          ? {
+              date: worstDay.date,
+              litres: worstDay.total,
+              source: usesSettlementPrintedTotals ? "daily_records_audit" : "milk_records"
+            }
           : { date: null, litres: 0 },
+        dailyDataSource: usesSettlementPrintedTotals ? "daily_records_audit" : "milk_records",
         dailyData,
         dailyRecords: buildDailyRecords(selectedRecords.data || []),
         settlementSessionAudits: (selectedSettlements.data || []).map(analyzeSettlementSessionCoverage),

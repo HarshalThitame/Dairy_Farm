@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import FormField from "@/components/FormField";
 import MarathiTextInput from "@/components/MarathiTextInput";
 import PageHeader from "@/components/PageHeader";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 
 const emptyForm = {
   name: "",
@@ -27,7 +28,11 @@ export default function VeterinariansSettingsPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/settings/veterinarians", { cache: "no-store" });
+      const response = await fetch("/api/settings/veterinarians", {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
+      });
       const result = await response.json();
 
       if (!response.ok) {
@@ -87,7 +92,8 @@ export default function VeterinariansSettingsPage() {
         : "/api/settings/veterinarians";
       const response = await fetch(endpoint, {
         method: editingId ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify(form)
       });
       const result = await response.json();
@@ -117,7 +123,9 @@ export default function VeterinariansSettingsPage() {
 
     try {
       const response = await fetch(`/api/settings/veterinarians/${doctor.id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json();
 
@@ -142,7 +150,8 @@ export default function VeterinariansSettingsPage() {
     try {
       const response = await fetch(`/api/settings/veterinarians/${doctor.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ is_active: !doctor.isActive })
       });
       const result = await response.json();

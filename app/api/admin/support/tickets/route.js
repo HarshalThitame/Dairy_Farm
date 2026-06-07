@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest } from "@/lib/apiSafety";
 import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib/superAdminGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { normalizeTicket, ticketSummaryStats } from "@/lib/supportCenter";
@@ -6,12 +7,17 @@ import { normalizeTicket, ticketSummaryStats } from "@/lib/supportCenter";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const ALLOWED_STATUSES = new Set(["all", "open", "in_progress", "waiting_for_user", "resolved", "closed", "rejected"]);
+
 export async function GET(request) {
   try {
     await verifySuperAdmin(request);
     const supabase = getSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all";
+    if (!ALLOWED_STATUSES.has(status)) {
+      throw badRequest("Ticket status चुकीचा आहे.");
+    }
     const q = String(searchParams.get("q") || "").replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
 
     let query = supabase

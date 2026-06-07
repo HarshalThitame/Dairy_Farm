@@ -7,11 +7,14 @@ import {
 } from "@/lib/farmGuard";
 import { setFarmAuthCookie } from "@/lib/authCookies";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getRequestIp, parseDevice } from "@/lib/userSettings";
+import { getRequestIp, getSafeAppearancePreferences, parseDevice } from "@/lib/userSettings";
 import { readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const LOCK_MINUTES = 15;
+const MAX_WRONG_PIN_ATTEMPTS = 5;
 
 function publicUserSelect() {
   return "id, farm_id, mobile, email, name, role, is_active, is_farm_owner, pin_hash, profile_photo_url, profile_photo_storage_path";
@@ -77,6 +80,27 @@ async function logLoginAttempt(supabase, request, payload) {
   }
 }
 
+async function getRecentWrongPinAttempts(supabase, userId) {
+  try {
+    const since = new Date(Date.now() - LOCK_MINUTES * 60 * 1000).toISOString();
+    const { count, error } = await supabase
+      .from("user_login_history")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "failed")
+      .eq("failure_reason", "wrong_pin")
+      .gte("created_at", since);
+
+    if (error) {
+      return 0;
+    }
+
+    return count || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await readJsonBody(request);
@@ -123,6 +147,23 @@ export async function POST(request) {
       return NextResponse.json(
         { error: "हे खाते बंद केले आहे. मालकाशी संपर्क करा." },
         { status: 403 }
+      );
+    }
+
+    const recentWrongPinAttempts = await getRecentWrongPinAttempts(supabase, user.id);
+
+    if (recentWrongPinAttempts >= MAX_WRONG_PIN_ATTEMPTS) {
+      await logLoginAttempt(supabase, request, {
+        userId: user.id,
+        farmId: user.farm_id,
+        mobile,
+        status: "failed",
+        failureReason: "pin_locked",
+        deviceInfo
+      });
+      return NextResponse.json(
+        { error: "५ चुकीचे PIN प्रयत्न झाले आहेत. १५ मिनिटांनी पुन्हा प्रयत्न करा." },
+        { status: 429 }
       );
     }
 
@@ -210,11 +251,13 @@ export async function POST(request) {
     });
 
     const token = signFarmToken(user, farm, session?.id || null);
+    const preferences = await getSafeAppearancePreferences(supabase, user.id, user.farm_id);
 
     const response = NextResponse.json({
       token,
       user: normalizeUser(user),
-      farm: normalizeFarm(farm)
+      farm: normalizeFarm(farm),
+      preferences
     });
 
     return setFarmAuthCookie(response, token);

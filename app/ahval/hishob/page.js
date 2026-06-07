@@ -19,6 +19,7 @@ import {
   displayFinanceCategory,
   expenseCategories,
   getIndiaMonthParts,
+  getReportMonthFromSearchParams,
   incomeCategories
 } from "@/lib/reportUtils";
 import { fetchJson, saveFinanceRecord } from "@/lib/offlineActions";
@@ -40,10 +41,7 @@ function getInitialMonth() {
 
   const searchParams = new URLSearchParams(window.location.search);
 
-  return {
-    month: Number(searchParams.get("month") || current.month),
-    year: Number(searchParams.get("year") || current.year)
-  };
+  return getReportMonthFromSearchParams(searchParams, current);
 }
 
 function displayCategory(category) {

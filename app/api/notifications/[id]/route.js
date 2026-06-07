@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+const validActions = new Set(["read", "click", "delete"]);
 
 async function getDeliveryLog(supabase, notificationId, userId, farmId) {
+  if (!isUuid(notificationId)) {
+    throw badRequest("Notification ID चुकीचा आहे.");
+  }
+
   const { data, error } = await supabase
     .from("notification_delivery_logs")
     .select("id, notification_id, user_id, farm_id, channel")
@@ -52,6 +58,10 @@ export async function PATCH(request, { params }) {
     const { userId, farmId } = await verifyFarmAccess(request);
     const body = await request.json().catch(() => ({}));
     const action = body.action || "read";
+    if (!validActions.has(action)) {
+      throw badRequest("Notification action चुकीची आहे.");
+    }
+
     const supabase = getSupabaseServerClient();
     const log = await getDeliveryLog(supabase, params.id, userId, farmId);
     const now = new Date().toISOString();

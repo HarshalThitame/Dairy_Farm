@@ -9,7 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import SummaryCard from "@/components/SummaryCard";
 import { formatCurrency, toMarathiNumerals } from "@/lib/marathiUtils";
 import { fetchJson } from "@/lib/offlineActions";
-import { getIndiaMonthParts } from "@/lib/reportUtils";
+import { getIndiaMonthParts, getReportMonthFromSearchParams } from "@/lib/reportUtils";
 
 const AmountBarChart = dynamic(() => import("@/components/AmountBarChart"), {
   ssr: false,
@@ -36,10 +36,7 @@ function getInitialMonth() {
   }
 
   const searchParams = new URLSearchParams(window.location.search);
-  return {
-    month: Number(searchParams.get("month") || current.month),
-    year: Number(searchParams.get("year") || current.year)
-  };
+  return getReportMonthFromSearchParams(searchParams, current);
 }
 
 function getComparisonText(change) {

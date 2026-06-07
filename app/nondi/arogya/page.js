@@ -17,8 +17,13 @@ const healthTypes = [
   { value: "जंतनाशक", label: "🪱 जंतनाशक" }
 ];
 
+function isISODate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
 export default function ArogyaNondPage() {
   const router = useRouter();
+  const today = getTodayISODate();
   const [initialCowId, setInitialCowId] = useState("");
   const [selectedCow, setSelectedCow] = useState(null);
   const [form, setForm] = useState({
@@ -55,6 +60,38 @@ export default function ArogyaNondPage() {
 
     if (!selectedCow) {
       setError("गाय निवडा.");
+      return;
+    }
+
+    if (!isISODate(form.date)) {
+      setError("तारीख चुकीची आहे.");
+      return;
+    }
+
+    if (form.date > today) {
+      setError("भविष्यातील तारीख वापरता येणार नाही.");
+      return;
+    }
+
+    if (form.next_due_date) {
+      if (!isISODate(form.next_due_date)) {
+        setError("पुढील तपासणी तारीख चुकीची आहे.");
+        return;
+      }
+
+      if (form.next_due_date < form.date) {
+        setError("पुढील तपासणी तारीख नोंदीच्या तारखेपूर्वी नसावी.");
+        return;
+      }
+    }
+
+    if (form.cost !== "" && (!Number.isFinite(Number(form.cost)) || Number(form.cost) < 0 || Number(form.cost) > 1000000)) {
+      setError("खर्चाची रक्कम तपासा.");
+      return;
+    }
+
+    if (form.type === "जंतनाशक" && !form.medicine_name.trim()) {
+      setError("जंतनाशकाचे नाव लिहा.");
       return;
     }
 
@@ -122,6 +159,7 @@ export default function ArogyaNondPage() {
                   value={form.date}
                   onChange={(event) => updateField("date", event.target.value)}
                   required
+                  max={today}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>
@@ -178,6 +216,7 @@ export default function ArogyaNondPage() {
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max="1000000"
                   value={form.cost}
                   onChange={(event) => updateField("cost", event.target.value)}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
@@ -189,6 +228,7 @@ export default function ArogyaNondPage() {
                   type="date"
                   value={form.next_due_date}
                   onChange={(event) => updateField("next_due_date", event.target.value)}
+                  min={form.date || today}
                   className="min-h-[56px] w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-[20px] font-semibold text-slate-950 outline-none focus:border-sheti focus:ring-4 focus:ring-green-100"
                 />
               </FormField>

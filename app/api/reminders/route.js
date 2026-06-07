@@ -411,6 +411,13 @@ export async function PATCH(request) {
         return NextResponse.json({ error: "आठवण सापडली नाही." }, { status: 404 });
       }
 
+      if (reminder.is_done) {
+        return NextResponse.json(
+          { error: "पूर्ण झालेली आठवण पुढे ढकलता येत नाही." },
+          { status: 400 }
+        );
+      }
+
       const { data, error } = await supabase
         .from("reminders")
         .update({
@@ -492,6 +499,16 @@ export async function POST(request) {
       return NextResponse.json({ error: "आठवणीची तारीख चुकीची आहे." }, { status: 400 });
     }
 
+    const message = String(body.message || "").trim();
+
+    if (message.length < 2) {
+      return NextResponse.json({ error: "आठवणीचा संदेश आवश्यक आहे." }, { status: 400 });
+    }
+
+    if (message.length > 500) {
+      return NextResponse.json({ error: "आठवणीचा संदेश खूप मोठा आहे." }, { status: 400 });
+    }
+
     if (!allowedReminderTypes.has(body.type)) {
       return NextResponse.json({ error: "आठवणीचा प्रकार चुकीचा आहे." }, { status: 400 });
     }
@@ -532,7 +549,7 @@ export async function POST(request) {
         cow_id: body.cow_id || null,
         reminder_date: body.reminder_date,
         type: body.type,
-        message: body.message,
+        message,
         is_done: false,
         related_record_id: body.related_record_id || null
       })

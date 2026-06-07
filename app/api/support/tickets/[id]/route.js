@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -12,6 +13,9 @@ export const runtime = "nodejs";
 
 export async function GET(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Ticket क्रमांक चुकीचा आहे.");
+    }
     const auth = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const bundle = await loadTicketBundle(supabase, auth.farmId, params.id);
@@ -23,6 +27,9 @@ export async function GET(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
+    if (!isUuid(params.id)) {
+      throw badRequest("Ticket क्रमांक चुकीचा आहे.");
+    }
     const auth = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const body = await request.json().catch(() => ({}));
@@ -119,4 +126,3 @@ export async function PATCH(request, { params }) {
     return farmErrorResponse(error);
   }
 }
-

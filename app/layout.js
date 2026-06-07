@@ -89,7 +89,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="mr" className={notoSansDevanagari.variable} suppressHydrationWarning>
-      <body className="font-devanagari">
+      <body className="font-devanagari" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: appearanceInitScript }} />
         <AuthProvider>
           <AppChrome>{children}</AppChrome>

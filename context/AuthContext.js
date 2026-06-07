@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { applyAppearancePreferences } from "@/components/settings/AppearanceBoot";
 import {
   getCookieValue,
   safeGetLocalStorageItem,
@@ -74,7 +75,19 @@ function clearAuthCookie() {
   }
 }
 
-function storeSession(token, user, farm) {
+function applySessionPreferences(preferences) {
+  if (!preferences) {
+    return;
+  }
+
+  try {
+    applyAppearancePreferences(preferences);
+  } catch {
+    // Authentication must not fail because appearance preferences could not be applied.
+  }
+}
+
+function storeSession(token, user, farm, preferences = null) {
   memorySession.token = token;
   memorySession.user = user;
   memorySession.farm = farm;
@@ -86,6 +99,7 @@ function storeSession(token, user, farm) {
   safeSetLocalStorageItem(VERIFIED_AT_KEY, String(Date.now()));
 
   setAuthCookie(token);
+  applySessionPreferences(preferences);
 }
 
 function clearSession() {
@@ -188,8 +202,8 @@ export function AuthProvider({ children }) {
     router.replace("/login");
   }, [router]);
 
-  const applySession = useCallback((token, nextUser, nextFarm) => {
-    storeSession(token, nextUser, nextFarm);
+  const applySession = useCallback((token, nextUser, nextFarm, preferences = null) => {
+    storeSession(token, nextUser, nextFarm, preferences);
     setUser(nextUser);
     setFarm(nextFarm);
   }, []);
@@ -205,7 +219,7 @@ export function AuthProvider({ children }) {
           deviceInfo
         });
 
-        applySession(result.token, result.user, result.farm);
+        applySession(result.token, result.user, result.farm, result.preferences);
         return { success: true };
       } catch (error) {
         return { success: false, error: error.message };
@@ -219,7 +233,7 @@ export function AuthProvider({ children }) {
       try {
         const deviceInfo = await getClientDeviceInfo();
         const result = await postAuth("/api/auth/signup", { ...signupData, deviceInfo });
-        applySession(result.token, result.user, result.farm);
+        applySession(result.token, result.user, result.farm, result.preferences);
 
         safeRemoveLocalStorageItem("onboarding_completed");
 
@@ -273,7 +287,7 @@ export function AuthProvider({ children }) {
         return false;
       }
 
-      applySession(token, result.user, result.farm);
+      applySession(token, result.user, result.farm, result.preferences);
       return true;
     } catch {
       if (storedUser && storedFarm) {

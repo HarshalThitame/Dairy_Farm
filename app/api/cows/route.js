@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { readJsonBody } from "@/lib/apiSafety";
+import { buildCowPayload, validateCowPayload } from "@/lib/cowValidation";
 
 export const dynamic = "force-dynamic";
 
-const cowFields = [
+const COW_LIST_FIELDS = [
+  "id",
+  "farm_id",
   "name",
   "breed",
   "date_of_birth",
@@ -17,19 +20,7 @@ const cowFields = [
   "photo_url",
   "photo_storage_path",
   "is_active"
-];
-
-const defaultBreed = "जर्सी";
-const allowedCowStatuses = new Set(["गाभण", "रिकामी", "व्याललेली", "उपचार सुरू", "वाळलेली"]);
-
-function pickFields(body) {
-  return cowFields.reduce((payload, field) => {
-    if (body[field] !== undefined) {
-      payload[field] = body[field];
-    }
-    return payload;
-  }, {});
-}
+].join(", ");
 
 export async function GET(request) {
   try {
@@ -37,7 +28,7 @@ export async function GET(request) {
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("cows")
-      .select("*")
+      .select(COW_LIST_FIELDS)
       .eq("farm_id", farmId)
       .eq("is_active", true)
       .order("name", { ascending: true });
@@ -141,31 +132,36 @@ export async function POST(request) {
   try {
     const { farmId } = await verifyFarmOwner(request);
     const body = await readJsonBody(request);
-
-    if (!body.name || !body.name.trim()) {
-      return NextResponse.json({ error: "गायीचे नाव आवश्यक आहे." }, { status: 400 });
-    }
-
-    const requestedStatus = String(body.status || "").trim();
-
-    if (requestedStatus && !allowedCowStatuses.has(requestedStatus)) {
-      return NextResponse.json({ error: "गायीची स्थिती चुकीची आहे." }, { status: 400 });
-    }
-
     const payload = {
-      ...pickFields(body),
-      breed: body.breed && String(body.breed).trim() ? String(body.breed).trim() : defaultBreed,
+      ...buildCowPayload(body, "create"),
       farm_id: farmId
     };
 
-    if (payload.status !== undefined) {
-      if (requestedStatus) {
-        payload.status = requestedStatus;
-      } else {
-        delete payload.status;
+    const validationErrors = validateCowPayload(payload, { requireName: true });
+    if (validationErrors.length > 0) {
+      return NextResponse.json({ error: validationErrors[0], errors: validationErrors }, { status: 400 });
+    }
+
+    const supabase = getSupabaseServerClient();
+
+    if (payload.tag_number) {
+      const { data: existingTag, error: tagError } = await supabase
+        .from("cows")
+        .select("id")
+        .eq("farm_id", farmId)
+        .eq("tag_number", payload.tag_number)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (tagError) {
+        throw tagError;
+      }
+
+      if (existingTag) {
+        return NextResponse.json({ error: "हा कान टॅग नंबर आधीच वापरला आहे." }, { status: 409 });
       }
     }
-    const supabase = getSupabaseServerClient();
+
     const { data, error } = await supabase
       .from("cows")
       .insert(payload)

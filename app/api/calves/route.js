@@ -3,7 +3,8 @@ import { ACCOUNTING_PERIOD_MONTHLY } from "@/lib/accountingPeriods";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { addDaysToISODate, getCalfAgeText, getCalfLifecycleDates, getCalfMilkStatus } from "@/lib/calfLifecycle";
 import { buildCalfPayload, CALF_SELECT, insertCalfWithReminders, syncCalfReminders } from "@/lib/calfServer";
-import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
+import { validateCowPayload } from "@/lib/cowValidation";
+import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { getTodayISODate } from "@/lib/marathiUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
@@ -92,8 +93,23 @@ function isISODate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+function isFutureISODate(value) {
+  return isISODate(value) && value > getTodayISODate();
+}
+
 function normalizeGender(value) {
   return value === "नर" ? "नर" : "मादी";
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "y", "हो"].includes(text)) return true;
+  if (["false", "0", "no", "n", "नाही"].includes(text)) return false;
+
+  return false;
 }
 
 function buildSaleDescription(calf) {
@@ -207,6 +223,10 @@ async function createCowFromConversion(supabase, farmId, calf, conversion) {
     return { error: "रेतन तारीख आवश्यक आहे." };
   }
 
+  if (isFutureISODate(conversion.ai_date)) {
+    return { error: "रेतन तारीख भविष्यातील नसावी." };
+  }
+
   const cost = parseOptionalAmount(conversion.cost);
 
   if (cost === undefined) {
@@ -218,21 +238,48 @@ async function createCowFromConversion(supabase, farmId, calf, conversion) {
       ? conversion.pregnancy_check_date
       : addDaysToISODate(conversion.ai_date, 60);
 
+  const tagNumber = cleanText(conversion.tag_number);
+  const cowPayload = {
+    farm_id: farmId,
+    name: cowName,
+    breed: cleanText(conversion.breed || calf.breed || calf.mother?.breed) || "जर्सी",
+    date_of_birth: calf.birth_date,
+    tag_number: tagNumber,
+    color: cleanText(conversion.color || calf.color),
+    status: "गाभण",
+    photo_url: cleanText(conversion.photo_url || calf.photo_url),
+    photo_storage_path: cleanText(conversion.photo_storage_path || calf.photo_storage_path),
+    notes: buildConversionNotes(calf, conversion),
+    is_active: true
+  };
+
+  const cowValidationErrors = validateCowPayload(cowPayload, { requireName: true });
+
+  if (cowValidationErrors.length > 0) {
+    return { error: cowValidationErrors[0] };
+  }
+
+  if (tagNumber) {
+    const { data: duplicateCow, error: duplicateError } = await supabase
+      .from("cows")
+      .select("id")
+      .eq("farm_id", farmId)
+      .eq("tag_number", tagNumber)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (duplicateError) {
+      throw duplicateError;
+    }
+
+    if (duplicateCow) {
+      return { error: "हा कान टॅग नंबर आधीच दुसऱ्या गायीला वापरला आहे." };
+    }
+  }
+
   const { data: cow, error: cowError } = await supabase
     .from("cows")
-    .insert({
-      farm_id: farmId,
-      name: cowName,
-      breed: cleanText(conversion.breed || calf.breed || calf.mother?.breed) || "जर्सी",
-      date_of_birth: calf.birth_date,
-      tag_number: cleanText(conversion.tag_number),
-      color: cleanText(conversion.color || calf.color),
-      status: "गाभण",
-      photo_url: cleanText(conversion.photo_url || calf.photo_url),
-      photo_storage_path: cleanText(conversion.photo_storage_path || calf.photo_storage_path),
-      notes: buildConversionNotes(calf, conversion),
-      is_active: true
-    })
+    .insert(cowPayload)
     .select()
     .single();
 
@@ -340,15 +387,41 @@ export async function POST(request) {
       return NextResponse.json({ error: "जन्म तारीख चुकीची आहे." }, { status: 400 });
     }
 
+    if (isFutureISODate(body.birth_date)) {
+      return NextResponse.json({ error: "जन्म तारीख भविष्यातील नसावी." }, { status: 400 });
+    }
+
     if (!allowedGenders.has(body.gender)) {
       return NextResponse.json({ error: "वासराचे लिंग नर किंवा मादी असावे." }, { status: 400 });
     }
+
+    if (body.status && !["active", "historical"].includes(body.status)) {
+      return NextResponse.json(
+        { error: "नवीन वासरासाठी फक्त सक्रिय किंवा जन्म नोंद स्थिती वापरा." },
+        { status: 400 }
+      );
+    }
+
     if (body.mother_cow_id && !isUuid(body.mother_cow_id)) {
       return NextResponse.json({ error: "आई गाय क्रमांक चुकीचा आहे." }, { status: 400 });
     }
 
-    const { farmId } = await verifyFarmAccess(request, body.mother_cow_id || null);
+    const { farmId } = await verifyFarmOwner(request);
     const supabase = getSupabaseServerClient();
+
+    if (body.mother_cow_id) {
+      const { data: motherCow, error: motherCowError } = await supabase
+        .from("cows")
+        .select("id")
+        .eq("id", body.mother_cow_id)
+        .eq("farm_id", farmId)
+        .single();
+
+      if (motherCowError || !motherCow) {
+        return NextResponse.json({ error: "ही गाय तुमच्या डेअरीतील नाही." }, { status: 403 });
+      }
+    }
+
     const calf = await insertCalfWithReminders(supabase, buildCalfPayload(body, farmId));
 
     return NextResponse.json({ data: enrichCalf(calf) }, { status: 201 });
@@ -374,16 +447,26 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "वासराची स्थिती चुकीची आहे." }, { status: 400 });
     }
 
-    const auth = await verifyFarmAccess(request);
+    const auth = await verifyFarmOwner(request);
     const { farmId } = auth;
     if (body.mother_cow_id && !isUuid(body.mother_cow_id)) {
       return NextResponse.json({ error: "आई गाय क्रमांक चुकीचा आहे." }, { status: 400 });
     }
+    const supabase = getSupabaseServerClient();
+
     if (body.mother_cow_id) {
-      await verifyFarmAccess(request, body.mother_cow_id);
+      const { data: motherCow, error: motherCowError } = await supabase
+        .from("cows")
+        .select("id")
+        .eq("id", body.mother_cow_id)
+        .eq("farm_id", farmId)
+        .single();
+
+      if (motherCowError || !motherCow) {
+        return NextResponse.json({ error: "ही गाय तुमच्या डेअरीतील नाही." }, { status: 403 });
+      }
     }
 
-    const supabase = getSupabaseServerClient();
     const { data: existingCalf, error: existingError } = await supabase
       .from("calves")
       .select(CALF_SELECT)
@@ -413,6 +496,34 @@ export async function PATCH(request) {
       );
     }
 
+    if (requestedStatus === "converted_to_cow" && !["active", "historical"].includes(existingCalf.status)) {
+      return NextResponse.json(
+        { error: "फक्त सक्रिय किंवा जन्म नोंद असलेली मादी वासरी गाय म्हणून जोडता येते." },
+        { status: 400 }
+      );
+    }
+
+    if (existingCalf.status === "dead" && requestedStatus && requestedStatus !== "dead") {
+      return NextResponse.json(
+        { error: "मृत वासराची स्थिती बदलता येत नाही. चुकीची नोंद असल्यास नवीन नोंद तयार करा." },
+        { status: 400 }
+      );
+    }
+
+    if (existingCalf.status === "sold" && requestedStatus === "dead") {
+      return NextResponse.json(
+        { error: "विकलेले वासरू मृत म्हणून बदलता येत नाही." },
+        { status: 400 }
+      );
+    }
+
+    if (["sold", "dead"].includes(requestedStatus) && existingCalf.status === "converted_to_cow") {
+      return NextResponse.json(
+        { error: "ही वासरी गाय म्हणून जोडली आहे. बदल गायीच्या यादीतून करा." },
+        { status: 400 }
+      );
+    }
+
     editableTextFields.forEach((field) => {
       if (body[field] !== undefined) {
         updates[field] = cleanText(body[field]);
@@ -433,6 +544,11 @@ export async function PATCH(request) {
       if (!isISODate(body.birth_date)) {
         return NextResponse.json({ error: "जन्म तारीख चुकीची आहे." }, { status: 400 });
       }
+
+      if (isFutureISODate(body.birth_date)) {
+        return NextResponse.json({ error: "जन्म तारीख भविष्यातील नसावी." }, { status: 400 });
+      }
+
       updates.birth_date = body.birth_date;
     }
 
@@ -452,7 +568,7 @@ export async function PATCH(request) {
       const nextStatus = requestedStatus || existingCalf.status;
       const nextIsRaised =
         nextGender === "मादी"
-          ? Boolean(body.is_raised !== undefined ? body.is_raised : existingCalf.is_raised)
+          ? normalizeBoolean(body.is_raised !== undefined ? body.is_raised : existingCalf.is_raised)
           : false;
       const lifecycle = getCalfLifecycleDates(nextBirthDate);
 
@@ -519,6 +635,10 @@ export async function PATCH(request) {
         return NextResponse.json({ error: "विक्री तारीख चुकीची आहे." }, { status: 400 });
       }
 
+      if (isFutureISODate(soldDate)) {
+        return NextResponse.json({ error: "विक्री तारीख भविष्यातील नसावी." }, { status: 400 });
+      }
+
       updates.sold_date = soldDate;
       updates.sale_amount = saleAmount;
       updates.sale_notes = cleanText(body.sale_notes);
@@ -545,6 +665,11 @@ export async function PATCH(request) {
         if (!isISODate(body.sold_date)) {
           return NextResponse.json({ error: "विक्री तारीख चुकीची आहे." }, { status: 400 });
         }
+
+        if (isFutureISODate(body.sold_date)) {
+          return NextResponse.json({ error: "विक्री तारीख भविष्यातील नसावी." }, { status: 400 });
+        }
+
         updates.sold_date = body.sold_date;
       }
 

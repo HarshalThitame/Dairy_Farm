@@ -169,6 +169,7 @@ export default function NotificationTemplatesPage() {
           </div>
           <input value={form.actionText} onChange={(event) => update("actionText", event.target.value)} placeholder="Action text" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
           <input value={form.actionUrl} onChange={(event) => update("actionUrl", event.target.value)} placeholder="Action URL" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
+          <input value={form.imageUrl} onChange={(event) => update("imageUrl", event.target.value)} placeholder="Image URL (optional)" className="min-h-[52px] w-full rounded-lg border border-slate-300 px-4 text-[17px]" />
           <button disabled={saving} className="min-h-[54px] w-full rounded-lg bg-green-600 px-5 text-[18px] font-extrabold text-white disabled:bg-slate-300">
             {saving ? "Saving..." : editingId ? "Update Template" : "Save Template"}
           </button>
@@ -188,6 +189,9 @@ export default function NotificationTemplatesPage() {
                   <span className="rounded-full bg-white px-3 py-1 text-[13px] font-extrabold text-slate-600">{template.type}</span>
                 </div>
                 <p className="mt-2 text-[15px] font-semibold text-slate-500">{template.message}</p>
+                {template.image_url ? (
+                  <p className="mt-2 break-all text-[13px] font-bold text-slate-500">Image: {template.image_url}</p>
+                ) : null}
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"

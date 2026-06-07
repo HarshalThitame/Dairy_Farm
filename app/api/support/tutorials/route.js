@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { logSupportAudit, normalizeSearch, normalizeTutorial, tutorialCategories } from "@/lib/supportCenter";
@@ -16,6 +17,9 @@ export async function GET(request) {
     const tutorialId = searchParams.get("tutorialId");
 
     if (tutorialId) {
+      if (!isUuid(tutorialId)) {
+        throw badRequest("Tutorial क्रमांक चुकीचा आहे.");
+      }
       const { data, error } = await supabase
         .from("tutorials")
         .select("*")
@@ -46,4 +50,3 @@ export async function GET(request) {
     return farmErrorResponse(error);
   }
 }
-

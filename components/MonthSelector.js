@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { getMonthName, reportMonths } from "@/lib/reportUtils";
+import { getMonthName, normalizeReportMonthYear, reportMonths } from "@/lib/reportUtils";
 import { toMarathiNumerals } from "@/lib/marathiUtils";
 
 function shiftMonth(value, offset) {
-  const date = new Date(value.year, value.month - 1 + offset, 1);
+  const safeValue = normalizeReportMonthYear(value);
+  const date = new Date(safeValue.year, safeValue.month - 1 + offset, 1);
   return {
     month: date.getMonth() + 1,
     year: date.getFullYear()
@@ -13,12 +14,13 @@ function shiftMonth(value, offset) {
 }
 
 export default function MonthSelector({ value, onChange }) {
+  const safeValue = normalizeReportMonthYear(value);
   const [open, setOpen] = useState(false);
-  const [draftMonth, setDraftMonth] = useState(value.month);
-  const [draftYear, setDraftYear] = useState(value.year);
+  const [draftMonth, setDraftMonth] = useState(safeValue.month);
+  const [draftYear, setDraftYear] = useState(safeValue.year);
 
   function applySelection() {
-    onChange({ month: Number(draftMonth), year: Number(draftYear) });
+    onChange(normalizeReportMonthYear({ month: draftMonth, year: draftYear }, safeValue));
     setOpen(false);
   }
 
@@ -27,7 +29,7 @@ export default function MonthSelector({ value, onChange }) {
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
         <button
           type="button"
-          onClick={() => onChange(shiftMonth(value, -1))}
+          onClick={() => onChange(shiftMonth(safeValue, -1))}
           className="min-h-[52px] rounded-lg border-2 border-slate-200 bg-white px-3 text-[18px] font-extrabold text-slate-700 active:bg-slate-100"
         >
           ◀ मागील
@@ -35,17 +37,17 @@ export default function MonthSelector({ value, onChange }) {
         <button
           type="button"
           onClick={() => {
-            setDraftMonth(value.month);
-            setDraftYear(value.year);
+            setDraftMonth(safeValue.month);
+            setDraftYear(safeValue.year);
             setOpen((current) => !current);
           }}
           className="min-h-[52px] rounded-lg bg-green-100 px-3 text-center text-[20px] font-extrabold text-sheti active:bg-green-200"
         >
-          📅 {getMonthName(value.month)} {toMarathiNumerals(value.year)}
+          📅 {getMonthName(safeValue.month)} {toMarathiNumerals(safeValue.year)}
         </button>
         <button
           type="button"
-          onClick={() => onChange(shiftMonth(value, 1))}
+          onClick={() => onChange(shiftMonth(safeValue, 1))}
           className="min-h-[52px] rounded-lg border-2 border-slate-200 bg-white px-3 text-[18px] font-extrabold text-slate-700 active:bg-slate-100"
         >
           पुढील ▶

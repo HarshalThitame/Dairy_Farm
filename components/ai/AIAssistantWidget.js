@@ -347,6 +347,11 @@ export default function AIAssistantWidget() {
       return;
     }
 
+    if (!assistantSettings.enabled) {
+      setError("दुग्धमित्र AI सध्या बंद आहे. Settings > AI मधून सुरू करा.");
+      return;
+    }
+
     setInput("");
     setError("");
     setLastQuestion(question);
@@ -419,6 +424,11 @@ export default function AIAssistantWidget() {
   }
 
   const openAssistant = useCallback(() => {
+    if (!assistantSettings.enabled) {
+      setOpen(false);
+      return;
+    }
+
     if (typeof window !== "undefined" && !open) {
       const currentState =
         window.history.state && typeof window.history.state === "object"
@@ -437,7 +447,7 @@ export default function AIAssistantWidget() {
     }
 
     setOpen(true);
-  }, [open]);
+  }, [assistantSettings.enabled, open]);
 
   function closeAssistant() {
     if (
@@ -460,6 +470,12 @@ export default function AIAssistantWidget() {
 
     function handleOpenAssistant(event) {
       const question = event.detail?.question;
+
+      if (!assistantSettings.enabled) {
+        setOpen(false);
+        return;
+      }
+
       openAssistant();
 
       if (typeof question === "string" && question.trim()) {
@@ -472,7 +488,7 @@ export default function AIAssistantWidget() {
     return () => {
       window.removeEventListener("majhi-open-ai-assistant", handleOpenAssistant);
     };
-  }, [openAssistant]);
+  }, [assistantSettings.enabled, openAssistant]);
 
   return (
     <>

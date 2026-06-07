@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { refreshSummaryForDate } from "@/lib/accountingUtils";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
-import { pickMilkFields } from "@/lib/milkRecordFields";
+import { pickMilkFields, validateMilkRecordInput } from "@/lib/milkRecordFields";
 import { syncMilkRecordToDairySlips } from "@/lib/milkDairySync";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { readJsonBody } from "@/lib/apiSafety";
@@ -73,6 +73,24 @@ export async function POST(request) {
     }
 
     const { farmId } = await verifyFarmAccess(request);
+
+    for (let index = 0; index < inputRecords.length; index += 1) {
+      const validationErrors = validateMilkRecordInput(inputRecords[index] || {}, {
+        requireDate: true,
+        requireMilk: true
+      });
+
+      if (validationErrors.length > 0) {
+        return NextResponse.json(
+          {
+            error: `${index + 1} क्रमांकाच्या दूध नोंदीत चूक आहे: ${validationErrors[0]}`,
+            errors: validationErrors
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const records = inputRecords.map((record) => pickMilkFields(record || {}));
     const invalidRecord = records.find((record) => !record.date);
 
@@ -96,6 +114,12 @@ export async function POST(request) {
         ...aggregateDateRecords(group),
         farm_id: farmId
       };
+      const aggregateErrors = validateMilkRecordInput(payload, { requireDate: true, requireMilk: true });
+
+      if (aggregateErrors.length > 0) {
+        return NextResponse.json({ error: aggregateErrors[0], errors: aggregateErrors }, { status: 400 });
+      }
+
       const { data: existingRecord, error: existingError } = await supabase
         .from("milk_records")
         .select("id")

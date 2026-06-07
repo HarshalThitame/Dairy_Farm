@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest, isUuid } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { faqCategories, logSupportAudit, normalizeFaq, normalizeSearch } from "@/lib/supportCenter";
@@ -16,6 +17,9 @@ export async function GET(request) {
     const articleId = searchParams.get("articleId");
 
     if (articleId) {
+      if (!isUuid(articleId)) {
+        throw badRequest("FAQ क्रमांक चुकीचा आहे.");
+      }
       const { data, error } = await supabase
         .from("faq_articles")
         .select("*")
@@ -68,6 +72,9 @@ export async function PATCH(request) {
     if (!articleId || !["helpful", "not_helpful", "view"].includes(action)) {
       return NextResponse.json({ error: "Action चुकीची आहे." }, { status: 400 });
     }
+    if (!isUuid(articleId)) {
+      throw badRequest("FAQ क्रमांक चुकीचा आहे.");
+    }
 
     const { data: current, error: fetchError } = await supabase
       .from("faq_articles")
@@ -96,4 +103,3 @@ export async function PATCH(request) {
     return farmErrorResponse(error);
   }
 }
-

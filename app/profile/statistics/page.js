@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
-import { getClientAuthToken } from "@/lib/clientStorage";
+import { getClientAuthHeaders } from "@/lib/clientStorage";
 import { formatCurrency, formatLitres, formatMarathiDate, toMarathiNumerals } from "@/lib/marathiUtils";
 
 const overviewCards = [
@@ -28,10 +28,6 @@ const overviewCards = [
   ["aiQuestions", "🤖", "AI प्रश्न", "number", "from-emerald-50 via-white to-teal-50 border-emerald-100 text-emerald-950"],
   ["animalsCount", "🐄", "जनावरे", "number", "from-slate-50 via-white to-green-50 border-slate-200 text-slate-950"]
 ];
-
-function getToken() {
-  return getClientAuthToken();
-}
 
 function formatNumber(value, decimals = 2) {
   const numberValue = Number(value || 0);
@@ -194,7 +190,8 @@ export default function PersonalStatisticsPage() {
     try {
       const response = await fetch("/api/profile/statistics", {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${getToken()}` }
+        credentials: "same-origin",
+        headers: getClientAuthHeaders()
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "आकडेवारी मिळाली नाही.");
@@ -222,7 +219,8 @@ export default function PersonalStatisticsPage() {
     try {
       const response = await fetch("/api/profile/statistics", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...getClientAuthHeaders() },
         body: JSON.stringify({ action: "pdf" })
       });
       if (!response.ok) {

@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BrandLockup from "@/components/BrandLockup";
 import { useAuth } from "@/context/AuthContext";
+import { useUiTranslation } from "@/lib/useUiLanguage";
 
 function onlyDigits(value) {
   return value.replace(/\D/g, "");
@@ -14,6 +15,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { loginWithPin, isAuthenticated, isLoading } = useAuth();
+  const t = useUiTranslation();
   const [mobile, setMobile] = useState("");
   const [pin, setPin] = useState(["", "", "", ""]);
   const [showPin, setShowPin] = useState(false);
@@ -61,12 +63,12 @@ function LoginContent() {
     }
 
     if (!/^[6-9]\d{9}$/.test(mobile)) {
-      setError("१० अंकी योग्य मोबाइल नंबर लिहा.");
+      setError(t("१० अंकी योग्य मोबाइल नंबर लिहा.", "Enter a valid 10-digit mobile number."));
       return;
     }
 
     if (pinValue.length !== 4) {
-      setError("४ अंकी PIN लिहा.");
+      setError(t("४ अंकी PIN लिहा.", "Enter a 4-digit PIN."));
       return;
     }
 
@@ -81,23 +83,23 @@ function LoginContent() {
     }
 
     setWrongAttempts((count) => count + 1);
-    setError(result.error || "खाते उघडले नाही.");
+    setError(result.error || t("खाते उघडले नाही.", "Could not open account."));
   }
 
   return (
-    <div className="auth-screen -mx-4 -my-5 flex min-h-screen items-center justify-center px-4 py-8">
+    <div data-i18n-skip className="auth-screen -mx-4 -my-5 flex min-h-screen items-center justify-center px-4 py-8">
       <div className="auth-card w-full max-w-md rounded-lg border border-white/80 bg-white/90 p-5 shadow-2xl backdrop-blur-xl">
         <div className="text-center">
           <BrandLockup size="lg" center />
           <p className="mt-2 text-[20px] font-bold text-slate-600">
-            मोबाइल नंबर आणि PIN टाका
+            {t("मोबाइल नंबर आणि PIN टाका", "Enter mobile number and PIN")}
           </p>
         </div>
 
         <div className="mt-6 space-y-5">
           <label className="block">
             <span className="text-[20px] font-extrabold text-slate-900">
-              मोबाइल नंबर
+              {t("मोबाइल नंबर", "Mobile Number")}
             </span>
             <input
               type="tel"
@@ -105,7 +107,7 @@ function LoginContent() {
               maxLength={10}
               value={mobile}
               onChange={(event) => setMobile(onlyDigits(event.target.value).slice(0, 10))}
-              placeholder="१० अंकी मोबाइल नंबर"
+              placeholder={t("१० अंकी मोबाइल नंबर", "10 digit mobile number")}
               className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[22px] font-bold outline-none focus:border-sheti"
             />
           </label>
@@ -113,14 +115,14 @@ function LoginContent() {
           <div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[20px] font-extrabold text-slate-900">
-                ४ अंकी PIN
+                {t("४ अंकी PIN", "4 Digit PIN")}
               </span>
               <button
                 type="button"
                 onClick={() => setShowPin((value) => !value)}
                 className="min-h-[44px] rounded-lg px-3 text-[18px] font-extrabold text-sheti"
               >
-                {showPin ? "लपवा" : "दाखवा"}
+                {showPin ? t("लपवा", "Hide") : t("दाखवा", "Show")}
               </button>
             </div>
             <div className="mt-3 grid grid-cols-4 gap-3">
@@ -148,13 +150,13 @@ function LoginContent() {
             onClick={() => submitLogin()}
             className="min-h-[56px] w-full rounded-lg bg-sheti px-4 text-[20px] font-extrabold text-white shadow-soft disabled:bg-slate-400"
           >
-            {loading ? "खाते उघडत आहे..." : "खाते उघडा →"}
+            {loading ? t("खाते उघडत आहे...", "Opening account...") : `${t("खाते उघडा", "Open Account")} →`}
           </button>
         </div>
 
         {error ? (
           <div className="mt-5 rounded-lg border-2 border-red-200 bg-red-50 px-4 py-3 text-[18px] font-bold text-red-700">
-            {locked ? "५ चुकीचे प्रयत्न. कृपया मालकाशी संपर्क करा." : error}
+            {locked ? t("५ चुकीचे प्रयत्न. कृपया मालकाशी संपर्क करा.", "5 wrong attempts. Please contact the owner.") : error}
           </div>
         ) : null}
 
@@ -163,18 +165,18 @@ function LoginContent() {
           onClick={() => setForgotOpen(true)}
           className="mt-5 min-h-[48px] w-full text-center text-[18px] font-extrabold text-sheti"
         >
-          PIN विसरलात?
+          {t("PIN विसरलात?", "Forgot PIN?")}
         </button>
 
         <div className="mt-4 rounded-lg border-2 border-green-200 bg-green-50 p-4 text-center">
           <p className="text-[19px] font-extrabold text-slate-800">
-            नवीन डेअरी नोंदणी करायची आहे?
+            {t("नवीन डेअरी नोंदणी करायची आहे?", "Want to register a new dairy?")}
           </p>
           <Link
             href="/signup"
             className="mt-3 flex min-h-[52px] items-center justify-center rounded-lg border-2 border-green-300 bg-white px-4 text-[19px] font-extrabold text-sheti active:bg-green-100"
           >
-            ➕ नवीन नोंदणी करा
+            ➕ {t("नवीन नोंदणी करा", "New Signup")}
           </Link>
         </div>
       </div>
@@ -183,10 +185,10 @@ function LoginContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-lg border border-white/80 bg-white p-5 shadow-2xl">
             <h2 className="text-[24px] font-extrabold text-slate-950">
-              PIN विसरलात?
+              {t("PIN विसरलात?", "Forgot PIN?")}
             </h2>
             <p className="mt-3 text-[18px] font-bold leading-relaxed text-slate-700">
-              मोबाइल नंबर टाका. उत्पादन आवृत्तीत नवीन PIN संदेशाने पाठवता येईल.
+              {t("मोबाइल नंबर टाका. उत्पादन आवृत्तीत नवीन PIN संदेशाने पाठवता येईल.", "Enter your mobile number. In production, a new PIN can be sent by message.")}
             </p>
             <input
               type="tel"
@@ -194,7 +196,7 @@ function LoginContent() {
               maxLength={10}
               value={forgotMobile}
               onChange={(event) => setForgotMobile(onlyDigits(event.target.value).slice(0, 10))}
-              placeholder="१० अंकी मोबाइल नंबर"
+              placeholder={t("१० अंकी मोबाइल नंबर", "10 digit mobile number")}
               className="mt-4 min-h-[56px] w-full rounded-lg border-2 border-slate-200 px-4 text-[20px] font-bold outline-none focus:border-sheti"
             />
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -203,14 +205,14 @@ function LoginContent() {
                 onClick={() => setForgotOpen(false)}
                 className="min-h-[52px] rounded-lg border-2 border-slate-200 px-4 text-[18px] font-extrabold text-slate-700"
               >
-                बंद करा
+                {t("बंद करा", "Close")}
               </button>
               <button
                 type="button"
                 onClick={() => setForgotOpen(false)}
                 className="min-h-[52px] rounded-lg bg-sheti px-4 text-[18px] font-extrabold text-white"
               >
-                समजले
+                {t("समजले", "Understood")}
               </button>
             </div>
           </div>

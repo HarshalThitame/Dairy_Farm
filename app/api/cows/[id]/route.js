@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { enrichActiveCalfMilkReminders } from "@/lib/calfReminderDisplay";
 import { removePostCalvingDryOffReminders } from "@/lib/cowDryOffReminderDisplay";
+import { buildCowPayload, validateCowPayload } from "@/lib/cowValidation";
 import { farmErrorResponse, verifyFarmAccess, verifyFarmOwner } from "@/lib/farmGuard";
 import { removeResolvedReproductiveReminders } from "@/lib/reproductiveReminderDisplay";
 import { getReminderDisplayMessage, getTodayISODate } from "@/lib/reminderUtils";
@@ -8,31 +9,6 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 import { isUuid, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
-
-const cowFields = [
-  "name",
-  "breed",
-  "date_of_birth",
-  "tag_number",
-  "color",
-  "status",
-  "purchased_on",
-  "notes",
-  "photo_url",
-  "photo_storage_path",
-  "is_active"
-];
-
-const allowedCowStatuses = new Set(["गाभण", "रिकामी", "व्याललेली", "उपचार सुरू", "वाळलेली"]);
-
-function pickFields(body) {
-  return cowFields.reduce((payload, field) => {
-    if (body[field] !== undefined) {
-      payload[field] = body[field];
-    }
-    return payload;
-  }, {});
-}
 
 function firstError(results) {
   return results.find((result) => result.error)?.error;
@@ -177,31 +153,67 @@ export async function PUT(request, { params }) {
     }
     const { farmId } = await verifyFarmOwner(request);
     const body = await readJsonBody(request);
-    const payload = pickFields(body);
-
-    if (Object.keys(payload).length === 0) {
-      return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
-    }
-
-    if (payload.status !== undefined) {
-      const requestedStatus = String(payload.status || "").trim();
-
-      if (requestedStatus && !allowedCowStatuses.has(requestedStatus)) {
-        return NextResponse.json({ error: "गायीची स्थिती चुकीची आहे." }, { status: 400 });
-      }
-
-      if (requestedStatus) {
-        payload.status = requestedStatus;
-      } else {
-        delete payload.status;
-      }
-    }
+    const payload = buildCowPayload(body, "update");
 
     if (Object.keys(payload).length === 0) {
       return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
     }
 
     const supabase = getSupabaseServerClient();
+    let validationPayload = payload;
+    const touchesDate = payload.date_of_birth !== undefined || payload.purchased_on !== undefined;
+
+    if (touchesDate) {
+      const { data: currentCow, error: currentCowError } = await supabase
+        .from("cows")
+        .select("id, date_of_birth, purchased_on")
+        .eq("id", params.id)
+        .eq("farm_id", farmId)
+        .maybeSingle();
+
+      if (currentCowError) {
+        throw currentCowError;
+      }
+
+      if (!currentCow) {
+        return NextResponse.json({ error: "गाय सापडली नाही." }, { status: 404 });
+      }
+
+      validationPayload = {
+        ...payload,
+        date_of_birth: payload.date_of_birth ?? currentCow.date_of_birth ?? null,
+        purchased_on: payload.purchased_on ?? currentCow.purchased_on ?? null
+      };
+    }
+
+    const validationErrors = validateCowPayload(validationPayload);
+    if (validationErrors.length > 0) {
+      return NextResponse.json({ error: validationErrors[0], errors: validationErrors }, { status: 400 });
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return NextResponse.json({ error: "बदल करण्यासाठी माहिती द्या." }, { status: 400 });
+    }
+
+    if (payload.tag_number) {
+      const { data: existingTag, error: tagError } = await supabase
+        .from("cows")
+        .select("id")
+        .eq("farm_id", farmId)
+        .eq("tag_number", payload.tag_number)
+        .eq("is_active", true)
+        .neq("id", params.id)
+        .maybeSingle();
+
+      if (tagError) {
+        throw tagError;
+      }
+
+      if (existingTag) {
+        return NextResponse.json({ error: "हा कान टॅग नंबर आधीच वापरला आहे." }, { status: 409 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("cows")
       .update(payload)
@@ -212,6 +224,10 @@ export async function PUT(request, { params }) {
 
     if (error || !data) {
       return NextResponse.json({ error: "गाय सापडली नाही." }, { status: 404 });
+    }
+
+    if (payload.is_active !== undefined) {
+      await updateFarmCowCount(supabase, farmId);
     }
 
     return NextResponse.json({ data });

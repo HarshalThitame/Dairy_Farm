@@ -42,6 +42,9 @@ export default function PrintableReport({ reportData, selectedSections }) {
   const performance = reportData?.performance || [];
   const vaccination = reportData?.vaccination || {};
   const farm = reportData?.farm || {};
+  const bestDayLabel = milk.bestDay?.source === "daily_records_audit"
+    ? "दैनिक ओळी तपासणीतील सर्वाधिक दूध"
+    : "सर्वाधिक दूध";
 
   function include(section) {
     return selectedSections.includes(section);
@@ -99,7 +102,7 @@ export default function PrintableReport({ reportData, selectedSections }) {
                 </td>
               </tr>
               <tr>
-                <th className="border border-slate-900 p-2 text-left">सर्वाधिक दूध</th>
+                <th className="border border-slate-900 p-2 text-left">{bestDayLabel}</th>
                 <td className="border border-slate-900 p-2">
                   {formatLitres(milk.bestDay?.litres || 0)} लिटर ({formatMarathiDate(milk.bestDay?.date)})
                 </td>

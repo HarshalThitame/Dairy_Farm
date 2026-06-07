@@ -7,7 +7,7 @@ import MonthSelector from "@/components/MonthSelector";
 import PageHeader from "@/components/PageHeader";
 import PrintableReport from "@/app/ahval/chapa/PrintableReport";
 import { fetchJson } from "@/lib/offlineActions";
-import { getIndiaMonthParts } from "@/lib/reportUtils";
+import { getIndiaMonthParts, getMonthRange, getReportMonthFromSearchParams } from "@/lib/reportUtils";
 
 const options = [
   { id: "milk", label: "दूध उत्पादन सारांश", defaultChecked: true },
@@ -25,10 +25,20 @@ function getInitialMonth() {
 
   const searchParams = new URLSearchParams(window.location.search);
 
-  return {
-    month: Number(searchParams.get("month") || current.month),
-    year: Number(searchParams.get("year") || current.year)
-  };
+  return getReportMonthFromSearchParams(searchParams, current);
+}
+
+function addDaysISO(dateString, days) {
+  const [year, month, day] = String(dateString || "").split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getMonthDateQuery(monthValue) {
+  const range = getMonthRange(monthValue.month, monthValue.year);
+  const endInclusive = addDaysISO(range.end, -1);
+  return `from=${range.start}&to=${endInclusive}`;
 }
 
 function buildPerformance(cows, milkReport, aiRecords, calvingRecords) {
@@ -77,14 +87,15 @@ export default function PrintReportPage() {
 
     try {
       const query = `month=${monthValue.month}&year=${monthValue.year}`;
+      const monthDateQuery = getMonthDateQuery(monthValue);
       const [milk, finance, vaccination, cows, ai, calving, farm] =
         await Promise.all([
           fetchJson(`/api/reports/milk?${query}`),
           fetchJson(`/api/reports/finance?${query}`),
           fetchJson("/api/reports/vaccination"),
           fetchJson("/api/cows"),
-          fetchJson("/api/ai"),
-          fetchJson("/api/calving"),
+          fetchJson(`/api/ai?${monthDateQuery}`),
+          fetchJson(`/api/calving?${monthDateQuery}`),
           fetchJson("/api/farms/current")
         ]);
 

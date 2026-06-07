@@ -108,6 +108,7 @@ function MilkSessionFields({ title, litresField, rateField, fatField, snfField, 
             type="number"
             inputMode="decimal"
             min="0"
+            max="5000"
             step="0.5"
             value={form[litresField]}
             onChange={(event) => updateField(litresField, event.target.value)}
@@ -120,6 +121,7 @@ function MilkSessionFields({ title, litresField, rateField, fatField, snfField, 
             type="number"
             inputMode="decimal"
             min="0"
+            max="200"
             step="0.5"
             value={form[rateField]}
             onChange={(event) => updateField(rateField, event.target.value)}
@@ -132,6 +134,7 @@ function MilkSessionFields({ title, litresField, rateField, fatField, snfField, 
             type="number"
             inputMode="decimal"
             min="0"
+            max="20"
             step="0.1"
             value={form[fatField]}
             onChange={(event) => updateField(fatField, event.target.value)}
@@ -144,6 +147,7 @@ function MilkSessionFields({ title, litresField, rateField, fatField, snfField, 
             type="number"
             inputMode="decimal"
             min="0"
+            max="20"
             step="0.1"
             value={form[snfField]}
             onChange={(event) => updateField(snfField, event.target.value)}
@@ -156,6 +160,7 @@ function MilkSessionFields({ title, litresField, rateField, fatField, snfField, 
             type="number"
             inputMode="decimal"
             min="0"
+            max="100"
             step="0.1"
             value={form[degreeField]}
             onChange={(event) => updateField(degreeField, event.target.value)}
@@ -254,8 +259,23 @@ export default function DudhNondPage() {
   async function saveRecord(event) {
     event.preventDefault();
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      setError("तारीख चुकीची आहे.");
+      return;
+    }
+
+    if (selectedDate > today) {
+      setError("भविष्यातील तारीख वापरता येणार नाही.");
+      return;
+    }
+
     if (totalMilk <= 0) {
       setError("दूधाचे एकूण लिटर भरा.");
+      return;
+    }
+
+    if (totalMilk > 10000) {
+      setError("दूधाचे लिटर असामान्य आहे. कृपया तपासा.");
       return;
     }
 
@@ -316,6 +336,7 @@ export default function DudhNondPage() {
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
               required
+              max={today}
               className={inputClass}
             />
             <button

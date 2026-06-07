@@ -6,6 +6,7 @@ import {
   refreshSettlementSummaries,
   summarizeSettlements
 } from "@/lib/accountingUtils";
+import { getTodayISODate } from "@/lib/marathiUtils";
 import { getMonthInput, getMonthRange } from "@/lib/reportUtils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
@@ -66,13 +67,41 @@ function pickFields(body) {
   }, {});
 }
 
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function dateDiffDays(start, end) {
+  const startDate = new Date(`${start}T00:00:00Z`);
+  const endDate = new Date(`${end}T00:00:00Z`);
+  return Math.round((endDate - startDate) / 86400000) + 1;
+}
+
 function validateSettlement(body) {
   if (!body.settlement_date || !body.period_start || !body.period_end) {
     return "सेटलमेंट तारीख आणि पीरियड आवश्यक आहे.";
   }
 
+  if (![body.settlement_date, body.period_start, body.period_end].every(isValidISODate)) {
+    return "सेटलमेंट तारीख किंवा पीरियड चुकीचा आहे.";
+  }
+
+  const today = getTodayISODate();
+  if (body.settlement_date > today || body.period_start > today || body.period_end > today) {
+    return "भविष्यातील तारीख वापरता येणार नाही.";
+  }
+
   if (body.period_end < body.period_start) {
     return "पीरियड शेवट सुरू तारखेपेक्षा नंतर असावा.";
+  }
+
+  if (dateDiffDays(body.period_start, body.period_end) > 45) {
+    return "सेटलमेंट पीरियड असामान्य आहे. कृपया तपासा.";
   }
 
   if (
@@ -84,12 +113,20 @@ function validateSettlement(body) {
     return "एकूण उत्पन्न शून्यापेक्षा जास्त असावे.";
   }
 
+  if (money(body.total_milk_income) > 100000000) {
+    return "एकूण उत्पन्न असामान्य आहे. कृपया तपासा.";
+  }
+
   if (
     body.total_liters !== "" &&
     body.total_liters !== undefined &&
     (!isFiniteNumber(body.total_liters) || money(body.total_liters) < 0)
   ) {
     return "एकूण दूध शून्य किंवा त्यापेक्षा जास्त असावे.";
+  }
+
+  if (body.total_liters !== "" && body.total_liters !== undefined && money(body.total_liters) > 100000) {
+    return "एकूण दूध असामान्य आहे. कृपया तपासा.";
   }
 
   if (
@@ -103,6 +140,21 @@ function validateSettlement(body) {
     return "कपात शून्य किंवा त्यापेक्षा जास्त असावी.";
   }
 
+  const totalDeductions = money(body.cattle_feed_deduction) + money(body.other_deductions);
+  if (totalDeductions > money(body.total_milk_income)) {
+    return "कपात एकूण उत्पन्नापेक्षा जास्त नसावी.";
+  }
+
+  if (body.payment_received && body.payment_received_date) {
+    if (!isValidISODate(body.payment_received_date)) {
+      return "प्राप्त तारीख चुकीची आहे.";
+    }
+
+    if (body.payment_received_date > today) {
+      return "भविष्यातील प्राप्त तारीख वापरता येणार नाही.";
+    }
+  }
+
   if (
     body.payment_received &&
     body.payment_received_amount !== "" &&
@@ -110,6 +162,10 @@ function validateSettlement(body) {
     (!isFiniteNumber(body.payment_received_amount) || money(body.payment_received_amount) < 0)
   ) {
     return "प्राप्त रक्कम शून्य किंवा त्यापेक्षा जास्त असावी.";
+  }
+
+  if (body.payment_received && money(body.payment_received_amount) > money(body.total_milk_income)) {
+    return "प्राप्त रक्कम एकूण उत्पन्नापेक्षा जास्त नसावी.";
   }
 
   return "";

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { badRequest } from "@/lib/apiSafety";
 import { farmErrorResponse, verifyFarmAccess } from "@/lib/farmGuard";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -13,14 +14,33 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const ALLOWED_STATUSES = new Set([
+  "all",
+  "open",
+  "in_progress",
+  "waiting_for_user",
+  "resolved",
+  "closed",
+  "rejected"
+]);
+
+function parsePositiveInteger(value, fallback, min, max) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  const safeValue = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.min(max, Math.max(min, safeValue));
+}
+
 export async function GET(request) {
   try {
     const auth = await verifyFarmAccess(request);
     const supabase = getSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all";
-    const page = Math.max(1, Number(searchParams.get("page") || 1));
-    const pageSize = Math.min(50, Math.max(5, Number(searchParams.get("pageSize") || 20)));
+    if (!ALLOWED_STATUSES.has(status)) {
+      throw badRequest("Ticket status चुकीचा आहे.");
+    }
+    const page = parsePositiveInteger(searchParams.get("page"), 1, 1, 100000);
+    const pageSize = parsePositiveInteger(searchParams.get("pageSize"), 20, 5, 50);
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -108,4 +128,3 @@ export async function POST(request) {
     return farmErrorResponse(error);
   }
 }
-

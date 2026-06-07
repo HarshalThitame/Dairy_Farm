@@ -4,12 +4,15 @@ import { logAdminAction, superAdminErrorResponse, verifySuperAdmin } from "@/lib
 import {
   createAdminNotification,
   getPagination,
+  notificationTypes,
   sendNotificationNow
 } from "@/lib/notificationCenter";
-import { readJsonBody } from "@/lib/apiSafety";
+import { badRequest, readJsonBody } from "@/lib/apiSafety";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const ALLOWED_STATUSES = new Set(["all", "draft", "scheduled", "sending", "sent", "cancelled", "failed"]);
 
 export async function GET(request) {
   try {
@@ -20,6 +23,13 @@ export async function GET(request) {
     const type = searchParams.get("type") || "all";
     const search = searchParams.get("search") || "";
     const supabase = getSupabaseServerClient();
+
+    if (!ALLOWED_STATUSES.has(status)) {
+      throw badRequest("Notification status चुकीचा आहे.");
+    }
+    if (type !== "all" && !notificationTypes.includes(type)) {
+      throw badRequest("Notification type चुकीचा आहे.");
+    }
 
     let query = supabase
       .from("notifications")

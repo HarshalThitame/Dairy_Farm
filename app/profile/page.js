@@ -231,6 +231,7 @@ export default function ProfilePage() {
   const farm = data?.farm || {};
   const stats = data?.stats || {};
   const photo = rawUser.profile_photo_url || user.profilePhotoUrl || "";
+  const canManageFarm = Boolean(user.isFarmOwner || user.role === "admin");
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 pb-24">
@@ -287,7 +288,18 @@ export default function ProfilePage() {
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="डेअरी / फार्मचे नाव" className="md:col-span-2">
-            <MarathiTextInput value={form.farm_name} onValueChange={(value) => update("farm_name", value)} className={inputClass()} />
+            <MarathiTextInput
+              value={form.farm_name}
+              onValueChange={(value) => update("farm_name", value)}
+              readOnly={!canManageFarm}
+              disabled={!canManageFarm}
+              className={inputClass(!canManageFarm)}
+            />
+            {!canManageFarm ? (
+              <span className="mt-2 block text-[13px] font-bold text-slate-500">
+                डेअरीचे नाव फक्त मालक किंवा व्यवस्थापक बदलू शकतात.
+              </span>
+            ) : null}
           </Field>
           <Field label="पूर्ण नाव">
             <MarathiTextInput value={form.name} onValueChange={(value) => update("name", value)} className={inputClass()} />

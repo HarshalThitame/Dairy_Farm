@@ -6,6 +6,7 @@ import { farmErrorResponse, normalizeFarm, verifyFarmAccess } from "@/lib/farmGu
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   displayFinanceCategory,
+  getIndiaMonthParts,
   getMonthLabel,
   reportMonths
 } from "@/lib/reportUtils";
@@ -17,7 +18,7 @@ function roundMoney(value) {
 }
 
 function getYearInput(searchParams) {
-  const currentYear = new Date().getFullYear();
+  const currentYear = getIndiaMonthParts().year;
   const year = Number(searchParams.get("year") || currentYear);
 
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {

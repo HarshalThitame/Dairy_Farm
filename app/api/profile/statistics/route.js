@@ -7,10 +7,45 @@ import { logUserSettingsAction } from "@/lib/userSettings";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const FARM_PROFILE_FIELDS = [
+  "id",
+  "farm_name",
+  "owner_name",
+  "owner_mobile",
+  "owner_email",
+  "mobile_verified",
+  "village_name",
+  "taluka_name",
+  "district_name",
+  "state_name",
+  "farm_address",
+  "dairy_name",
+  "dairy_member_number",
+  "vet_name",
+  "vet_mobile",
+  "subscription_status",
+  "trial_ends_at",
+  "subscription_started_at",
+  "subscription_ends_at",
+  "total_cows",
+  "milk_rate_default",
+  "morning_session_time",
+  "evening_session_time",
+  "show_marathi_numbers",
+  "low_milk_alert_litres",
+  "is_active",
+  "admin_notes",
+  "suspended_reason",
+  "suspended_at",
+  "last_activity_at",
+  "created_at",
+  "updated_at"
+].join(", ");
+
 async function getFarm(supabase, farmId) {
   const { data, error } = await supabase
     .from("farms")
-    .select("*")
+    .select(FARM_PROFILE_FIELDS)
     .eq("id", farmId)
     .maybeSingle();
 

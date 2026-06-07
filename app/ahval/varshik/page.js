@@ -8,7 +8,7 @@ import SummaryCard from "@/components/SummaryCard";
 import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
 import { fetchJson } from "@/lib/offlineActions";
 import { formatCurrency, formatLitres, toMarathiNumerals } from "@/lib/marathiUtils";
-import { getIndiaMonthParts } from "@/lib/reportUtils";
+import { getIndiaMonthParts, getReportYearFromSearchParams } from "@/lib/reportUtils";
 
 function getInitialYear() {
   const currentYear = getIndiaMonthParts().year;
@@ -18,7 +18,7 @@ function getInitialYear() {
   }
 
   const searchParams = new URLSearchParams(window.location.search);
-  return Number(searchParams.get("year") || currentYear);
+  return getReportYearFromSearchParams(searchParams, currentYear);
 }
 
 function displayValue(value, convertDigits = false) {

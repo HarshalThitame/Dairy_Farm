@@ -64,6 +64,19 @@ export async function PATCH(request) {
       .single();
 
     if (error) throw error;
+
+    try {
+      await supabase
+        .from("user_profiles")
+        .update({
+          language: next.language,
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", auth.userId);
+    } catch {
+      // Older deployments may not have user_profiles.language yet. Appearance preferences remain authoritative.
+    }
+
     await logUserSettingsAction(supabase, request, auth.userId, auth.farmId, "appearance_settings_updated", next);
     return NextResponse.json({ preferences: normalizeAppearancePreferences(data) });
   } catch (error) {
