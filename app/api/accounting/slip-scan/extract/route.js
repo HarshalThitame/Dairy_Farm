@@ -339,7 +339,7 @@ export async function POST(request) {
     }
 
     let ocr = {
-      provider: "google_vision",
+      provider: "openai_vision_direct",
       rawText: "",
       confidence: 0
     };
@@ -354,30 +354,30 @@ export async function POST(request) {
     };
 
     try {
-      ocr = await extractTextWithGoogleVision(imageBase64);
-      result = await structureSlipTextWithGPT({
-        rawText: ocr.rawText,
-        ocr
+      result = await structureSlipImageWithGPT({
+        imageBase64,
+        mediaType,
+        fallbackReason: ""
       });
+      ocr = {
+        provider: "openai_vision_direct",
+        rawText: "",
+        confidence: result.confidence_score || 0
+      };
     } catch (extractError) {
       fallbackMeta = {
         ...fallbackMeta,
         attempted: true,
-        reason: `Google Vision/Text OCR failed: ${extractError.message || "unknown error"}`
+        reason: `GPT Vision direct failed: ${extractError.message || "unknown error"}`
       };
 
       try {
-        result = await structureSlipImageWithGPT({
-          imageBase64,
-          mediaType,
-          fallbackReason: fallbackMeta.reason
+        ocr = await extractTextWithGoogleVision(imageBase64);
+        result = await structureSlipTextWithGPT({
+          rawText: ocr.rawText,
+          ocr
         });
         fallbackMeta.used = true;
-        ocr = {
-          provider: "openai_vision_direct",
-          rawText: "",
-          confidence: result.confidence_score || 0
-        };
       } catch (fallbackError) {
         await supabase
           .from("slip_uploads")
@@ -429,7 +429,7 @@ export async function POST(request) {
       );
     }
 
-    if (result.extractionMode !== "openai_vision_direct") {
+    if (result.extractionMode !== "google_vision_text") {
       const fallbackDecision = getVisionFallbackDecision(result.data);
 
       if (fallbackDecision.shouldFallback) {
@@ -440,10 +440,10 @@ export async function POST(request) {
         };
 
         try {
-          const fallbackResult = await structureSlipImageWithGPT({
-            imageBase64,
-            mediaType,
-            fallbackReason: fallbackMeta.reason
+          const googleOcr = await extractTextWithGoogleVision(imageBase64);
+          const fallbackResult = await structureSlipTextWithGPT({
+            rawText: googleOcr.rawText,
+            ocr: googleOcr
           });
           const choice = chooseBestExtraction(result, fallbackResult);
 
@@ -458,13 +458,13 @@ export async function POST(request) {
             result = fallbackResult;
             ocr = {
               ...ocr,
-              provider: "google_vision+openai_vision_direct"
+              provider: "openai_vision_direct+google_vision"
             };
           }
         } catch (fallbackError) {
           fallbackMeta = {
             ...fallbackMeta,
-            error: fallbackError.message || "Direct GPT Vision fallback failed"
+            error: fallbackError.message || "Google Vision text comparison failed"
           };
         }
       }
