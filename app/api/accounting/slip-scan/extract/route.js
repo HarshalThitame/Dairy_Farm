@@ -6,6 +6,7 @@ import { mergeSettlementRowsWithTrustedDailySlips } from "@/lib/settlementDailyS
 import { fillSlipGaps } from "@/lib/slipGapFilling";
 import { structureSlipImageWithGPT, structureSlipTextWithGPT } from "@/lib/slipTextExtraction";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { checkImageQuality, formatQualityMessage } from "@/lib/imageQualityCheck";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -307,8 +308,36 @@ export async function POST(request) {
       throw downloadError;
     }
 
-    const imageBase64 = Buffer.from(await imageData.arrayBuffer()).toString("base64");
+    const imageBuffer = await imageData.arrayBuffer();
+    const imageBase64 = Buffer.from(imageBuffer).toString("base64");
     const mediaType = getImageMediaType(storagePath);
+
+    const qualityCheck = await checkImageQuality(Buffer.from(imageBuffer));
+    if (!qualityCheck.pass) {
+      const qualityMessage = formatQualityMessage(qualityCheck);
+      await supabase
+        .from("slip_uploads")
+        .update({
+          extraction_status: "failed",
+          extraction_error: qualityMessage || "फोटो गुणवत्ता अपुरी आहे. कृपया स्पष्ट फोटो पुन्हा अपलोड करा.",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", uploadId)
+        .eq("farm_id", farmId);
+
+      return NextResponse.json(
+        {
+          error: qualityMessage || "फोटो गुणवत्ता अपुरी आहे. कृपया स्पष्ट फोटो पुन्हा अपलोड करा.",
+          qualityCheck: {
+            errors: qualityCheck.errors,
+            warnings: qualityCheck.warnings,
+            metadata: qualityCheck.metadata
+          }
+        },
+        { status: 400 }
+      );
+    }
+
     let ocr = {
       provider: "google_vision",
       rawText: "",
@@ -325,30 +354,29 @@ export async function POST(request) {
     };
 
     try {
-      ocr = await extractTextWithGoogleVision(imageBase64);
-      result = await structureSlipTextWithGPT({
-        rawText: ocr.rawText,
-        ocr
+      result = await structureSlipImageWithGPT({
+        imageBase64,
+        mediaType,
+        fallbackReason: null
       });
-    } catch (extractError) {
+      ocr = {
+        provider: "openai_vision_direct",
+        rawText: "",
+        confidence: result.confidence_score || 0
+      };
+    } catch (visionError) {
       fallbackMeta = {
         ...fallbackMeta,
         attempted: true,
-        reason: `Google Vision/Text OCR failed: ${extractError.message || "unknown error"}`
+        reason: `Direct GPT Vision failed: ${visionError.message || "unknown error"}`
       };
 
       try {
-        result = await structureSlipImageWithGPT({
-          imageBase64,
-          mediaType,
-          fallbackReason: fallbackMeta.reason
+        ocr = await extractTextWithGoogleVision(imageBase64);
+        result = await structureSlipTextWithGPT({
+          rawText: ocr.rawText,
+          ocr
         });
-        fallbackMeta.used = true;
-        ocr = {
-          provider: "openai_vision_direct",
-          rawText: "",
-          confidence: result.confidence_score || 0
-        };
       } catch (fallbackError) {
         await supabase
           .from("slip_uploads")
@@ -356,7 +384,7 @@ export async function POST(request) {
             extraction_status: "failed",
             extraction_error:
               fallbackError.message ||
-              extractError.message ||
+              visionError.message ||
               "OCR प्रक्रिया विफल झाली. कृपया फोटो पुन्हा upload करा.",
             updated_at: new Date().toISOString()
           })
@@ -367,7 +395,7 @@ export async function POST(request) {
           {
             error:
               fallbackError.message ||
-              extractError.message ||
+              visionError.message ||
               "OCR प्रक्रिया विफल झाली. कृपया फोटो सरळ, जवळून आणि प्रकाशात पुन्हा upload करा."
           },
           { status: 400 }
@@ -400,46 +428,7 @@ export async function POST(request) {
       );
     }
 
-    if (result.extractionMode !== "openai_vision_direct") {
-      const fallbackDecision = getVisionFallbackDecision(result.data);
-
-      if (fallbackDecision.shouldFallback) {
-        fallbackMeta = {
-          ...fallbackMeta,
-          attempted: true,
-          reason: fallbackDecision.reasons.slice(0, 6).join(" | ") || "Financial validation needs second pass"
-        };
-
-        try {
-          const fallbackResult = await structureSlipImageWithGPT({
-            imageBase64,
-            mediaType,
-            fallbackReason: fallbackMeta.reason
-          });
-          const choice = chooseBestExtraction(result, fallbackResult);
-
-          fallbackMeta = {
-            ...fallbackMeta,
-            used: choice.selected === "fallback",
-            primaryScore: choice.primaryScore,
-            fallbackScore: choice.fallbackScore
-          };
-
-          if (choice.selected === "fallback") {
-            result = fallbackResult;
-            ocr = {
-              ...ocr,
-              provider: "google_vision+openai_vision_direct"
-            };
-          }
-        } catch (fallbackError) {
-          fallbackMeta = {
-            ...fallbackMeta,
-            error: fallbackError.message || "Direct GPT Vision fallback failed"
-          };
-        }
-      }
-    }
+    // GPT-4o Vision is primary; no secondary comparison needed
 
     const audit = await createOcrAuditLog(supabase, {
       farm_id: farmId,

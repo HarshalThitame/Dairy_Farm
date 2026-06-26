@@ -44,20 +44,10 @@ export async function POST(request) {
       });
     } else {
       try {
-        ocr = await extractTextWithGoogleVision(imageBase64);
-        structured = await structureSlipTextWithGPT({
-          rawText: ocr.rawText,
-          ocr
-        });
-      } catch (error) {
-        directVisionFallback = {
-          used: true,
-          reason: `Google Vision/Text OCR failed: ${error.message || "unknown error"}`
-        };
         structured = await structureSlipImageWithGPT({
           imageBase64,
           mediaType: getImageMediaType(imageBase64),
-          fallbackReason: directVisionFallback.reason
+          fallbackReason: null
         });
         ocr = {
           success: true,
@@ -65,6 +55,16 @@ export async function POST(request) {
           confidence: structured.confidence_score || 0,
           provider: "openai_vision_direct"
         };
+      } catch (error) {
+        directVisionFallback = {
+          used: true,
+          reason: `Direct GPT Vision failed: ${error.message || "unknown error"}`
+        };
+        ocr = await extractTextWithGoogleVision(imageBase64);
+        structured = await structureSlipTextWithGPT({
+          rawText: ocr.rawText,
+          ocr
+        });
       }
     }
 

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MAX_PROCESSED_IMAGE_SIZE = 1500000;
+const MAX_PROCESSED_IMAGE_SIZE = 3000000;
 
 function uploadError(message, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -78,15 +78,12 @@ async function compressServerSide(imageFile) {
   }
 
   const attempts = [
-    { width: 1800, quality: 90 },
-    { width: 1600, quality: 86 },
-    { width: 1400, quality: 82 },
+    { width: 2000, quality: 92 },
+    { width: 1800, quality: 88 },
+    { width: 1600, quality: 84 },
+    { width: 1400, quality: 80 },
     { width: 1280, quality: 76 },
-    { width: 1100, quality: 70 },
-    { width: 960, quality: 64 },
-    { width: 840, quality: 58 },
-    { width: 720, quality: 52 },
-    { width: 640, quality: 48 }
+    { width: 1200, quality: 72 }
   ];
   let bestBuffer = null;
   let bestAttempt = attempts[attempts.length - 1];
@@ -125,14 +122,11 @@ async function compressServerSide(imageFile) {
 async function recompressBufferServerSide(buffer, originalContentType = "image/jpeg") {
   const sharp = (await import("sharp")).default;
   const attempts = [
-    { width: 1600, quality: 82 },
+    { width: 1800, quality: 84 },
+    { width: 1600, quality: 80 },
     { width: 1400, quality: 76 },
-    { width: 1280, quality: 70 },
-    { width: 1100, quality: 64 },
-    { width: 960, quality: 58 },
-    { width: 840, quality: 54 },
-    { width: 720, quality: 50 },
-    { width: 640, quality: 46 }
+    { width: 1280, quality: 72 },
+    { width: 1200, quality: 70 }
   ];
   let bestBuffer = null;
   let bestAttempt = attempts[attempts.length - 1];
