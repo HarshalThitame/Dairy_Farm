@@ -354,29 +354,30 @@ export async function POST(request) {
     };
 
     try {
-      result = await structureSlipImageWithGPT({
-        imageBase64,
-        mediaType,
-        fallbackReason: null
+      ocr = await extractTextWithGoogleVision(imageBase64);
+      result = await structureSlipTextWithGPT({
+        rawText: ocr.rawText,
+        ocr
       });
-      ocr = {
-        provider: "openai_vision_direct",
-        rawText: "",
-        confidence: result.confidence_score || 0
-      };
-    } catch (visionError) {
+    } catch (extractError) {
       fallbackMeta = {
         ...fallbackMeta,
         attempted: true,
-        reason: `Direct GPT Vision failed: ${visionError.message || "unknown error"}`
+        reason: `Google Vision/Text OCR failed: ${extractError.message || "unknown error"}`
       };
 
       try {
-        ocr = await extractTextWithGoogleVision(imageBase64);
-        result = await structureSlipTextWithGPT({
-          rawText: ocr.rawText,
-          ocr
+        result = await structureSlipImageWithGPT({
+          imageBase64,
+          mediaType,
+          fallbackReason: fallbackMeta.reason
         });
+        fallbackMeta.used = true;
+        ocr = {
+          provider: "openai_vision_direct",
+          rawText: "",
+          confidence: result.confidence_score || 0
+        };
       } catch (fallbackError) {
         await supabase
           .from("slip_uploads")
@@ -384,7 +385,7 @@ export async function POST(request) {
             extraction_status: "failed",
             extraction_error:
               fallbackError.message ||
-              visionError.message ||
+              extractError.message ||
               "OCR प्रक्रिया विफल झाली. कृपया फोटो पुन्हा upload करा.",
             updated_at: new Date().toISOString()
           })
@@ -395,7 +396,7 @@ export async function POST(request) {
           {
             error:
               fallbackError.message ||
-              visionError.message ||
+              extractError.message ||
               "OCR प्रक्रिया विफल झाली. कृपया फोटो सरळ, जवळून आणि प्रकाशात पुन्हा upload करा."
           },
           { status: 400 }
@@ -428,7 +429,46 @@ export async function POST(request) {
       );
     }
 
-    // GPT-4o Vision is primary; no secondary comparison needed
+    if (result.extractionMode !== "openai_vision_direct") {
+      const fallbackDecision = getVisionFallbackDecision(result.data);
+
+      if (fallbackDecision.shouldFallback) {
+        fallbackMeta = {
+          ...fallbackMeta,
+          attempted: true,
+          reason: fallbackDecision.reasons.slice(0, 6).join(" | ") || "Financial validation needs second pass"
+        };
+
+        try {
+          const fallbackResult = await structureSlipImageWithGPT({
+            imageBase64,
+            mediaType,
+            fallbackReason: fallbackMeta.reason
+          });
+          const choice = chooseBestExtraction(result, fallbackResult);
+
+          fallbackMeta = {
+            ...fallbackMeta,
+            used: choice.selected === "fallback",
+            primaryScore: choice.primaryScore,
+            fallbackScore: choice.fallbackScore
+          };
+
+          if (choice.selected === "fallback") {
+            result = fallbackResult;
+            ocr = {
+              ...ocr,
+              provider: "google_vision+openai_vision_direct"
+            };
+          }
+        } catch (fallbackError) {
+          fallbackMeta = {
+            ...fallbackMeta,
+            error: fallbackError.message || "Direct GPT Vision fallback failed"
+          };
+        }
+      }
+    }
 
     const audit = await createOcrAuditLog(supabase, {
       farm_id: farmId,
